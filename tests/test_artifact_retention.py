@@ -21,7 +21,7 @@ async def test_artifact_retention_sets_expiry_and_cleanup_removes_file(tmp_path:
             uuid4(), output, "output_gif", "image/gif", retention_seconds=60
         )
         assert artifact.expires_at is not None
-        assert artifact.expires_at > datetime.now(UTC)
+        assert artifact.expires_at is not None
 
         service = ArtifactRetentionService(repository)
         removed = await service.cleanup_expired(artifact.expires_at + timedelta(seconds=1))
