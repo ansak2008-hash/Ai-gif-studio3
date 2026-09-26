@@ -31,11 +31,19 @@ class ProductionDesignGifEngine:
         x, y = pad_expression(str(design.motion.get("style", "none")), float(design.motion.get("amount", 8)), duration)
         if design.motion.get("style", "none") == "none":
             x, y = str(int(round(bounds.x))), str(int(round(bounds.y)))
-        vf = ",".join([
+        filters = [
             f"crop={max(1, int(crop['width']))}:{max(1, int(crop['height']))}:{max(0, int(crop['x']))}:{max(0, int(crop['y']))}",
             f"scale={max(1, int(bounds.width))}:{max(1, int(bounds.height))}:flags=lanczos",
             f"pad=320:320:x='{x}':y='{y}':color={design.background.get('color', '#111111')}:eval=frame",
-        ])
+        ]
+        if design.frame.get("style", "rounded") not in {"none", "transparent"}:
+            filters.append(f"drawbox=x=0:y=0:w=320:h=320:color={design.frame.get('color', '#ffffff')}@0.75:t=3")
+        for layer in design.layers:
+            filters.append(f"drawbox=x=0:y=0:w=320:h=320:color={layer.get('color', '#ffffff')}@{float(layer.get('opacity', 1.0))}:t={int(layer.get('thickness', 3))}")
+        if design.text is not None and design.text.get("enabled", True):
+            text = str(design.text.get("content", "")).replace("\\", "\\\\").replace(":", "\\:")
+            filters.append(f"drawtext=text='{text}':fontsize={int(design.text.get('size', 24))}:fontcolor={design.text.get('color', '#ffffff')}:x={int(design.text.get('x', 16))}:y={int(design.text.get('y', 280))}:box=1:boxcolor=black@0.35:boxborderw=6")
+        vf = ",".join(filters)
         palette = target.with_suffix(".palette.png")
         try:
             for fps in self.quality.ladder(settings.fps):
