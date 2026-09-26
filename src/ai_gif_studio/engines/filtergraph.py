@@ -20,8 +20,11 @@ def build_filterchain(filters: Iterable[str]) -> str:
             raise TypeError(f"Filter at index {index} is not str: {type(value)}")
         if not value.strip():
             raise ValueError(f"Empty filter at index {index}")
-        if ";" in value:
-            raise ValueError("Filter-chain items must not contain ';'; use build_filtergraph")
+        if any(token in value for token in (";", "[", "]")):
+            raise ValueError(
+                "Filter-chain items must not contain graph separators or labels; "
+                "use build_filtergraph for multi-stream graphs"
+            )
     return ",".join(parts)
 
 
