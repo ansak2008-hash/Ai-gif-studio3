@@ -9,6 +9,7 @@ from ai_gif_studio.engines.design import DesignGifEngine
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_design_gif_real_pipeline(tmp_path: Path):
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
