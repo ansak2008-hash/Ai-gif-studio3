@@ -15,7 +15,7 @@ class CropOnlyEngine:
         for fps in ladder:
             palette=target.with_suffix(".palette.png")
             vf=f"fps={fps},crop='min(iw,ih)':'min(iw,ih)',scale={self.render.canvas_width}:{self.render.canvas_height}:flags=lanczos"
-            await self.ffmpeg.run(["-ss",f"{start:.3f}","-t",f"{duration:.3f}","-i",str(source),"-vf",vf+",palettegen=max_colors={self.render.palette_colors}:stats_mode=diff",str(palette)])
+            await self.ffmpeg.run(["-ss",f"{start:.3f}","-t",f"{duration:.3f}","-i",str(source),"-vf",vf+f",palettegen=max_colors={self.render.palette_colors}:stats_mode=diff",str(palette)])
             await self.ffmpeg.run(["-ss",f"{start:.3f}","-t",f"{duration:.3f}","-i",str(source),"-i",str(palette),"-lavfi",f"{vf}[x];[x][1:v]paletteuse=dither=sierra2_4a","-an","-loop","0",str(target)])
             palette.unlink(missing_ok=True)
             if target.exists() and target.stat().st_size<=settings.max_bytes: return target
