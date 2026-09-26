@@ -28,6 +28,12 @@ class IntakeService:
             raise IntakeError("This user is not authorized to use this bot.")
         if submission.file_size_bytes > self._max_upload_bytes:
             raise IntakeError("This video exceeds the configured upload limit.")
+        if submission.source_message_id is not None:
+            existing = await self._repository.get_by_submission_key(
+                submission.submitted_by, submission.source_message_id
+            )
+            if existing is not None:
+                return existing
         if await self._repository.count_active() >= self._max_queue_depth:
             raise IntakeError("The processing queue is temporarily full. Please try again shortly.")
         return await self._repository.create(submission)
