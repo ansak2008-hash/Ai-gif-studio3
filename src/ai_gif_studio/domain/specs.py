@@ -5,14 +5,14 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-DESIGN_SPEC_VERSION = 3
+DESIGN_SPEC_VERSION = 2
 PROCESSING_SETTINGS_VERSION = 2
 HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
 
 
-def _validate_color(value: str) -> str:
+def _validate_color(value: str, label: str = "color") -> str:
     if not HEX_COLOR.fullmatch(value):
-        raise ValueError("color must be a 3- or 6-digit hex color")
+        raise ValueError(f"{label} must be a 3- or 6-digit hex color")
     return value
 
 
@@ -31,7 +31,7 @@ class DesignSpec(BaseModel):
     @field_validator("schema_version")
     @classmethod
     def supported_version(cls, value: int) -> int:
-        if value not in {1, 2, DESIGN_SPEC_VERSION}:
+        if value not in {1, 2}:
             raise ValueError(f"unsupported DesignSpec schema version: {value}")
         return DESIGN_SPEC_VERSION
 
@@ -43,8 +43,8 @@ class DesignSpec(BaseModel):
             value = float(focus.get(axis, 0.5))
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"crop focus {axis} must be between 0 and 1")
-        _validate_color(str(self.background.get("color", "#111111")))
-        _validate_color(str(self.frame.get("color", "#ffffff")))
+        _validate_color(str(self.background.get("color", "#111111")), "background color")
+        _validate_color(str(self.frame.get("color", "#ffffff")), "frame color")
         motion_style = str(self.motion.get("style", "none"))
         if motion_style not in {"none", "float", "pan"}:
             raise ValueError("motion style must be none, float, or pan")
@@ -55,7 +55,7 @@ class DesignSpec(BaseModel):
         for layer in self.layers:
             if str(layer.get("type", "")) not in {"shape", "border", "accent"}:
                 raise ValueError("unsupported design layer type")
-            _validate_color(str(layer.get("color", "#ffffff")))
+            _validate_color(str(layer.get("color", "#ffffff")), "layer color")
             if not 0.0 <= float(layer.get("opacity", 1.0)) <= 1.0:
                 raise ValueError("layer opacity must be between 0 and 1")
             if not 1 <= int(layer.get("thickness", 3)) <= 20:
@@ -65,7 +65,7 @@ class DesignSpec(BaseModel):
                 raise ValueError("text content must be at most 160 characters")
             if not 10 <= int(self.text.get("size", 24)) <= 72:
                 raise ValueError("text size must be between 10 and 72")
-            _validate_color(str(self.text.get("color", "#ffffff")))
+            _validate_color(str(self.text.get("color", "#ffffff")), "text color")
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> "DesignSpec":
