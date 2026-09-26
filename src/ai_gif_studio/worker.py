@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from uuid import UUID
 
@@ -13,6 +14,9 @@ from ai_gif_studio.database import Database
 from ai_gif_studio.database.repositories import ArtifactRepository, JobStepRepository, SqlAlchemyJobRepository
 from ai_gif_studio.engines.design_production2 import ProductionDesignGifEngine
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
+from ai_gif_studio.observability import stage
+
+logger = logging.getLogger(__name__)
 
 
 async def process_job(ctx, job_id: str):
@@ -27,27 +31,23 @@ async def process_job(ctx, job_id: str):
         repo = SqlAlchemyJobRepository(db.session_factory)
         job = await repo.get(UUID(job_id))
         if job is None:
+            logger.warning("job_missing job_id=%s", job_id)
             return {"status": "missing", "job_id": job_id}
         source = settings.temp_directory / f"{job.id}.source"
         target = settings.storage_directory / f"{job.id}.gif"
         source.parent.mkdir(parents=True, exist_ok=True)
         target.parent.mkdir(parents=True, exist_ok=True)
-        tg_file = await bot.get_file(job.submission.telegram_file_id)
-        await bot.download(tg_file, destination=source)
-        workflow = CreativeWorkflow(
-            repo,
-            JobStepRepository(db.session_factory),
-            ArtifactRepository(db.session_factory),
-            ProductionDesignGifEngine(
-                FFmpegService(settings.ffmpeg_binary, settings.ffprobe_binary, settings.worker_timeout_seconds)
-            ),
-        )
-        result = await workflow.run(UUID(job_id), source, target)
-        await bot.send_document(job.submission.submitted_by, FSInputFile(result.artifact_path))
+        async with stage(job.id, "download"):
+            tg_file = await bot.get_file(job.submission.telegram_file_id)
+            await bot.download(tg_file, destination=source)
+        workflow = CreativeWorkflow(repo, JobStepRepository(db.session_factory), ArtifactRepository(db.session_factory), ProductionDesignGifEngine(FFmpegService(settings.ffmpeg_binary, settings.ffprobe_binary, settings.worker_timeout_seconds)))
+        async with stage(job.id, "render"):
+            result = await workflow.run(UUID(job_id), source, target)
+        async with stage(job.id, "delivery"):
+            await bot.send_document(job.submission.submitted_by, FSInputFile(result.artifact_path))
         return {"status": "completed", "job_id": job_id, "size_bytes": result.size_bytes}
     finally:
-        if source is not None:
-            source.unlink(missing_ok=True)
+        if source is not None: source.unlink(missing_ok=True)
         await bot.session.close()
         await db.dispose()
 
