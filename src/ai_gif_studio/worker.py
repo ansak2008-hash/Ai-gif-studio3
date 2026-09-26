@@ -1,0 +1,50 @@
+from __future__ import annotations
+
+from pathlib import Path
+from uuid import UUID
+
+from arq.connections import RedisSettings
+from aiogram import Bot
+
+from ai_gif_studio.application import CreativeWorkflow
+from ai_gif_studio.configuration import get_settings
+from ai_gif_studio.database import Database
+from ai_gif_studio.database.repositories import ArtifactRepository, JobStepRepository, SqlAlchemyJobRepository
+from ai_gif_studio.engines.design_production2 import ProductionDesignGifEngine
+from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
+
+
+async def process_job(ctx, job_id: str):
+    settings = get_settings()
+    db = Database(settings.database_url)
+    bot = Bot(settings.telegram_bot_token or "")
+    try:
+        repo = SqlAlchemyJobRepository(db.session_factory)
+        job = await repo.get(UUID(job_id))
+        if job is None:
+            return {"status": "missing", "job_id": job_id}
+        source = settings.temp_directory / f"{job.id}.source"
+        target = settings.storage_directory / f"{job.id}.gif"
+        source.parent.mkdir(parents=True, exist_ok=True)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        tg_file = await bot.get_file(job.submission.telegram_file_id)
+        await bot.download(tg_file, destination=source)
+        workflow = CreativeWorkflow(
+            repo,
+            JobStepRepository(db.session_factory),
+            ArtifactRepository(db.session_factory),
+            ProductionDesignGifEngine(FFmpegService(settings.ffmpeg_binary, settings.ffprobe_binary, settings.worker_timeout_seconds)),
+        )
+        result = await workflow.run(UUID(job_id), source, target)
+        await bot.send_document(job.submission.submitted_by, result.artifact_path)
+        return {"status": "completed", "job_id": job_id, "size_bytes": result.size_bytes}
+    finally:
+        source.unlink(missing_ok=True) if 'source' in locals() else None
+        await bot.session.close()
+        await db.dispose()
+
+
+class WorkerSettings:
+    functions = [process_job]
+    redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
+    job_timeout = get_settings().worker_timeout_seconds + 30
