@@ -63,7 +63,7 @@ async def test_validates_real_gif_geometry(tmp_path: Path):
         check=True,
     )
     validator = OutputValidator(FFmpegService(timeout=30))
-    assert await validator.validate_gif(out, 2_400_000)
+    assert await validator.validate_gif(out, 2_400_000, expected_fps=8, expected_duration=1.0, duration_tolerance=0.35)
 
 
 def test_sha256_is_deterministic(tmp_path: Path):
