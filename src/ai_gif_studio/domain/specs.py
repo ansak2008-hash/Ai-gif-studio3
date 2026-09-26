@@ -45,7 +45,13 @@ class DesignSpec(BaseModel):
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"crop focus {axis} must be between 0 and 1")
         _validate_color(str(self.background.get("color", "#111111")), "background color")
+        if str(self.background.get("animation", "none")) not in {"none", "pulse", "sweep", "gradient"}:
+            raise ValueError("unsupported background animation")
         _validate_color(str(self.frame.get("color", "#ffffff")), "frame color")
+        if str(self.frame.get("shape", "rounded")) not in {"rect", "rounded", "rounded-rect", "circle"}:
+            raise ValueError("unsupported frame shape")
+        if not 0 <= float(self.frame.get("radius", 24)) <= 160:
+            raise ValueError("frame radius must be between 0 and 160")
         motion_style = str(self.motion.get("style", "none"))
         if motion_style not in {"none", "float", "pan"}:
             raise ValueError("motion style must be none, float, or pan")
@@ -78,6 +84,8 @@ class DesignSpec(BaseModel):
                 raise ValueError("typography size must be between 10 and 120")
             if not 0 <= int(self.typography.get("depth", 6)) <= 16:
                 raise ValueError("typography depth must be between 0 and 16")
+            if str(self.typography.get("animation", "none")) not in {"none", "fade", "slide", "pulse", "shine"}:
+                raise ValueError("unsupported typography animation")
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> "DesignSpec":
