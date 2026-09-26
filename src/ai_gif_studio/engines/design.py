@@ -12,9 +12,9 @@ class DesignGifEngine:
             if fps<=0: continue
             vf=f"fps={fps},crop='min(iw,ih)':'min(iw,ih)',scale={size}:{size}:flags=lanczos,pad={self.render.canvas_width}:{self.render.canvas_height}:(ow-iw)/2:(oh-ih)/2:color={bg}"
             if design.frame.get("style")!="none":
-                vf += ",drawbox=x=0:y=0:w={self.render.canvas_width}:h={self.render.canvas_height}:color=#ffffff@0.75:t=3"
+                vf += f",drawbox=x=0:y=0:w={self.render.canvas_width}:h={self.render.canvas_height}:color=#ffffff@0.75:t=3"
             palette=target.with_suffix(".palette.png")
-            await self.ffmpeg.run(["-ss",f"{start:.3f}","-t",f"{duration:.3f}","-i",str(source),"-vf",vf+",palettegen=max_colors=256:stats_mode=diff",str(palette)])
+            await self.ffmpeg.run(["-ss",f"{start:.3f}","-t",f"{duration:.3f}","-i",str(source),"-vf",vf+",palettegen=max_colors={self.render.palette_colors}:stats_mode=diff",str(palette)])
             await self.ffmpeg.run(["-ss",f"{start:.3f}","-t",f"{duration:.3f}","-i",str(source),"-i",str(palette),"-lavfi",f"{vf}[x];[x][1:v]paletteuse=dither=sierra2_4a","-an","-loop","0",str(target)])
             palette.unlink(missing_ok=True)
             if target.exists() and target.stat().st_size<=settings.max_bytes:return target
