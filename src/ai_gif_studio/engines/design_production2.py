@@ -4,8 +4,8 @@ from pathlib import Path
 
 from ai_gif_studio.configuration.render import RenderConfiguration
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
-from ai_gif_studio.engines.composition import square_layout
-from ai_gif_studio.engines.styles import background_filters, frame_filters
+from ai_gif_studio.engines.composition import media_mask_filter, square_layout
+from ai_gif_studio.engines.styles import animated_background_filters, background_filters, frame_filters
 from ai_gif_studio.engines.typography import TypographyRenderer
 from ai_gif_studio.quality_engine import QualityEngine
 
@@ -42,37 +42,74 @@ class ProductionDesignGifEngine:
             crop_x, crop_y = str(base_x), str(base_y)
         bg = design.background
         bg_color = str(bg.get("color", "#111111"))
-        filters = [
-            f"crop={crop_w}:{crop_h}:{crop_x}:{crop_y}",
-            f"scale={max(1, int(bounds.width))}:{max(1, int(bounds.height))}:flags=lanczos",
-            f"pad=320:320:{int(bounds.x)}:{int(bounds.y)}:color={bg_color}",
+        shape = str(design.frame.get("shape", design.crop.get("shape", layout.get("shape", "rounded"))))
+        if shape not in {"rect", "rounded", "rounded-rect", "circle"}:
+            shape = "rounded"
+        mask = media_mask_filter(
+            Bounds(0, 0, bounds.width, bounds.height),
+            shape,
+            float(design.frame.get("radius", layout.get("radius", 24))),
+        )
+        typography_filters = []
+        if design.typography is not None:
+            typography_filters = await TypographyRenderer().filters(design.typography, target.parent)
+        overlay_x, overlay_y = int(bounds.x), int(bounds.y)
+        base_filters = [
+            f"[0:v]crop={crop_w}:{crop_h}:{crop_x}:{crop_y},scale={max(1, int(bounds.width))}:{max(1, int(bounds.height))}:flags=lanczos,{mask}[fg]",
+            f"color=c={bg_color}:s=320x320:r=30:d={duration:.3f}[bg]",
         ]
-        filters.extend(background_filters(bg, bounds))
-        filters.extend(frame_filters(design.frame))
-        for layer in design.layers:
-            filters.append(
-                f"drawbox=x=0:y=0:w=320:h=320:color={layer.get('color', '#ffffff')}@"
-                f"{float(layer.get('opacity', 1.0))}:t={int(layer.get('thickness', 3))}"
-            )
+        base_filters.extend(
+            [
+                f"[bg]{';'.join(animated_background_filters(bg, bounds, duration))}[bgstyled]"
+                if animated_background_filters(bg, bounds, duration)
+                else "[bg]null[bgstyled]",
+            ]
+        )
+        composition_filters = [
+            f"[bgstyled][fg]overlay=x={overlay_x}:y={overlay_y}:shortest=1[composed]",
+        ]
+        composition_filters.extend(
+            f"[composed]{','.join(frame_filters(design.frame, animated=True))}[framed]"
+            if frame_filters(design.frame, animated=True)
+            else "[composed]null[framed]"
+        )
+        current = "framed"
+        if design.layers:
+            for idx, layer in enumerate(design.layers):
+                opacity = float(layer.get("opacity", 1.0))
+                thickness = int(layer.get("thickness", 3))
+                color = str(layer.get("color", "#ffffff"))
+                layer_type = str(layer.get("type", "accent"))
+                if layer_type == "border":
+                    layer_filter = f"drawbox=x={thickness}:y={thickness}:w={320-2*thickness}:h={320-2*thickness}:color={color}@{opacity}:t={thickness}"
+                elif layer_type == "accent":
+                    layer_filter = f"drawbox=x=0:y=0:w=320:h=320:color={color}@{opacity}:t={thickness}"
+                else:
+                    layer_filter = f"drawbox=x={int(layer.get('x', 0))}:y={int(layer.get('y', 0))}:w={max(1,int(layer.get('width', 32)))}:h={max(1,int(layer.get('height', 32)))}:color={color}@{opacity}:t=fill"
+                nxt = f"layer{idx}"
+                composition_filters.append(f"[{current}]{layer_filter}[{nxt}]")
+                current = nxt
         if design.text is not None and design.text.get("enabled", True):
             text = str(design.text.get("content", "")).replace("\\", "\\\\").replace(":", "\\:")
-            filters.append(
+            text_filter = (
                 f"drawtext=text='{text}':fontsize={int(design.text.get('size', 24))}:"
                 f"fontcolor={design.text.get('color', '#ffffff')}:x={int(design.text.get('x', 16))}:"
                 f"y={int(design.text.get('y', 280))}:box=1:boxcolor=black@0.35:boxborderw=6:text_shaping=1"
             )
-        overlay_file = target.parent / "typography.txt"
-        if design.typography is not None:
-            filters.extend(await TypographyRenderer().filters(design.typography, target.parent))
-        vf = ",".join(filters)
+            composition_filters.append(f"[{current}]{text_filter}[texted]")
+            current = "texted"
+        if typography_filters:
+            composition_filters.append(f"[{current}]{','.join(typography_filters)}[out]")
+        else:
+            composition_filters.append(f"[{current}]null[out]")
+        vf = ";".join(base_filters + composition_filters)
         palette = target.with_suffix(".palette.png")
         try:
             for fps in self.quality.ladder(settings.fps):
-                await self.ffmpeg.run(["-ss", f"{start:.3f}", "-t", f"{duration:.3f}", "-i", str(source), "-vf", f"fps={fps},{vf},palettegen=max_colors={settings.palette_colors}:stats_mode=diff", str(palette)])
-                await self.ffmpeg.run(["-ss", f"{start:.3f}", "-t", f"{duration:.3f}", "-i", str(source), "-i", str(palette), "-lavfi", f"{vf},fps={fps}[x];[x][1:v]paletteuse=dither=sierra2_4a", "-an", "-loop", "0", str(target)])
+                await self.ffmpeg.run(["-ss", f"{start:.3f}", "-t", f"{duration:.3f}", "-i", str(source), "-filter_complex", f"{vf};[out]fps={fps},palettegen=max_colors={settings.palette_colors}:stats_mode=diff[pal]", "-map", "[pal]", str(palette)])
+                await self.ffmpeg.run(["-ss", f"{start:.3f}", "-t", f"{duration:.3f}", "-i", str(source), "-i", str(palette), "-filter_complex", f"{vf};[out]fps={fps}[x];[x][1:v]paletteuse=dither=sierra2_4a[outgif]", "-map", "[outgif]", "-an", "-loop", "0", str(target)])
                 if (await self.quality.inspect(target, self.ffmpeg, settings.max_bytes, selected_fps=fps)).valid:
                     return target
             raise ValueError("designed GIF exceeds quality limits")
         finally:
             palette.unlink(missing_ok=True)
-            overlay_file.unlink(missing_ok=True)
