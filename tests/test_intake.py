@@ -14,6 +14,9 @@ class FakeRepository:
         assert self.job is not None
         return self.job
 
+    async def count_active(self) -> int:
+        return 0
+
 
 @pytest.mark.asyncio
 async def test_intake_rejects_video_larger_than_limit() -> None:
