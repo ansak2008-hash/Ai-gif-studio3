@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
-import imghdr, subprocess
+import subprocess
 class OutputValidator:
     def validate_gif(self,path:Path,max_bytes:int,width:int=320,height:int=320):
         if not path.exists() or path.stat().st_size>max_bytes: return False
