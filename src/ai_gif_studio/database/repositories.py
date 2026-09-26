@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from mimetypes import guess_type
 from pathlib import Path
 from typing import Protocol
@@ -138,6 +138,57 @@ class SqlAlchemyJobRepository:
             await session.commit()
         return result.rowcount == 1
 
+    async def recover_stale_processing(
+        self,
+        cutoff: datetime,
+        max_retries: int = 2,
+    ) -> int:
+        recovered = 0
+        async with self._session_factory() as session:
+            rows = (
+                await session.scalars(
+                    select(JobStepRecord)
+                    .join(ProcessingJobRecord, JobStepRecord.job_id == ProcessingJobRecord.id)
+                    .where(
+                        ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                        JobStepRecord.status == "running",
+                        JobStepRecord.started_at.is_not(None),
+                        JobStepRecord.started_at <= cutoff,
+                    )
+                    .order_by(JobStepRecord.started_at.asc())
+                )
+            ).all()
+            for step in rows:
+                if step.retry_count >= max_retries:
+                    await session.execute(
+                        update(ProcessingJobRecord)
+                        .where(
+                            ProcessingJobRecord.id == step.job_id,
+                            ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                        )
+                        .values(status=JobStatus.FAILED.value)
+                    )
+                    step.status = "failed"
+                    step.completed_at = datetime.now(UTC)
+                    step.error = "worker lease expired; retry limit reached"
+                    continue
+                result = await session.execute(
+                    update(ProcessingJobRecord)
+                    .where(
+                        ProcessingJobRecord.id == step.job_id,
+                        ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                    )
+                    .values(status=JobStatus.QUEUED.value)
+                )
+                if result.rowcount:
+                    step.status = "failed"
+                    step.completed_at = datetime.now(UTC)
+                    step.retry_count += 1
+                    step.error = "worker lease expired; job requeued"
+                    recovered += 1
+            await session.commit()
+        return recovered
+
     async def get_design_spec(self, job_id: UUID) -> DesignSpec:
         async with self._session_factory() as session:
             row = await session.scalar(select(DesignSpecRecord).where(DesignSpecRecord.job_id == str(job_id)))
@@ -204,6 +255,23 @@ class JobStepRepository:
 
 
 class ArtifactRepository:
+    async def get_expired(self, now: datetime | None = None) -> list[ArtifactRecord]:
+        cutoff = now or datetime.now(UTC)
+        async with self._session_factory() as session:
+            result = await session.scalars(
+                select(ArtifactRecord)
+                .where(ArtifactRecord.expires_at.is_not(None), ArtifactRecord.expires_at <= cutoff)
+                .order_by(ArtifactRecord.expires_at.asc())
+            )
+            return list(result.all())
+
+    async def delete(self, artifact_id: str) -> None:
+        async with self._session_factory() as session:
+            row = await session.scalar(select(ArtifactRecord).where(ArtifactRecord.artifact_id == artifact_id))
+            if row is not None:
+                await session.delete(row)
+                await session.commit()
+
     def __init__(self, session_factory: async_sessionmaker) -> None:
         self._session_factory = session_factory
 
@@ -223,6 +291,7 @@ class ArtifactRepository:
         artifact_type: str,
         mime_type: str,
         metadata: dict | None = None,
+        retention_seconds: int | None = None,
     ) -> ArtifactRecord:
         if not path.is_file():
             raise FileNotFoundError(path)
@@ -253,10 +322,11 @@ class ArtifactRepository:
                     raise ValueError("artifact path already registered with different content")
                 return existing
 
+            expires_at = (datetime.now(UTC) + timedelta(seconds=retention_seconds)) if retention_seconds is not None else None
             row = ArtifactRecord(
                 artifact_id=str(uuid4()), job_id=str(job_id), type=artifact_type,
                 storage_path=str(path), mime_type=mime_type, size_bytes=size,
-                sha256=sha256, created_at=datetime.now(UTC), metadata=metadata or {},
+                sha256=sha256, created_at=datetime.now(UTC), expires_at=expires_at, metadata=metadata or {},
             )
             session.add(row)
             await session.commit()
