@@ -39,12 +39,22 @@ def validate_filtergraph_labels(graph: str) -> str:
         labels = _LABEL_RE.findall(statement)
         if not labels:
             continue
-        first_filter = statement.find(labels[0])
         input_labels = []
-        prefix = statement[:first_filter]
-        if prefix:
-            input_labels = labels[: len(_LABEL_RE.findall(prefix))]
-        output_labels = labels[len(input_labels):]
+        cursor = 0
+        for match in _LABEL_RE.finditer(statement):
+            if match.start() != cursor:
+                break
+            input_labels.append(match.group(1))
+            cursor = match.end()
+        output_labels = []
+        cursor = len(statement)
+        matches = list(_LABEL_RE.finditer(statement))
+        for match in reversed(matches):
+            if match.end() != cursor:
+                break
+            output_labels.append(match.group(1))
+            cursor = match.start()
+        output_labels.reverse()
         for label in output_labels:
             if label in defined:
                 raise ValueError(f"duplicate filtergraph output label: [{label}]")
