@@ -5,7 +5,7 @@ from sqlalchemy import select, update
 
 from ai_gif_studio.database.repositories import JobStepRepository, SqlAlchemyJobRepository
 from ai_gif_studio.database.session import Database
-from ai_gif_studio.database.tables import JobStepRecord, ProcessingJobRecord
+from ai_gif_studio.database.tables import JobStepRecord
 from ai_gif_studio.models import JobStatus, ProcessingMode, VideoSubmission
 
 
