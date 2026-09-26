@@ -24,3 +24,8 @@ class IntakeService:
         if submission.file_size_bytes > self._max_upload_bytes:
             raise IntakeError("This video exceeds the configured upload limit.")
         return await self._repository.create(submission)
+
+    async def mark_queued(self, job: ProcessingJob) -> None:
+        setter = getattr(self._repository, "set_status", None)
+        if setter is not None:
+            await setter(job.id, "queued")
