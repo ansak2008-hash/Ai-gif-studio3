@@ -25,6 +25,9 @@ CAPABILITIES = {
         Capability("motion", CapabilityState.AVAILABLE, ("ffmpeg",), "Bounded float/pan motion."),
         Capability("layers", CapabilityState.AVAILABLE, ("ffmpeg",), "Bounded decorative layers."),
         Capability("text", CapabilityState.AVAILABLE, ("ffmpeg-drawtext",), "Bounded text overlay."),
+        Capability("typography", CapabilityState.AVAILABLE, ("ffmpeg-drawtext",), "Arabic/Latin typography with bounded materials and depth."),
+        Capability("frames", CapabilityState.AVAILABLE, ("ffmpeg-drawbox",), "Deterministic decorative frame presets."),
+        Capability("backgrounds", CapabilityState.AVAILABLE, ("ffmpeg",), "Deterministic background presets."),
         Capability("quality_gate", CapabilityState.AVAILABLE, ("ffmpeg",), "Adaptive FPS and output validation."),
         *[
             Capability(name, CapabilityState.PLANNED, ("ai-provider", "verified-weights"))

@@ -5,6 +5,8 @@ from pathlib import Path
 from ai_gif_studio.configuration.render import RenderConfiguration
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
 from ai_gif_studio.engines.composition import square_layout
+from ai_gif_studio.engines.styles import background_filters, frame_filters
+from ai_gif_studio.engines.typography import TypographyRenderer
 from ai_gif_studio.quality_engine import QualityEngine
 
 
@@ -38,18 +40,30 @@ class ProductionDesignGifEngine:
             crop_x, crop_y = f"{base_x}+(iw-{crop_w}-{base_x})*t/{duration:.3f}", str(base_y)
         else:
             crop_x, crop_y = str(base_x), str(base_y)
+        bg = design.background
+        bg_color = str(bg.get("color", "#111111"))
         filters = [
             f"crop={crop_w}:{crop_h}:{crop_x}:{crop_y}",
             f"scale={max(1, int(bounds.width))}:{max(1, int(bounds.height))}:flags=lanczos",
-            f"pad=320:320:{int(bounds.x)}:{int(bounds.y)}:color={design.background.get('color', '#111111')}",
+            f"pad=320:320:{int(bounds.x)}:{int(bounds.y)}:color={bg_color}",
         ]
-        if design.frame.get("style", "rounded") not in {"none", "transparent"}:
-            filters.append(f"drawbox=x=0:y=0:w=320:h=320:color={design.frame.get('color', '#ffffff')}@0.75:t=3")
+        filters.extend(background_filters(bg, bounds))
+        filters.extend(frame_filters(design.frame))
         for layer in design.layers:
-            filters.append(f"drawbox=x=0:y=0:w=320:h=320:color={layer.get('color', '#ffffff')}@{float(layer.get('opacity', 1.0))}:t={int(layer.get('thickness', 3))}")
+            filters.append(
+                f"drawbox=x=0:y=0:w=320:h=320:color={layer.get('color', '#ffffff')}@"
+                f"{float(layer.get('opacity', 1.0))}:t={int(layer.get('thickness', 3))}"
+            )
         if design.text is not None and design.text.get("enabled", True):
             text = str(design.text.get("content", "")).replace("\\", "\\\\").replace(":", "\\:")
-            filters.append(f"drawtext=text='{text}':fontsize={int(design.text.get('size', 24))}:fontcolor={design.text.get('color', '#ffffff')}:x={int(design.text.get('x', 16))}:y={int(design.text.get('y', 280))}:box=1:boxcolor=black@0.35:boxborderw=6")
+            filters.append(
+                f"drawtext=text='{text}':fontsize={int(design.text.get('size', 24))}:"
+                f"fontcolor={design.text.get('color', '#ffffff')}:x={int(design.text.get('x', 16))}:"
+                f"y={int(design.text.get('y', 280))}:box=1:boxcolor=black@0.35:boxborderw=6:text_shaping=1"
+            )
+        overlay_file = target.parent / "typography.txt"
+        if design.typography is not None:
+            filters.extend(await TypographyRenderer().filters(design.typography, target.parent))
         vf = ",".join(filters)
         palette = target.with_suffix(".palette.png")
         try:
@@ -61,3 +75,4 @@ class ProductionDesignGifEngine:
             raise ValueError("designed GIF exceeds quality limits")
         finally:
             palette.unlink(missing_ok=True)
+            overlay_file.unlink(missing_ok=True)

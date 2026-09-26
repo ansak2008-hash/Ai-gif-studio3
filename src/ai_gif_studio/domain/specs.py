@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-DESIGN_SPEC_VERSION = 2
+DESIGN_SPEC_VERSION = 3
 PROCESSING_SETTINGS_VERSION = 2
 HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
 
@@ -27,11 +27,12 @@ class DesignSpec(BaseModel):
     color: dict[str, Any] = Field(default_factory=lambda: {"policy": "adaptive"})
     layers: list[dict[str, Any]] = Field(default_factory=list)
     text: dict[str, Any] | None = None
+    typography: dict[str, Any] | None = None
 
     @field_validator("schema_version")
     @classmethod
     def supported_version(cls, value: int) -> int:
-        if value not in {1, 2}:
+        if value not in {1, 2, 3}:
             raise ValueError(f"unsupported DesignSpec schema version: {value}")
         return DESIGN_SPEC_VERSION
 
@@ -66,6 +67,17 @@ class DesignSpec(BaseModel):
             if not 10 <= int(self.text.get("size", 24)) <= 72:
                 raise ValueError("text size must be between 10 and 72")
             _validate_color(str(self.text.get("color", "#ffffff")), "text color")
+        if self.typography is not None:
+            if len(str(self.typography.get("content", ""))) > 160:
+                raise ValueError("typography content must be at most 160 characters")
+            if str(self.typography.get("style", "bold")) not in {"flat", "bold", "calligraphy", "3d", "extruded", "gold", "silver", "chrome", "neon"}:
+                raise ValueError("unsupported typography style")
+            if str(self.typography.get("material", "flat")) not in {"flat", "gold", "silver", "chrome", "neon"}:
+                raise ValueError("unsupported typography material")
+            if not 10 <= int(self.typography.get("size", 48)) <= 120:
+                raise ValueError("typography size must be between 10 and 120")
+            if not 0 <= int(self.typography.get("depth", 6)) <= 16:
+                raise ValueError("typography depth must be between 0 and 16")
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> "DesignSpec":
