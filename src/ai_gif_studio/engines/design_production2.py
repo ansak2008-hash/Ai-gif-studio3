@@ -5,7 +5,7 @@ from pathlib import Path
 from ai_gif_studio.configuration.render import RenderConfiguration
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
 from ai_gif_studio.engines.composition import Bounds, media_mask_filter, square_layout
-from ai_gif_studio.engines.filtergraph import build_filtergraph
+from ai_gif_studio.engines.filtergraph import build_filterchain, build_filtergraph
 from ai_gif_studio.engines.styles import animated_background_filters, frame_filters
 from ai_gif_studio.engines.typography import TypographyRenderer
 from ai_gif_studio.quality_engine import QualityEngine
@@ -52,8 +52,11 @@ class ProductionDesignGifEngine:
             float(design.frame.get("radius", layout.get("radius", 24))),
         )
         typography_filters = []
+        typography_file = target.with_name(f"{target.name}.typography.txt")
         if design.typography is not None:
-            typography_filters = await TypographyRenderer().filters(design.typography, target.parent)
+            typography_filters = await TypographyRenderer().filters(
+                design.typography, target.parent, textfile_name=typography_file.name
+            )
         overlay_x, overlay_y = int(bounds.x), int(bounds.y)
         base_filters = [
             f"[0:v]crop={crop_w}:{crop_h}:{crop_x}:{crop_y},scale={max(1, int(bounds.width))}:{max(1, int(bounds.height))}:flags=lanczos,{mask}[fg]",
@@ -61,16 +64,17 @@ class ProductionDesignGifEngine:
         ]
         background_chain = animated_background_filters(bg, bounds, duration)
         base_filters.append(
-            f"[bg]{','.join(background_chain)}[bgstyled]"
+            f"[bg]{build_filterchain(background_chain)}[bgstyled]"
             if background_chain
             else "[bg]null[bgstyled]"
         )
         composition_filters = [
             f"[bgstyled][fg]overlay=x={overlay_x}:y={overlay_y}:shortest=1[composed]",
         ]
-        composition_filters.extend(
-            f"[composed]{','.join(frame_filters(design.frame, animated=True))}[framed]"
-            if frame_filters(design.frame, animated=True)
+        frame_chain = frame_filters(design.frame, animated=True)
+        composition_filters.append(
+            f"[composed]{build_filterchain(frame_chain)}[framed]"
+            if frame_chain
             else "[composed]null[framed]"
         )
         current = "framed"
@@ -89,17 +93,21 @@ class ProductionDesignGifEngine:
                 nxt = f"layer{idx}"
                 composition_filters.append(f"[{current}]{layer_filter}[{nxt}]")
                 current = nxt
+        text_file = target.with_name(f"{target.name}.text.txt")
         if design.text is not None and design.text.get("enabled", True):
-            text = str(design.text.get("content", "")).replace("\\", "\\\\").replace(":", "\\:")
-            text_filter = (
-                f"drawtext=text='{text}':fontsize={int(design.text.get('size', 24))}:"
-                f"fontcolor={design.text.get('color', '#ffffff')}:x={int(design.text.get('x', 16))}:"
-                f"y={int(design.text.get('y', 280))}:box=1:boxcolor=black@0.35:boxborderw=6:text_shaping=1"
-            )
-            composition_filters.append(f"[{current}]{text_filter}[texted]")
-            current = "texted"
+            text = str(design.text.get("content", ""))
+            if text:
+                text_file.write_text(text, encoding="utf-8")
+                escaped_text_file = str(text_file).replace("\\", "\\\\").replace(":", "\\:")
+                text_filter = (
+                    f"drawtext=textfile={escaped_text_file}:fontsize={int(design.text.get('size', 24))}:"
+                    f"fontcolor={design.text.get('color', '#ffffff')}:x={int(design.text.get('x', 16))}:"
+                    f"y={int(design.text.get('y', 280))}:box=1:boxcolor=black@0.35:boxborderw=6:text_shaping=1"
+                )
+                composition_filters.append(f"[{current}]{text_filter}[texted]")
+                current = "texted"
         if typography_filters:
-            composition_filters.append(f"[{current}]{','.join(typography_filters)}[out]")
+            composition_filters.append(f"[{current}]{build_filterchain(typography_filters)}[out]")
         else:
             composition_filters.append(f"[{current}]null[out]")
         vf = build_filtergraph(base_filters + composition_filters)
@@ -113,3 +121,5 @@ class ProductionDesignGifEngine:
             raise ValueError("designed GIF exceeds quality limits")
         finally:
             palette.unlink(missing_ok=True)
+            text_file.unlink(missing_ok=True)
+            typography_file.unlink(missing_ok=True)
