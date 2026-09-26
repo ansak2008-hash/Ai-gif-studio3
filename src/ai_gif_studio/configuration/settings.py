@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Annotated
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class AppSettings(BaseSettings):
@@ -27,7 +28,7 @@ class AppSettings(BaseSettings):
     worker_timeout_seconds: int = Field(180, gt=0, le=900, validation_alias="APP_WORKER_TIMEOUT_SECONDS")
     redis_url: str = Field("redis://localhost:6379/0", validation_alias="APP_REDIS_URL")
     telegram_bot_token: str | None = Field(None, validation_alias="TELEGRAM_BOT_TOKEN")
-    telegram_allowed_user_ids: tuple[int, ...] = Field((), validation_alias="TELEGRAM_ALLOWED_USER_IDS")
+    telegram_allowed_user_ids: Annotated[tuple[int, ...], NoDecode] = Field((), validation_alias="TELEGRAM_ALLOWED_USER_IDS")
 
     @field_validator("telegram_allowed_user_ids", mode="before")
     @classmethod
