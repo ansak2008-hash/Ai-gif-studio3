@@ -9,7 +9,8 @@ class FFmpegService:
         env={**os.environ,"FFREPORT":"file=/dev/null","http_proxy":"","https_proxy":""}
         p=await asyncio.create_subprocess_exec(*args,stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.PIPE,env=env)
         try: out,err=await asyncio.wait_for(p.communicate(),timeout or self.timeout)
-        except asyncio.TimeoutError: p.kill(); await p.wait(); raise FFmpegError("ffmpeg timeout")
+        except asyncio.TimeoutError:
+            p.kill(); await p.wait(); raise FFmpegError("ffmpeg timeout") from None
         if p.returncode: raise FFmpegError((err or out).decode(errors="replace")[-4000:])
         return out,err
     async def probe(self,path:Path)->dict:
