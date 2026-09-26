@@ -1,6 +1,6 @@
-from ai_gif_studio.configuration.render import RenderConfiguration
 from __future__ import annotations
 from pathlib import Path
+from ai_gif_studio.configuration.render import RenderConfiguration
 from .quality import QualityEngine
 class CropOnlyEngine:
     def __init__(self,ffmpeg,quality=None,render=None): self.ffmpeg=ffmpeg; self.quality=quality or QualityEngine(); self.render=render or RenderConfiguration()
