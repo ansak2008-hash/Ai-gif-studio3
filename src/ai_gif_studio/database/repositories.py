@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from mimetypes import guess_type
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
@@ -143,6 +144,11 @@ class ArtifactRepository:
         self._session_factory = session_factory
 
     async def register(self, job_id: UUID, path: Path, artifact_type: str, mime_type: str):
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        detected_mime = guess_type(path.name)[0]
+        if detected_mime and detected_mime != mime_type:
+            raise ValueError(f"artifact MIME mismatch: expected {mime_type}, detected {detected_mime}")
         h = hashlib.sha256()
         size = 0
         with path.open("rb") as f:
