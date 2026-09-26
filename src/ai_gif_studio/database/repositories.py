@@ -138,6 +138,57 @@ class SqlAlchemyJobRepository:
             await session.commit()
         return result.rowcount == 1
 
+    async def recover_stale_processing(
+        self,
+        cutoff: datetime,
+        max_retries: int = 2,
+    ) -> int:
+        recovered = 0
+        async with self._session_factory() as session:
+            rows = (
+                await session.scalars(
+                    select(JobStepRecord)
+                    .join(ProcessingJobRecord, JobStepRecord.job_id == ProcessingJobRecord.id)
+                    .where(
+                        ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                        JobStepRecord.status == "running",
+                        JobStepRecord.started_at.is_not(None),
+                        JobStepRecord.started_at <= cutoff,
+                    )
+                    .order_by(JobStepRecord.started_at.asc())
+                )
+            ).all()
+            for step in rows:
+                if step.retry_count >= max_retries:
+                    await session.execute(
+                        update(ProcessingJobRecord)
+                        .where(
+                            ProcessingJobRecord.id == step.job_id,
+                            ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                        )
+                        .values(status=JobStatus.FAILED.value)
+                    )
+                    step.status = "failed"
+                    step.completed_at = datetime.now(UTC)
+                    step.error = "worker lease expired; retry limit reached"
+                    continue
+                result = await session.execute(
+                    update(ProcessingJobRecord)
+                    .where(
+                        ProcessingJobRecord.id == step.job_id,
+                        ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                    )
+                    .values(status=JobStatus.QUEUED.value)
+                )
+                if result.rowcount:
+                    step.status = "failed"
+                    step.completed_at = datetime.now(UTC)
+                    step.retry_count += 1
+                    step.error = "worker lease expired; job requeued"
+                    recovered += 1
+            await session.commit()
+        return recovered
+
     async def get_design_spec(self, job_id: UUID) -> DesignSpec:
         async with self._session_factory() as session:
             row = await session.scalar(select(DesignSpecRecord).where(DesignSpecRecord.job_id == str(job_id)))
