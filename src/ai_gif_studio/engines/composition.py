@@ -42,3 +42,24 @@ def media_mask_filter(bounds: Bounds, shape: str, radius: float = 24.0) -> str:
     else:
         expr = "255"
     return f"format=rgba,geq=lum='lum(X,Y)':cb='cb(X,Y)':cr='cr(X,Y)':a='{expr}'"
+
+def supported_input_aspect(width: int, height: int) -> str:
+    if width <= 0 or height <= 0:
+        raise ValueError("source dimensions must be positive")
+    ratio = width / height
+    if abs(ratio - 9 / 16) <= 0.03:
+        return "9:16"
+    if abs(ratio - 4 / 3) <= 0.03:
+        return "4:3"
+    if abs(ratio - 1.0) <= 0.03:
+        return "1:1"
+    return "other"
+
+
+def composition_contract(width: int, height: int) -> dict[str, object]:
+    """Return the fixed 320x320 composition contract for supported source ratios."""
+    aspect = supported_input_aspect(width, height)
+    if aspect == "other":
+        raise ValueError("unsupported source aspect ratio")
+    layout = square_layout(width, height)
+    return {"aspect": aspect, "canvas": {"width": 320, "height": 320}, "layout": layout}
