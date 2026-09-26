@@ -26,6 +26,7 @@ def create_router(intake_service: IntakeService, queue=None) -> Router:
                     content_type=video.mime_type,
                     file_size_bytes=video.file_size or 0,
                     submitted_by=message.from_user.id,
+                    source_message_id=message.message_id,
                 )
             )
             if queue is None:
