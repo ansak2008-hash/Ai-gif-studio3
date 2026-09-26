@@ -9,6 +9,7 @@ from arq.connections import RedisSettings
 
 from ai_gif_studio.configuration import AppSettings
 from ai_gif_studio.configuration.render import RenderConfiguration
+from ai_gif_studio.configuration.render import RenderConfiguration
 from ai_gif_studio.database import Database
 from ai_gif_studio.database.repositories import (
     ArtifactRepository,
@@ -17,7 +18,9 @@ from ai_gif_studio.database.repositories import (
 )
 from ai_gif_studio.domain.specs import ProcessingSettings
 from ai_gif_studio.engines.crop import CropOnlyEngine
+from ai_gif_studio.engines.design import DesignGifEngine
 from ai_gif_studio.engines.validator import OutputValidator
+from ai_gif_studio.domain.specs import DesignSpec
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 from ai_gif_studio.infrastructure.storage import ArtifactStorage
 
@@ -63,11 +66,14 @@ async def process_job(ctx, job_id: str, **_):
         await step_repo.complete(active_step)
 
         active_step = await step_repo.start(job.id, steps[2])
-        await CropOnlyEngine(ff).convert(
-            source,
-            output,
-            ProcessingSettings(max_duration_seconds=min(6, duration or 6)),
+        processing = ProcessingSettings(
+            max_duration_seconds=min(6, duration or 6),
+            max_bytes=RenderConfiguration().maximum_output_bytes,
         )
+        if job.submission.mode.value == "designed":
+            await DesignGifEngine(ff).convert(source, output, DesignSpec(), processing)
+        else:
+            await CropOnlyEngine(ff).convert(source, output, processing)
         await step_repo.complete(active_step)
 
         active_step = await step_repo.start(job.id, steps[3])
