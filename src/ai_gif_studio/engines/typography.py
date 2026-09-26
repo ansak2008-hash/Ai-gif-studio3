@@ -26,6 +26,25 @@ def resolve_font(script: str, weight: str = "regular") -> str:
             return path
     raise RuntimeError(f"no supported {key} font is installed")
 
+def _animation_expressions(animation: str, x: int, y: int) -> tuple[str, str]:
+    if animation == "fade":
+        return str(x), str(y) + ":alpha='1-exp(-8*t)'"
+    if animation == "slide":
+        return f"{x-80}+80*(1-exp(-6*t))", str(y)
+    if animation == "pulse":
+        return str(x), str(y) + ":alpha='0.72+0.28*(0.5+0.5*sin(2*PI*t/1.5))'"
+    if animation == "shine":
+        return str(x), str(y) + ":alpha='0.72+0.28*(0.5+0.5*sin(2*PI*t/1.2))'"
+    return str(x), str(y)
+
+
+def _drawtext(font: str, textfile: Path, size: int, color: str, x: str, y: str) -> str:
+    return (
+        f"drawtext=fontfile={font}:textfile={textfile}:text_shaping=1:"
+        f"fontsize={size}:fontcolor={color}:x={x}:y={y}"
+    )
+
+
 def render_text_filters(spec: dict, textfile: Path) -> list[str]:
     content = str(spec.get("content", ""))
     if not content:
@@ -33,18 +52,20 @@ def render_text_filters(spec: dict, textfile: Path) -> list[str]:
     script = str(spec.get("script", "arabic" if any("\u0600" <= c <= "\u06ff" for c in content) else "latin"))
     style = str(spec.get("style", "bold"))
     material = str(spec.get("material", "flat"))
+    animation = str(spec.get("animation", "none"))
     size = max(10, min(int(spec.get("size", 48)), 120))
     x, y = int(spec.get("x", 24)), int(spec.get("y", 240))
     font = resolve_font(script, "bold" if style in {"bold", "3d", "extruded", "gold", "silver", "chrome", "neon"} else "regular")
     palette = MATERIALS.get(material, MATERIALS["flat"])
+    ax, ay = _animation_expressions(animation, x, y)
     filters = []
     if style in {"3d", "extruded", "gold", "silver", "chrome"}:
         depth = max(2, min(int(spec.get("depth", 6)), 16))
         for offset in range(depth, 0, -1):
-            filters.append(f"drawtext=fontfile={font}:textfile={textfile}:text_shaping=1:fontsize={size}:fontcolor={palette['shadow']}:x={x+offset}:y={y+offset}")
-    filters.append(f"drawtext=fontfile={font}:textfile={textfile}:text_shaping=1:fontsize={size}:fontcolor={palette['fill']}:x={x}:y={y}")
+            filters.append(_drawtext(font, textfile, size, palette["shadow"], f"({ax})+{offset}", f"({ay})+{offset}"))
+    filters.append(_drawtext(font, textfile, size, palette["fill"], ax, ay))
     if material in {"gold", "silver", "chrome", "neon"}:
-        filters.append(f"drawtext=fontfile={font}:textfile={textfile}:text_shaping=1:fontsize={max(10, size-2)}:fontcolor={palette['highlight']}:x={x}:y={y-1}")
+        filters.append(_drawtext(font, textfile, max(10, size-2), palette["highlight"], ax, f"({ay})-1"))
     return filters
 
 class TypographyRenderer:
