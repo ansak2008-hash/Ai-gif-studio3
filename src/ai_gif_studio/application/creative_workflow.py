@@ -4,8 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID
 
-from ai_gif_studio.database.repositories import ArtifactRepository, JobStepRepository, SqlAlchemyJobRepository
-from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
+from ai_gif_studio.database.repositories import ArtifactRepository, JobStepRepository
 from ai_gif_studio.engines.design_production2 import ProductionDesignGifEngine
 from ai_gif_studio.models import JobStatus
 
