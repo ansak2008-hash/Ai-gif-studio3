@@ -59,7 +59,5 @@ def supported_input_aspect(width: int, height: int) -> str:
 def composition_contract(width: int, height: int) -> dict[str, object]:
     """Return the fixed 320x320 composition contract for supported source ratios."""
     aspect = supported_input_aspect(width, height)
-    if aspect == "other":
-        raise ValueError("unsupported source aspect ratio")
     layout = square_layout(width, height)
     return {"aspect": aspect, "canvas": {"width": 320, "height": 320}, "layout": layout}
