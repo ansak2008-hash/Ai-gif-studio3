@@ -41,8 +41,7 @@ def animated_background_filters(spec: dict[str, Any], bounds, duration: float) -
     x, y, w, h = int(bounds.x), int(bounds.y), int(bounds.width), int(bounds.height)
     if mode == "pulse":
         filters.append(
-            f"drawbox=x={x}:y={y}:w={w}:h={h}:color={spec.get('accent', '#ffffff')}@"
-            "0.10+0.08*(0.5+0.5*sin(2*PI*t/2)):t=fill"
+            f"drawbox=x={x}:y={y}:w={w}:h={h}:color={spec.get('accent', '#ffffff')}@0.12:t='2+3*(0.5+0.5*sin(2*PI*t/2))'
         )
     elif mode == "sweep":
         filters.append(
@@ -51,8 +50,8 @@ def animated_background_filters(spec: dict[str, Any], bounds, duration: float) -
         )
     elif mode == "gradient":
         filters.extend([
-            f"drawbox=x={x}:y={y}:w={w}:h={max(1,h//2)}:color={color}:t=fill"
-            for color in (spec.get("color", "#111111"), spec.get("secondary", "#202020"))
+            f"drawbox=x={x}:y={y}:w={w}:h={max(1,h//2)}:color={spec.get('color', '#111111')}:t=fill",
+            f"drawbox=x={x}:y={y + max(1,h//2)}:w={w}:h={max(1,h-max(1,h//2))}:color={spec.get('secondary', '#202020')}:t=fill"
         ])
     else:
         raise ValueError(f"unsupported background animation: {mode}")
@@ -79,7 +78,7 @@ def frame_filters(spec: dict[str, Any], animated: bool = False) -> list[str]:
     if style == "neon":
         if animated:
             return [
-                "drawbox=x=4:y=4:w=312:h=312:color=#ff3cf2@0.35+0.25*(0.5+0.5*sin(2*PI*t/1.4)):t=10",
+                "drawbox=x=4:y=4:w=312:h=312:color=#ff3cf2@0.45:t='6+6*(0.5+0.5*sin(2*PI*t/1.4))'",
                 "drawbox=x=8:y=8:w=304:h=304:color=#7df9ff:t=3",
             ]
         return ["drawbox=x=4:y=4:w=312:h=312:color=#ff3cf2@0.45:t=10", "drawbox=x=8:y=8:w=304:h=304:color=#7df9ff:t=3"]
