@@ -1,0 +1,1 @@
+"""Canvas composition extension boundary."""
