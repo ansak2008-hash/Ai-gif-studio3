@@ -16,7 +16,6 @@ def test_supported_aspects_share_fixed_square_canvas(width, height, expected):
 
 
 @pytest.mark.unit
-def test_unsupported_aspect_is_rejected():
+def test_other_aspect_remains_backward_compatible():
     assert supported_input_aspect(1920, 1080) == "other"
-    with pytest.raises(ValueError, match="unsupported source aspect"):
-        composition_contract(1920, 1080)
+    assert composition_contract(1920, 1080)["canvas"] == {"width": 320, "height": 320}
