@@ -110,16 +110,16 @@ class ProductionDesignGifEngine:
                         composition_filters.append(f"[{current}]{text_filter}[texted]")
                         current = "texted"
                 if typography_filters:
-                    composition_filters.append(f"[{current}]{build_filterchain(typography_filters)}[out]")
-                else:
-                    composition_filters.append(f"[{current}]null[out]")
+                    composition_filters.append(f"[{current}]{build_filterchain(typography_filters)}[typographed]")
+                    current = "typographed"
+                composition_filters.append(f"[{current}]scale=320:320:flags=lanczos[out]")
                 vf = build_filtergraph(base_filters + composition_filters)
                 palette = target.with_suffix(".palette.png")
                 try:
                     for fps in self.quality.ladder(settings.fps):
                         await self.ffmpeg.run(["-ss", f"{start:.3f}", "-t", f"{duration:.3f}", "-i", str(source), "-filter_complex", f"{vf};[out]fps={fps},palettegen=max_colors={settings.palette_colors}:stats_mode=diff[pal]", "-map", "[pal]", str(palette)])
                         await self.ffmpeg.run(["-ss", f"{start:.3f}", "-t", f"{duration:.3f}", "-i", str(source), "-i", str(palette), "-filter_complex", f"{vf};[out]fps={fps}[x];[x][1:v]paletteuse=dither=sierra2_4a[outgif]", "-map", "[outgif]", "-an", "-loop", "0", str(target)])
-                        if (await self.quality.inspect(target, self.ffmpeg, settings.max_bytes, selected_fps=fps)).valid:
+                        if (await self.quality.inspect(target, self.ffmpeg, settings.max_bytes, expected_duration=duration, selected_fps=fps)).valid:
                             return target
                     raise ValueError("designed GIF exceeds quality limits")
                 finally:
