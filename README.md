@@ -1,130 +1,42 @@
-# AI GIF Studio
+# AI Creative GIF Studio
 
-AI GIF Studio is a Python 3.11+ foundation for an extensible Telegram service that turns a
-user-provided video into a professional 320×320 GIF. The initial delivery deliberately
-establishes durable boundaries, persisted job intake, schemas, and configuration before
-implementing visual effects or GIF-quality tuning.
+Production-oriented modular monolith for Telegram video-to-GIF processing.
+
+## Current implementation
+- **Crop Only** is a real FFmpeg pipeline: centered six-second window, square crop, 320×320 Lanczos scaling, palette generation, GIF encoding, size validation and FPS fallback ladder.
+- **Design GIF foundation** preserves the PR2 composition engine and adds a dependency-free square composition adapter.
+- **Job lifecycle** uses durable queued/processing/completed/failed states and checkpoint-ready step records.
+- **Artifact Registry** tracks UUID-backed files, MIME type, size, SHA-256 and metadata; Redis is never used for file storage.
+- **DesignSpec / ProcessingSettings** are separate versioned documents.
+- **Capability Engine / Workflow Engine** are explicit registries rather than unstructured dictionaries.
+- **FFmpegService** owns process execution and does not accept shell command strings.
+- **SQLite + SQLAlchemy 2.x** is the development persistence layer; PostgreSQL is supported by changing the database URL.
+- **Alembic** migration scaffolding is included.
+- **Redis + Arq** is the queue boundary; workers are separate from Telegram update handling.
+- **FastAPI** exposes real /health and /ready endpoints.
+- **Model Registry / GPUResourceManager / AIProvider** are implemented as extension boundaries.
+- Background Removal is **not falsely marked production-ready**: no model is activated until the exact code and weight licenses and SHA-256 provenance are verified.
 
 ## Architecture
+Interfaces (Telegram / HTTP / future CLI) → Application → Domain → Infrastructure
 
-The application uses a `src/` package and dependency inversion at its integration points:
+Telegram handlers validate and enqueue; processing happens in workers. Engines do not import Telegram.
 
-```text
-Telegram update → IntakeService → JobRepository → processing pipeline
-                                      ↓
-                                  SQLite/PostgreSQL
-```
+## Run locally
+Requirements: Python 3.11+, FFmpeg/ffprobe and Redis for queued processing.
+Install with a Python 3.11 virtual environment, pip install -e '.[dev]', and copy .env.example to .env.
+Set TELEGRAM_BOT_TOKEN. For the queue worker, start Redis and run an Arq worker using ai_gif_studio.infrastructure.worker.WorkerSettings. The development database is SQLite.
 
-* `telegram/` owns aiogram routing and only translates Telegram updates to application calls.
-* `services/` coordinates use cases and depends on repository protocols, not Telegram types.
-* `models/` contains typed domain models; `schemas/` contains versioned, externally serializable
-  contracts.
-* Engine directories declare stable extension seams for the video, crop, composition,
-  background, frame, motion, colour, and quality domains. Their first implementation must be a
-  real processor—not a simulated success response.
-* `database/` provides SQLAlchemy persistence behind a repository protocol. SQLite is the
-  development default and the URL can be changed to PostgreSQL without changing callers.
-
-## Project layout
-
-| Directory | Responsibility |
-| --- | --- |
-| `telegram/` | Bot creation, routing, and Telegram-specific presentation. |
-| `video_processing/` | Video probes, decoding, encoding, and orchestration contracts. |
-| `crop_engine/` | Crop calculation and future subject-aware crop providers. |
-| `composition_engine/` | Canvas/layout decisions and DesignSpec interpretation. |
-| `background_engine/` | Background generation and compositing providers. |
-| `frame_engine/` | Borders, safe areas, and frame rendering. |
-| `motion_engine/` | Temporal effects and animation policies. |
-| `color_intelligence/` | Palette extraction and contrast decisions. |
-| `quality_engine/` | Output validation and quality policies. |
-| `configuration/` | One centralized typed settings source. |
-| `database/` | Database session, ORM records, and repositories. |
-| `logging/` | Structured logging setup. |
-| `models/`, `schemas/`, `services/`, `utilities/` | Domain types, contracts, use cases, and shared helpers. |
-| `tests/` | Fast contract and persistence tests. |
-
-## Versioned contracts
-
-`DesignSpec` and `ProcessingSettings` include an explicit `schema_version`. Their `from_payload`
-methods accept older versions and migrate them before validation. Future changes must add a
-migration rather than reinterpret old persisted JSON, preserving backwards compatibility.
-
-## Configuration and environment variables
-
-Configuration is read once from `.env` and the environment by `AppSettings`.
-
-| Variable | Purpose | Default |
-| --- | --- | --- |
-| `TELEGRAM_BOT_TOKEN` | Bot token (required to run polling). | — |
-| `TELEGRAM_ALLOWED_USER_IDS` | Optional comma-separated allowlist. | Empty (allow all) |
-| `APP_ENVIRONMENT` | Environment label. | `development` |
-| `APP_LOG_LEVEL` | Python log level. | `INFO` |
-| `APP_DATABASE_URL` | SQLAlchemy async database URL. | SQLite under `data/` |
-| `APP_TEMP_DIRECTORY` | Per-job workspace parent. | `./data/tmp` |
-| `APP_MAX_UPLOAD_BYTES` | Intake limit. | `52428800` |
-| `APP_FFMPEG_BINARY` | Future encoder executable location. | `ffmpeg` |
-
-Copy `.env.example` to `.env`; never commit tokens.
-
-## Installation
-
-```bash
-python3.11 -m venv .venv
-. .venv/bin/activate
-pip install -e '.[dev]'
-cp .env.example .env
-```
-
-## Running
-
-Set `TELEGRAM_BOT_TOKEN` in `.env`, then run:
-
-```bash
-ai-gif-studio
-```
-
-The application creates its database tables and starts long polling. `/start` explains the
-current intake capability. Sending a video creates a durable `received` job after size and
-allowlist checks. The bot intentionally does **not** claim conversion is complete until a real
-processing pipeline is connected.
-
-## Telegram integration
-
-`telegram.router.create_router` handles `/start` and videos. Authorization and file-size limits
-are application configuration, while Telegram file metadata is converted into a domain
-`VideoSubmission`. This keeps a future webhook adapter or a non-Telegram API independent of
-aiogram.
-
-## Processing pipeline
-
-The target pipeline is: ingest → probe → crop choice (including **crop-only** mode) → compose →
-background/frame/motion → palette and quality validation → GIF encode → delivery. `ProcessingMode`
-already models `designed` and `crop_only`; implementing a mode means providing a real pipeline
-implementation and registering it through the service boundary.
-
-## Design Engine
-
-`DesignSpec` is the durable description of design intent: a 320×320 canvas default, crop policy,
-background, frame, motion, and colour policy. `ProcessingSettings` is operational output policy.
-Separating these allows presets and AI suggestions to change design intent without silently
-changing output-processing limits.
-
-## Future extension points
-
-* **Presets / projects / variations:** add versioned aggregates referencing immutable
-  `DesignSpec` snapshots.
-* **Undo/redo:** persist commands or revision chains per project rather than overwriting specs.
-* **AI providers:** implement provider protocols in engine packages; providers receive typed input
-  and return validated schema data.
-* **Workers:** replace direct pipeline invocation with a queue consumer while preserving the
-  `ProcessingJob` repository contract.
-* **Database migrations:** introduce Alembic before the first schema migration in a deployed
-  environment.
-
-## Development checks
-
-```bash
+## Testing
 ruff check .
-pytest
-```
+pytest -q
+The integration test generates a synthetic MP4 with FFmpeg and exercises the actual video-to-GIF path. It is skipped only when FFmpeg is unavailable.
+
+## Security
+See docs/SECURITY.md. Production should run workers as an unprivileged user inside a resource-limited container with network egress disabled for media processing.
+
+## Model licensing gate
+See docs/MODEL_REGISTRY.md. Code and weight licenses are recorded separately; exact weights must be hash-pinned before activation.
+
+## Legacy PR reconciliation
+PR1 supplied the central render configuration contract; PR2 supplied the smart square composition algorithm; PR3 supplied the real crop-only FFmpeg strategy; PR4 supplied the Python modular foundation. Useful concepts are preserved rather than blindly merged, while the final runtime is consolidated around Python, domain/application boundaries, queue workers and infrastructure adapters.
