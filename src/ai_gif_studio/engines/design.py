@@ -86,13 +86,8 @@ class DesignGifEngine:
                 raise ValueError("text content is invalid")
             if text.get("enabled", True) and not str(text.get("content", "")):
                 raise ValueError("enabled text requires content")
-        motion_x = ""
-        motion_y = ""
-        if motion_style == "float":
-            motion_x = f"+{motion_amount * 20:.2f}*sin(2*PI*t/{max(duration, 0.1):.3f})"
-            motion_y = f"+{motion_amount * 12:.2f}*cos(2*PI*t/{max(duration, 0.1):.3f})"
-        elif motion_style == "pan":
-            motion_x = f"+{motion_amount * 28:.2f}*sin(2*PI*t/{max(duration, 0.1):.3f})"
+        if motion_style not in {"none", "float", "pan"}:
+            raise ValueError("unsupported motion style")
         filters = [
             f"crop={crop_w}:{crop_h}:{crop_x}:{crop_y}",
             f"scale={media_w}:{media_h}:flags=lanczos",
