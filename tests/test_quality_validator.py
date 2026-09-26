@@ -22,6 +22,7 @@ def test_rejects_empty_and_oversized_gif(tmp_path: Path):
     assert not validator.validate_basic_gif(oversized, 10)
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_validates_real_gif_geometry(tmp_path: Path):
     src = tmp_path / "in.mp4"
