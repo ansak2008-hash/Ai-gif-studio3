@@ -38,7 +38,7 @@ def frame_filters(spec: dict[str, Any]) -> list[str]:
     thickness = max(1, min(int(spec.get("thickness", 3)), 16))
     if style in {"none", "transparent"}:
         return []
-    if style in {"simple", "rounded", "classic"}:
+    if style in {"simple", "rounded", "rounded-rect", "classic"}:
         return [f"drawbox=x={thickness}:y={thickness}:w={320-2*thickness}:h={320-2*thickness}:color={color}@0.9:t={thickness}"]
     if style in {"double", "royal"}:
         return [f"drawbox=x=5:y=5:w=310:h=310:color={color}:t={thickness}", f"drawbox=x=13:y=13:w=294:h=294:color={second}:t={max(1, thickness-1)}"]
