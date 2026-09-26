@@ -1,0 +1,1 @@
+"""Colour-analysis extension boundary."""
