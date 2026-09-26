@@ -71,7 +71,6 @@ class DesignGifEngine:
         frame_color = str(design.frame.get("color", "#ffffff"))
         motion = design.motion
         motion_style = str(motion.get("style", "none"))
-        motion_amount = max(0.0, min(float(motion.get("amount", 0.0)), 0.12))
         if motion_style not in {"none", "float", "pan"}:
             raise ValueError("unsupported motion style")
         layers = design.layers
