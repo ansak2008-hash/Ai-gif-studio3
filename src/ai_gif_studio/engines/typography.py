@@ -48,12 +48,12 @@ def render_text_filters(spec: dict, textfile: Path) -> list[str]:
     return filters
 
 class TypographyRenderer:
-    async def filters(self, spec: dict, directory: Path) -> list[str]:
+    async def filters(self, spec: dict, directory: Path, textfile_name: str = "overlay.txt") -> list[str]:
         text = str(spec.get("content", ""))
         if len(text) > 160:
             raise ValueError("typography content must be at most 160 characters")
         if not text:
             return []
-        textfile = directory / "overlay.txt"
+        textfile = directory / textfile_name
         textfile.write_text(text, encoding="utf-8")
         return render_text_filters(spec, textfile)
