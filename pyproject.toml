@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ai-gif-studio"
-version = "0.2.0"
+version = "0.3.0"
 description = "Production-oriented extensible Telegram video-to-GIF studio."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -24,6 +24,7 @@ dependencies = [
 dev = ["pytest>=8.3,<9","pytest-asyncio>=0.24,<1","ruff>=0.7,<1"]
 [project.scripts]
 ai-gif-studio = "ai_gif_studio.main:main"
+ai-gif-studio-api = "ai_gif_studio.interfaces.api:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/ai_gif_studio"]
 [tool.pytest.ini_options]
