@@ -4,6 +4,7 @@ from uuid import UUID
 
 from aiogram import Bot
 from aiogram.types import FSInputFile
+from arq import Retry
 from arq.connections import RedisSettings
 
 from ai_gif_studio.configuration import AppSettings
@@ -15,6 +16,7 @@ from ai_gif_studio.database.repositories import (
 )
 from ai_gif_studio.domain.specs import ProcessingSettings
 from ai_gif_studio.engines.crop import CropOnlyEngine
+from ai_gif_studio.engines.validator import OutputValidator
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 from ai_gif_studio.infrastructure.storage import ArtifactStorage
 
@@ -34,13 +36,7 @@ async def process_job(ctx, job_id: str, **_):
     work = storage.job_dir(job.id)
     source = work / "input.bin"
     output = work / "output.gif"
-    steps = (
-        "download",
-        "probe",
-        "crop_encode",
-        "artifact_register",
-        "delivery",
-    )
+    steps = ("download", "probe", "crop_encode", "artifact_register", "delivery")
     active_step = None
     try:
         if not await repo.set_status(job.id, "processing", expected_status="queued"):
@@ -66,8 +62,7 @@ async def process_job(ctx, job_id: str, **_):
         await step_repo.complete(active_step)
 
         active_step = await step_repo.start(job.id, steps[2])
-        engine = CropOnlyEngine(ff)
-        await engine.convert(
+        await CropOnlyEngine(ff).convert(
             source,
             output,
             ProcessingSettings(max_duration_seconds=min(6, duration or 6)),
@@ -75,6 +70,10 @@ async def process_job(ctx, job_id: str, **_):
         await step_repo.complete(active_step)
 
         active_step = await step_repo.start(job.id, steps[3])
+        if not await OutputValidator(ff).validate_gif(
+            output, max_bytes=2_400_000, ffmpeg=ff
+        ):
+            raise ValueError("rendered GIF failed output validation")
         await ArtifactRepository(db.session_factory).register(
             job.id, output, "output_gif", "image/gif"
         )
@@ -84,17 +83,16 @@ async def process_job(ctx, job_id: str, **_):
         await bot.send_document(job.submission.submitted_by, FSInputFile(output))
         await step_repo.complete(active_step)
 
-        await repo.set_status(job.id, "completed", expected_status="processing")
+        if not await repo.set_status(job.id, "completed", expected_status="processing"):
+            raise RuntimeError("job completion state transition failed")
     except Exception as error:
         if active_step is not None:
-            retry_count = int(ctx.get("job_try", 1)) - 1
-            await step_repo.fail(active_step, str(error), retry_count)
-        is_last_try = int(ctx.get("job_try", 1)) >= int(ctx.get("max_tries", 1))
-        await repo.set_status(
-            job.id,
-            "failed" if is_last_try else "queued",
-            expected_status="processing",
-        )
+            await step_repo.fail(active_step, str(error), max(0, int(ctx.get("job_try", 1)) - 1))
+        job_try = int(ctx.get("job_try", 1))
+        if job_try < 2:
+            await repo.set_status(job.id, "queued", expected_status="processing")
+            raise Retry(defer=job_try * 5) from error
+        await repo.set_status(job.id, "failed", expected_status="processing")
         raise
     finally:
         await bot.session.close()
