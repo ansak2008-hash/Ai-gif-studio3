@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from mimetypes import guess_type
 from pathlib import Path
 from typing import Protocol
@@ -204,6 +204,23 @@ class JobStepRepository:
 
 
 class ArtifactRepository:
+    async def get_expired(self, now: datetime | None = None) -> list[ArtifactRecord]:
+        cutoff = now or datetime.now(UTC)
+        async with self._session_factory() as session:
+            result = await session.scalars(
+                select(ArtifactRecord)
+                .where(ArtifactRecord.expires_at.is_not(None), ArtifactRecord.expires_at <= cutoff)
+                .order_by(ArtifactRecord.expires_at.asc())
+            )
+            return list(result.all())
+
+    async def delete(self, artifact_id: str) -> None:
+        async with self._session_factory() as session:
+            row = await session.scalar(select(ArtifactRecord).where(ArtifactRecord.artifact_id == artifact_id))
+            if row is not None:
+                await session.delete(row)
+                await session.commit()
+
     def __init__(self, session_factory: async_sessionmaker) -> None:
         self._session_factory = session_factory
 
@@ -223,6 +240,7 @@ class ArtifactRepository:
         artifact_type: str,
         mime_type: str,
         metadata: dict | None = None,
+        retention_seconds: int | None = None,
     ) -> ArtifactRecord:
         if not path.is_file():
             raise FileNotFoundError(path)
@@ -253,10 +271,11 @@ class ArtifactRepository:
                     raise ValueError("artifact path already registered with different content")
                 return existing
 
+            expires_at = (datetime.now(UTC) + timedelta(seconds=retention_seconds)) if retention_seconds is not None else None
             row = ArtifactRecord(
                 artifact_id=str(uuid4()), job_id=str(job_id), type=artifact_type,
                 storage_path=str(path), mime_type=mime_type, size_bytes=size,
-                sha256=sha256, created_at=datetime.now(UTC), metadata=metadata or {},
+                sha256=sha256, created_at=datetime.now(UTC), expires_at=expires_at, metadata=metadata or {},
             )
             session.add(row)
             await session.commit()
