@@ -14,7 +14,7 @@ def test_design_spec_is_bounded_and_versioned():
         layers=[{"type": "border", "color": "#ffffff", "thickness": 4}],
         text={"content": "GIF", "size": 24},
     )
-    assert spec.schema_version == 2
+    assert spec.schema_version == 3
     assert spec.canvas == {"width": 320, "height": 320}
 
 
