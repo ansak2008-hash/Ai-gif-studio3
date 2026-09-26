@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Literal
+from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 DESIGN_SPEC_VERSION=2; PROCESSING_SETTINGS_VERSION=2
 class DesignSpec(BaseModel):
