@@ -148,23 +148,58 @@ class ArtifactRepository:
     def __init__(self, session_factory: async_sessionmaker) -> None:
         self._session_factory = session_factory
 
-    async def register(self, job_id: UUID, path: Path, artifact_type: str, mime_type: str, metadata: dict | None = None):
+    async def get_for_job(self, job_id: UUID, artifact_type: str | None = None) -> list[ArtifactRecord]:
+        async with self._session_factory() as session:
+            statement = select(ArtifactRecord).where(ArtifactRecord.job_id == str(job_id))
+            if artifact_type is not None:
+                statement = statement.where(ArtifactRecord.type == artifact_type)
+            statement = statement.order_by(ArtifactRecord.created_at.asc())
+            result = await session.scalars(statement)
+            return list(result.all())
+
+    async def register(
+        self,
+        job_id: UUID,
+        path: Path,
+        artifact_type: str,
+        mime_type: str,
+        metadata: dict | None = None,
+    ) -> ArtifactRecord:
         if not path.is_file():
             raise FileNotFoundError(path)
+
         detected_mime = guess_type(path.name)[0]
         if detected_mime and detected_mime != mime_type:
             raise ValueError(f"artifact MIME mismatch: expected {mime_type}, detected {detected_mime}")
+
         digest, size = hashlib.sha256(), 0
         with path.open("rb") as handle:
             for chunk in iter(lambda: handle.read(1024 * 1024), b""):
                 digest.update(chunk)
                 size += len(chunk)
-        row = ArtifactRecord(
-            artifact_id=str(uuid4()), job_id=str(job_id), type=artifact_type,
-            storage_path=str(path), mime_type=mime_type, size_bytes=size,
-            sha256=digest.hexdigest(), created_at=datetime.now(UTC), metadata=metadata or {},
-        )
+        sha256 = digest.hexdigest()
+
         async with self._session_factory() as session:
+            existing = await session.scalar(
+                select(ArtifactRecord)
+                .where(
+                    ArtifactRecord.job_id == str(job_id),
+                    ArtifactRecord.type == artifact_type,
+                    ArtifactRecord.storage_path == str(path),
+                )
+                .order_by(ArtifactRecord.created_at.desc())
+            )
+            if existing is not None:
+                if existing.sha256 != sha256 or existing.size_bytes != size or existing.mime_type != mime_type:
+                    raise ValueError("artifact path already registered with different content")
+                return existing
+
+            row = ArtifactRecord(
+                artifact_id=str(uuid4()), job_id=str(job_id), type=artifact_type,
+                storage_path=str(path), mime_type=mime_type, size_bytes=size,
+                sha256=sha256, created_at=datetime.now(UTC), metadata=metadata or {},
+            )
             session.add(row)
             await session.commit()
-        return row
+            await session.refresh(row)
+            return row
