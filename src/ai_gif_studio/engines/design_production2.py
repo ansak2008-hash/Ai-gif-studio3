@@ -4,7 +4,7 @@ from pathlib import Path
 
 from ai_gif_studio.configuration.render import RenderConfiguration
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
-from ai_gif_studio.engines.composition import media_mask_filter, square_layout
+from ai_gif_studio.engines.composition import Bounds, media_mask_filter, square_layout
 from ai_gif_studio.engines.styles import animated_background_filters, background_filters, frame_filters
 from ai_gif_studio.engines.typography import TypographyRenderer
 from ai_gif_studio.quality_engine import QualityEngine
