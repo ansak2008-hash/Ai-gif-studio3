@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from uuid import UUID, uuid4
 
 from arq import create_pool
@@ -13,6 +14,63 @@ from ai_gif_studio.configuration import AppSettings, get_settings
 from ai_gif_studio.database import Database
 from ai_gif_studio.database.repositories import SqlAlchemyJobRepository
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
+
+
+READINESS_TIMEOUT_SECONDS = 2.0
+
+
+async def _check_database(database_url: str) -> bool:
+    engine = create_async_engine(database_url)
+    try:
+        async with asyncio.timeout(READINESS_TIMEOUT_SECONDS):
+            async with engine.connect() as connection:
+                await connection.execute(text("SELECT 1"))
+        return True
+    except Exception:
+        return False
+    finally:
+        await engine.dispose()
+
+
+async def _check_redis(redis_url: str) -> bool:
+    redis = None
+    try:
+        async with asyncio.timeout(READINESS_TIMEOUT_SECONDS):
+            redis = await create_pool(RedisSettings.from_dsn(redis_url))
+            await redis.ping()
+        return True
+    except Exception:
+        return False
+    finally:
+        if redis is not None:
+            await redis.close()
+
+
+async def _check_ffmpeg(binary: str) -> bool:
+    process = None
+    try:
+        async with asyncio.timeout(READINESS_TIMEOUT_SECONDS):
+            process = await asyncio.create_subprocess_exec(
+                binary,
+                "-version",
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            return await process.wait() == 0
+    except Exception:
+        if process is not None and process.returncode is None:
+            process.kill()
+            await process.wait()
+        return False
+
+
+async def _readiness_checks(settings: AppSettings) -> dict[str, bool]:
+    database, redis, ffmpeg = await asyncio.gather(
+        _check_database(settings.database_url),
+        _check_redis(settings.redis_url),
+        _check_ffmpeg(settings.ffmpeg_binary),
+    )
+    return {"database": database, "redis": redis, "ffmpeg": ffmpeg}
 
 
 def create_api(settings: AppSettings | None = None) -> FastAPI:
@@ -40,16 +98,13 @@ def create_api(settings: AppSettings | None = None) -> FastAPI:
 
     @app.get("/ready")
     async def ready():
-        db_engine = create_async_engine(settings.database_url)
-        redis = await create_pool(RedisSettings.from_dsn(settings.redis_url))
-        try:
-            async with db_engine.connect() as connection:
-                await connection.execute(text("SELECT 1"))
-            await redis.ping()
-        finally:
-            await redis.close()
-            await db_engine.dispose()
-        return {"status": "ready"}
+        checks = await _readiness_checks(settings)
+        if not all(checks.values()):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={"status": "not_ready", "checks": checks},
+            )
+        return {"status": "ready", "checks": checks}
 
     @app.get("/v1/capabilities", dependencies=[Depends(require_api_key)])
     async def capabilities():

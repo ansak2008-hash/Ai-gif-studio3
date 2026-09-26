@@ -8,16 +8,18 @@ from typing import Protocol
 from uuid import UUID, uuid4
 
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
-from ai_gif_studio.models import JobStatus, ProcessingJob, ProcessingMode, VideoSubmission
+from ai_gif_studio.models import JobStatus, ProcessingJob, ProcessingMode, VideoSubmission, can_transition
 from .tables import ArtifactRecord, DesignSpecRecord, JobStepRecord, ProcessingJobRecord, ProcessingSettingsRecord
 
 
 class JobRepository(Protocol):
     async def create(self, submission: VideoSubmission) -> ProcessingJob: ...
     async def get(self, job_id: UUID) -> ProcessingJob | None: ...
+    async def get_by_submission_key(self, submitted_by: int, source_message_id: int) -> ProcessingJob | None: ...
     async def count_active(self) -> int: ...
     async def set_status(self, job_id: UUID, status: str, expected_status: str | None = None) -> bool: ...
     async def get_design_spec(self, job_id: UUID) -> DesignSpec: ...
@@ -36,14 +38,36 @@ class SqlAlchemyJobRepository:
             id=str(job.id), status=job.status.value, telegram_file_id=submission.telegram_file_id,
             original_filename=submission.original_filename, content_type=submission.content_type,
             file_size_bytes=submission.file_size_bytes, submitted_by=submission.submitted_by,
-            mode=submission.mode.value, created_at=job.created_at,
+            source_message_id=submission.source_message_id, mode=submission.mode.value,
+            created_at=job.created_at,
         )
         spec, settings = DesignSpec(), ProcessingSettings()
         async with self._session_factory() as session:
             session.add(record)
             session.add(DesignSpecRecord(job_id=str(job.id), schema_version=spec.schema_version, document=spec.model_dump(mode="json")))
             session.add(ProcessingSettingsRecord(job_id=str(job.id), schema_version=settings.schema_version, document=settings.model_dump(mode="json")))
-            await session.commit()
+            try:
+                await session.commit()
+            except IntegrityError:
+                await session.rollback()
+                if submission.source_message_id is None:
+                    raise
+                existing = await session.scalar(
+                    select(ProcessingJobRecord).where(
+                        ProcessingJobRecord.submitted_by == submission.submitted_by,
+                        ProcessingJobRecord.source_message_id == submission.source_message_id,
+                    )
+                )
+                if existing is None:
+                    raise
+                return ProcessingJob(
+                    id=UUID(existing.id), status=JobStatus(existing.status), created_at=existing.created_at,
+                    submission=VideoSubmission(
+                        existing.telegram_file_id, existing.original_filename, existing.content_type,
+                        existing.file_size_bytes, existing.submitted_by, ProcessingMode(existing.mode),
+                        existing.source_message_id,
+                    ),
+                )
         return job
 
     async def get(self, job_id: UUID) -> ProcessingJob | None:
@@ -55,7 +79,26 @@ class SqlAlchemyJobRepository:
             id=UUID(record.id), status=JobStatus(record.status), created_at=record.created_at,
             submission=VideoSubmission(
                 record.telegram_file_id, record.original_filename, record.content_type,
+                record.file_size_bytes, record.submitted_by, ProcessingMode(record.mode), record.source_message_id,
+            ),
+        )
+
+    async def get_by_submission_key(self, submitted_by: int, source_message_id: int) -> ProcessingJob | None:
+        async with self._session_factory() as session:
+            record = await session.scalar(
+                select(ProcessingJobRecord).where(
+                    ProcessingJobRecord.submitted_by == submitted_by,
+                    ProcessingJobRecord.source_message_id == source_message_id,
+                )
+            )
+        if record is None:
+            return None
+        return ProcessingJob(
+            id=UUID(record.id), status=JobStatus(record.status), created_at=record.created_at,
+            submission=VideoSubmission(
+                record.telegram_file_id, record.original_filename, record.content_type,
                 record.file_size_bytes, record.submitted_by, ProcessingMode(record.mode),
+                record.source_message_id,
             ),
         )
 
@@ -71,11 +114,27 @@ class SqlAlchemyJobRepository:
         return int(result or 0)
 
     async def set_status(self, job_id: UUID, status: str, expected_status: str | None = None) -> bool:
+        target = JobStatus(status)
         async with self._session_factory() as session:
-            statement = update(ProcessingJobRecord).where(ProcessingJobRecord.id == str(job_id))
-            if expected_status is not None:
-                statement = statement.where(ProcessingJobRecord.status == expected_status)
-            result = await session.execute(statement.values(status=status))
+            current = await session.scalar(
+                select(ProcessingJobRecord.status).where(ProcessingJobRecord.id == str(job_id))
+            )
+            if current is None:
+                return False
+            if expected_status is not None and current != expected_status:
+                return False
+            if current == target.value:
+                return True
+            if not can_transition(JobStatus(current), target):
+                raise ValueError(f"invalid job transition: {current} -> {target.value}")
+            result = await session.execute(
+                update(ProcessingJobRecord)
+                .where(
+                    ProcessingJobRecord.id == str(job_id),
+                    ProcessingJobRecord.status == current,
+                )
+                .values(status=target.value)
+            )
             await session.commit()
         return result.rowcount == 1
 
