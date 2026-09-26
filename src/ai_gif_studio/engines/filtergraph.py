@@ -73,7 +73,11 @@ def validate_filtergraph_labels(graph: str) -> str:
     return graph
 
 
-def build_filtergraph(filters: Iterable[str]) -> str:
+def build_filtergraph(
+    filters: Iterable[str],
+    *,
+    validate_labels: bool = True,
+) -> str:
     """Join complete FFmpeg filtergraph statements with semicolons."""
     if isinstance(filters, str):
         raise TypeError(
@@ -90,4 +94,6 @@ def build_filtergraph(filters: Iterable[str]) -> str:
                 "Graph statements must not contain ';'; split them before calling build_filtergraph"
             )
     graph = ";".join(parts)
-    return validate_filtergraph_labels(graph)
+    if validate_labels:
+        validate_filtergraph_labels(graph)
+    return graph
