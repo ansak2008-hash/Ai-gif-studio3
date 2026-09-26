@@ -1,5 +1,7 @@
 import pytest
 
+pytestmark = pytest.mark.unit
+
 from ai_gif_studio.engines.filtergraph import (
     build_filterchain,
     build_filtergraph,
