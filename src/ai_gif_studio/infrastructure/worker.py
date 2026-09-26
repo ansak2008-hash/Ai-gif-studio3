@@ -1,6 +1,5 @@
 from __future__ import annotations
 from arq.connections import RedisSettings
-from arq import Worker
 from aiogram import Bot
 from aiogram.types import FSInputFile
 from ai_gif_studio.configuration import AppSettings
