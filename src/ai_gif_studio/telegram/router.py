@@ -17,6 +17,7 @@ def create_router(intake_service:IntakeService,queue=None)->Router:
             await message.answer(str(error)); return
         if queue is not None:
             await queue.enqueue_job(str(job.id),_job_id=str(job.id))
+            await intake_service.mark_queued(job)
             await message.answer(f"Job {job.id} queued.")
         else:
             await message.answer(f"Job {job.id} created.")
