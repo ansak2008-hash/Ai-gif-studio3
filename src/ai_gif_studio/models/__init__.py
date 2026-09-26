@@ -1,3 +1,3 @@
-from .job import JobStatus, ProcessingJob, ProcessingMode, VideoSubmission
+from .job import JobStatus, ProcessingJob, ProcessingMode, VideoSubmission, can_transition
 
-__all__ = ["JobStatus", "ProcessingJob", "ProcessingMode", "VideoSubmission"]
+__all__ = ["JobStatus", "ProcessingJob", "ProcessingMode", "VideoSubmission", "can_transition"]
