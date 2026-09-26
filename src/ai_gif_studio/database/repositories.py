@@ -11,7 +11,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
-from ai_gif_studio.models import JobStatus, ProcessingJob, ProcessingMode, VideoSubmission
+from ai_gif_studio.models import JobStatus, ProcessingJob, ProcessingMode, VideoSubmission, can_transition
 from .tables import ArtifactRecord, DesignSpecRecord, JobStepRecord, ProcessingJobRecord, ProcessingSettingsRecord
 
 
@@ -71,11 +71,27 @@ class SqlAlchemyJobRepository:
         return int(result or 0)
 
     async def set_status(self, job_id: UUID, status: str, expected_status: str | None = None) -> bool:
+        target = JobStatus(status)
         async with self._session_factory() as session:
-            statement = update(ProcessingJobRecord).where(ProcessingJobRecord.id == str(job_id))
-            if expected_status is not None:
-                statement = statement.where(ProcessingJobRecord.status == expected_status)
-            result = await session.execute(statement.values(status=status))
+            current = await session.scalar(
+                select(ProcessingJobRecord.status).where(ProcessingJobRecord.id == str(job_id))
+            )
+            if current is None:
+                return False
+            if expected_status is not None and current != expected_status:
+                return False
+            if current == target.value:
+                return True
+            if not can_transition(JobStatus(current), target):
+                raise ValueError(f"invalid job transition: {current} -> {target.value}")
+            result = await session.execute(
+                update(ProcessingJobRecord)
+                .where(
+                    ProcessingJobRecord.id == str(job_id),
+                    ProcessingJobRecord.status == current,
+                )
+                .values(status=target.value)
+            )
             await session.commit()
         return result.rowcount == 1
 
