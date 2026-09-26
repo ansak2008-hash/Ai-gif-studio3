@@ -8,6 +8,7 @@ from arq import Retry
 from arq.connections import RedisSettings
 
 from ai_gif_studio.configuration import AppSettings
+from ai_gif_studio.configuration.render import RenderConfiguration
 from ai_gif_studio.database import Database
 from ai_gif_studio.database.repositories import (
     ArtifactRepository,
@@ -71,7 +72,7 @@ async def process_job(ctx, job_id: str, **_):
 
         active_step = await step_repo.start(job.id, steps[3])
         if not await OutputValidator(ff).validate_gif(
-            output, max_bytes=2_400_000, ffmpeg=ff
+            output, max_bytes=RenderConfiguration().maximum_output_bytes, ffmpeg=ff
         ):
             raise ValueError("rendered GIF failed output validation")
         await ArtifactRepository(db.session_factory).register(
