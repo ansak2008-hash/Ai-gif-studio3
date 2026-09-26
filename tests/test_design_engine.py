@@ -1,5 +1,4 @@
 import shutil,subprocess
-from pathlib import Path
 import pytest
 from ai_gif_studio.engines.design import DesignGifEngine
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
