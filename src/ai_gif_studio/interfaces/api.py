@@ -13,6 +13,7 @@ from ai_gif_studio.configuration import AppSettings, get_settings
 from ai_gif_studio.database import Database
 from ai_gif_studio.database.repositories import SqlAlchemyJobRepository
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
+from ai_gif_studio.engines.presets import build_design_spec, list_presets
 
 
 def create_api(settings: AppSettings | None = None) -> FastAPI:
@@ -50,6 +51,33 @@ def create_api(settings: AppSettings | None = None) -> FastAPI:
             await redis.close()
             await db_engine.dispose()
         return {"status": "ready"}
+
+    @app.get("/v1/presets", dependencies=[Depends(require_api_key)])
+    async def presets():
+        return {"presets": [{"name": name, "design_spec": build_design_spec(name).model_dump(mode="json")} for name in list_presets()]}
+
+    @app.get("/v1/presets/{name}", dependencies=[Depends(require_api_key)])
+    async def preset(name: str):
+        try:
+            return {"name": name, "design_spec": build_design_spec(name).model_dump(mode="json")}
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.put("/v1/jobs/{job_id}/preset/{name}", dependencies=[Depends(require_api_key)])
+    async def apply_preset(job_id: UUID, name: str):
+        db = Database(settings.database_url)
+        try:
+            repo = SqlAlchemyJobRepository(db.session_factory)
+            if await repo.get(job_id) is None:
+                raise HTTPException(status_code=404, detail="job not found")
+            try:
+                spec = build_design_spec(name)
+            except ValueError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            await repo.save_design_spec(job_id, spec)
+            return {"job_id": str(job_id), "preset": name, "design_spec": spec.model_dump(mode="json")}
+        finally:
+            await db.dispose()
 
     @app.get("/v1/capabilities", dependencies=[Depends(require_api_key)])
     async def capabilities():
