@@ -26,7 +26,7 @@ async def test_design_gif_real_pipeline(tmp_path: Path):
     design = DesignSpec(
         crop={"mode": "smart", "focus": {"x": 0.8, "y": 0.5}, "anchor": "center"},
         background={"mode": "solid", "color": "#101820"},
-        frame={"style": "rounded-rect", "radius": 24, "color": "#ffffff"},
+        frame={"style": "rounded", "radius": 24, "color": "#ffffff"},
     )
     await DesignGifEngine(FFmpegService(timeout=60)).convert(
         src, out, design, ProcessingSettings(max_duration_seconds=1, fps=8)

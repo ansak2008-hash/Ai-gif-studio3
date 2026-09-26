@@ -28,6 +28,7 @@ CAPABILITIES = {
         Capability("typography", CapabilityState.AVAILABLE, ("ffmpeg-drawtext",), "Arabic/Latin typography with bounded materials and depth."),
         Capability("frames", CapabilityState.AVAILABLE, ("ffmpeg-drawbox",), "Deterministic decorative frame presets."),
         Capability("backgrounds", CapabilityState.AVAILABLE, ("ffmpeg",), "Deterministic background presets."),
+        Capability("presets", CapabilityState.AVAILABLE, ("design-spec-v3",), "Eight deterministic, allowlisted design presets."),
         Capability("quality_gate", CapabilityState.AVAILABLE, ("ffmpeg",), "Adaptive FPS and output validation."),
         *[
             Capability(name, CapabilityState.PLANNED, ("ai-provider", "verified-weights"))

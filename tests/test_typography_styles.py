@@ -19,5 +19,5 @@ def test_typography_contract():
 
 
 def test_background_and_frames():
-    assert len(background_filters({"mode": "luxury"}, Bounds(64, 64, 192, 192))) == 3
+    assert len(background_filters({"mode": "luxury"}, Bounds(64, 64, 192, 192))) == 4
     assert len(frame_filters({"style": "gold"})) == 3
