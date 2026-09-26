@@ -13,7 +13,10 @@ class FFmpegService:
             p.kill(); await p.wait(); raise FFmpegError("ffmpeg timeout") from None
         if p.returncode: raise FFmpegError((err or out).decode(errors="replace")[-4000:])
         return out,err
-    async def probe(self,path:Path)->dict:
-        out,_=await self._run([self.ffprobe,"-v","error","-show_streams","-show_format","-of","json",str(path)])
+    async def probe(self,path:Path,*,count_frames: bool = False)->dict:
+        args=[self.ffprobe,"-v","error"]
+        if count_frames: args.append("-count_frames")
+        args += ["-show_streams","-show_format","-of","json",str(path)]
+        out,_=await self._run(args)
         return json.loads(out)
     async def run(self,args:Sequence[str]): return await self._run([self.ffmpeg,"-hide_banner","-nostdin","-y",*args])
