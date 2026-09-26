@@ -5,6 +5,7 @@ from pathlib import Path
 from ai_gif_studio.configuration.render import RenderConfiguration
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
 from ai_gif_studio.engines.composition import Bounds, media_mask_filter, square_layout
+from ai_gif_studio.engines.filtergraph import build_filtergraph
 from ai_gif_studio.engines.styles import animated_background_filters, frame_filters
 from ai_gif_studio.engines.typography import TypographyRenderer
 from ai_gif_studio.quality_engine import QualityEngine
@@ -58,12 +59,11 @@ class ProductionDesignGifEngine:
             f"[0:v]crop={crop_w}:{crop_h}:{crop_x}:{crop_y},scale={max(1, int(bounds.width))}:{max(1, int(bounds.height))}:flags=lanczos,{mask}[fg]",
             f"color=c={bg_color}:s=320x320:r=30:d={duration:.3f}[bg]",
         ]
-        base_filters.extend(
-            [
-                f"[bg]{';'.join(animated_background_filters(bg, bounds, duration))}[bgstyled]"
-                if animated_background_filters(bg, bounds, duration)
-                else "[bg]null[bgstyled]",
-            ]
+        background_chain = animated_background_filters(bg, bounds, duration)
+        base_filters.append(
+            f"[bg]{','.join(background_chain)}[bgstyled]"
+            if background_chain
+            else "[bg]null[bgstyled]"
         )
         composition_filters = [
             f"[bgstyled][fg]overlay=x={overlay_x}:y={overlay_y}:shortest=1[composed]",
@@ -102,7 +102,7 @@ class ProductionDesignGifEngine:
             composition_filters.append(f"[{current}]{','.join(typography_filters)}[out]")
         else:
             composition_filters.append(f"[{current}]null[out]")
-        vf = ";".join(base_filters + composition_filters)
+        vf = build_filtergraph(base_filters + composition_filters)
         palette = target.with_suffix(".palette.png")
         try:
             for fps in self.quality.ladder(settings.fps):
