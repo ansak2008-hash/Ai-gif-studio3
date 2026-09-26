@@ -18,10 +18,21 @@ class ProductionDesignGifEngine:
         self.quality = quality or QualityEngine()
 
     async def convert(self, source: Path, target: Path, design: DesignSpec, settings: ProcessingSettings):
-        probe = await self.ffmpeg.probe(source)
+        probe = await self.ffmpeg.probe(source, count_frames=True)
         video = next((x for x in probe.get("streams", []) if x.get("codec_type") == "video"), None)
         if video is None:
             raise ValueError("input has no video stream")
+        if int(video.get("width") or 0) <= 0 or int(video.get("height") or 0) <= 0:
+            raise ValueError("input video has invalid dimensions")
+        if int(video.get("nb_read_frames") or video.get("nb_frames") or 0) <= 0:
+            raise ValueError("input video has no readable frames")
+        rate = str(video.get("avg_frame_rate") or video.get("r_frame_rate") or "0/1")
+        try:
+            numerator, denominator = rate.split("/", 1)
+            if float(numerator) <= 0 or float(denominator) <= 0:
+                raise ValueError
+        except (ValueError, ZeroDivisionError):
+            raise ValueError("input video has invalid frame rate") from None
         width, height = int(video.get("width") or 0), int(video.get("height") or 0)
         total = float(probe.get("format", {}).get("duration") or settings.max_duration_seconds)
         duration = min(total, settings.max_duration_seconds, self.render.duration_seconds)
