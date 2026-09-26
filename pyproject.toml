@@ -32,6 +32,8 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
   "integration: requires FFmpeg/FFprobe and exercises the real media pipeline",
+  "unit: pure logic with no external media pipeline",
+  "slow: takes more than 5 seconds",
 ]
 [tool.ruff]
 target-version = "py311"
