@@ -4,11 +4,14 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.integration
+
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
 from ai_gif_studio.engines.design import DesignGifEngine
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_design_gif_real_pipeline(tmp_path: Path):
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
@@ -79,3 +82,26 @@ async def test_design_motion_layers_and_text(tmp_path: Path):
     )
     assert out.exists()
     assert out.read_bytes()[:6] in (b"GIF87a", b"GIF89a")
+
+
+@pytest.mark.asyncio
+async def test_design_gif_real_arabic_gold_circle_pipeline(tmp_path: Path):
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        pytest.skip("ffmpeg unavailable")
+    src = tmp_path / "in.mp4"
+    out = tmp_path / "arabic-gold.gif"
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc=size=640x360:rate=10", "-t", "0.8", "-pix_fmt", "yuv420p", str(src)],
+        check=True,
+    )
+    design = DesignSpec(
+        crop={"mode": "smart", "focus": {"x": 0.5, "y": 0.5}, "shape": "circle"},
+        background={"mode": "luxury", "color": "#090a0f", "animation": "sweep", "accent": "#f6d36b"},
+        frame={"style": "gold", "shape": "circle", "radius": 120, "color": "#f6d36b"},
+        typography={"content": "محمد", "style": "gold", "material": "gold", "size": 54, "depth": 5, "animation": "fade"},
+    )
+    await DesignGifEngine(FFmpegService(timeout=60)).convert(src, out, design, ProcessingSettings(max_duration_seconds=0.8, fps=8))
+    assert out.exists()
+    data = out.read_bytes()
+    assert data[:6] in (b"GIF87a", b"GIF89a")
+    assert len(data) <= 2_400_000
