@@ -69,6 +69,30 @@ class DesignGifEngine:
 
         frame_style = str(design.frame.get("style", "rounded-rect"))
         frame_color = str(design.frame.get("color", "#ffffff"))
+        motion = design.motion
+        motion_style = str(motion.get("style", "none"))
+        motion_amount = max(0.0, min(float(motion.get("amount", 0.0)), 0.12))
+        if motion_style not in {"none", "float", "pan"}:
+            raise ValueError("unsupported motion style")
+        layers = design.layers
+        if len(layers) > 8:
+            raise ValueError("too many design layers")
+        for layer in layers:
+            if str(layer.get("type", "")) not in {"shape", "border", "accent"}:
+                raise ValueError("unsupported design layer type")
+        text = design.text
+        if text is not None:
+            if not isinstance(text, dict) or len(str(text.get("content", ""))) > 160:
+                raise ValueError("text content is invalid")
+            if text.get("enabled", True) and not str(text.get("content", "")):
+                raise ValueError("enabled text requires content")
+        motion_x = ""
+        motion_y = ""
+        if motion_style == "float":
+            motion_x = f"+{motion_amount * 20:.2f}*sin(2*PI*t/{max(duration, 0.1):.3f})"
+            motion_y = f"+{motion_amount * 12:.2f}*cos(2*PI*t/{max(duration, 0.1):.3f})"
+        elif motion_style == "pan":
+            motion_x = f"+{motion_amount * 28:.2f}*sin(2*PI*t/{max(duration, 0.1):.3f})"
         filters = [
             f"crop={crop_w}:{crop_h}:{crop_x}:{crop_y}",
             f"scale={media_w}:{media_h}:flags=lanczos",
@@ -78,6 +102,25 @@ class DesignGifEngine:
             filters.append(
                 f"drawbox=x=0:y=0:w={self.render.canvas_width}:h={self.render.canvas_height}:"
                 f"color={frame_color}@0.75:t=3"
+            )
+        for layer in layers:
+            if str(layer.get("type")) in {"border", "accent"}:
+                thickness = max(1, min(int(layer.get("thickness", 3)), 20))
+                color = str(layer.get("color", "#ffffff"))
+                opacity = max(0.0, min(float(layer.get("opacity", 1.0)), 1.0))
+                filters.append(
+                    f"drawbox=x=0:y=0:w={self.render.canvas_width}:h={self.render.canvas_height}:"
+                    f"color={color}@{opacity}:t={thickness}"
+                )
+        if text is not None and text.get("enabled", True):
+            content_text = str(text.get("content", "")).replace(":", "\\:")
+            font_size = max(10, min(int(text.get("size", 24)), 72))
+            x = int(text.get("x", 16))
+            y = int(text.get("y", 280))
+            color = str(text.get("color", "#ffffff"))
+            filters.append(
+                f"drawtext=text='{content_text}':fontsize={font_size}:fontcolor={color}:"
+                f"x={x}:y={y}:box=1:boxcolor=black@0.35:boxborderw=6"
             )
         vf_base = ",".join(filters)
 
