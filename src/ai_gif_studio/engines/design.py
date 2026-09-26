@@ -58,14 +58,14 @@ class DesignGifEngine:
         if not bg.startswith("#") or len(bg) not in (4, 7):
             raise ValueError("background color must be a hex color")
 
-        crop_w = max(1, int(round(crop.width)))
-        crop_h = max(1, int(round(crop.height)))
-        crop_x = max(0, int(round(crop.x)))
-        crop_y = max(0, int(round(crop.y)))
-        media_w = max(1, int(round(bounds.width)))
-        media_h = max(1, int(round(bounds.height)))
-        media_x = int(round(bounds.x))
-        media_y = int(round(bounds.y))
+        crop_w = max(1, int(round(crop["width"])))
+        crop_h = max(1, int(round(crop["height"])))
+        crop_x = max(0, int(round(crop["x"])))
+        crop_y = max(0, int(round(crop["y"])))
+        media_w = max(1, int(round(bounds["width"])))
+        media_h = max(1, int(round(bounds["height"])))
+        media_x = int(round(bounds["x"]))
+        media_y = int(round(bounds["y"]))
 
         frame_style = str(design.frame.get("style", "rounded-rect"))
         frame_color = str(design.frame.get("color", "#ffffff"))
