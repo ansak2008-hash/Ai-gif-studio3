@@ -3,8 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import UUID
 
-from arq.connections import RedisSettings
 from aiogram import Bot
+from aiogram.types import FSInputFile
+from arq.connections import RedisSettings
 
 from ai_gif_studio.application import CreativeWorkflow
 from ai_gif_studio.configuration import get_settings
@@ -17,7 +18,11 @@ from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 async def process_job(ctx, job_id: str):
     settings = get_settings()
     db = Database(settings.database_url)
-    bot = Bot(settings.telegram_bot_token or "")
+    if not settings.telegram_bot_token:
+        await db.dispose()
+        raise RuntimeError("TELEGRAM_BOT_TOKEN must be configured for Telegram delivery")
+    bot = Bot(settings.telegram_bot_token)
+    source: Path | None = None
     try:
         repo = SqlAlchemyJobRepository(db.session_factory)
         job = await repo.get(UUID(job_id))
@@ -33,13 +38,16 @@ async def process_job(ctx, job_id: str):
             repo,
             JobStepRepository(db.session_factory),
             ArtifactRepository(db.session_factory),
-            ProductionDesignGifEngine(FFmpegService(settings.ffmpeg_binary, settings.ffprobe_binary, settings.worker_timeout_seconds)),
+            ProductionDesignGifEngine(
+                FFmpegService(settings.ffmpeg_binary, settings.ffprobe_binary, settings.worker_timeout_seconds)
+            ),
         )
         result = await workflow.run(UUID(job_id), source, target)
-        await bot.send_document(job.submission.submitted_by, result.artifact_path)
+        await bot.send_document(job.submission.submitted_by, FSInputFile(result.artifact_path))
         return {"status": "completed", "job_id": job_id, "size_bytes": result.size_bytes}
     finally:
-        source.unlink(missing_ok=True) if 'source' in locals() else None
+        if source is not None:
+            source.unlink(missing_ok=True)
         await bot.session.close()
         await db.dispose()
 
