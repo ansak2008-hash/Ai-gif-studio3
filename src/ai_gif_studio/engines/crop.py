@@ -2,7 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 from .quality import QualityEngine
 class CropOnlyEngine:
-    def __init__(self,ffmpeg,quality=None): self.ffmpeg=ffmpeg; self.quality=quality or QualityEngine()
+    def __init__(self,ffmpeg,quality=None,render=None): self.ffmpeg=ffmpeg; self.quality=quality or QualityEngine(); self.render=render or RenderConfiguration()
     async def convert(self,source:Path,target:Path,settings):
         probe=await self.ffmpeg.probe(source); streams=probe.get("streams",[]); video=next((s for s in streams if s.get("codec_type")=="video"),None)
         if not video: raise ValueError("input has no video stream")
@@ -13,7 +13,7 @@ class CropOnlyEngine:
             if fps not in ladder: ladder.append(fps)
         for fps in ladder:
             palette=target.with_suffix(".palette.png")
-            vf=f"fps={fps},crop='min(iw,ih)':'min(iw,ih)',scale=320:320:flags=lanczos"
+            vf=f"fps={fps},crop='min(iw,ih)':'min(iw,ih)',scale={self.render.canvas_width}:{self.render.canvas_height}:flags=lanczos"
             await self.ffmpeg.run(["-ss",f"{start:.3f}","-t",f"{duration:.3f}","-i",str(source),"-vf",vf+",palettegen=max_colors=256:stats_mode=diff",str(palette)])
             await self.ffmpeg.run(["-ss",f"{start:.3f}","-t",f"{duration:.3f}","-i",str(source),"-i",str(palette),"-lavfi",f"{vf}[x];[x][1:v]paletteuse=dither=sierra2_4a","-an","-loop","0",str(target)])
             palette.unlink(missing_ok=True)
