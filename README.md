@@ -38,5 +38,21 @@ See docs/SECURITY.md. Production should run workers as an unprivileged user insi
 ## Model licensing gate
 See docs/MODEL_REGISTRY.md. Code and weight licenses are recorded separately; exact weights must be hash-pinned before activation.
 
+## Release v1.0.0
+
+### Release readiness
+- Product workflow is implemented end-to-end: Telegram intake → durable job → worker processing → artifact registry → Telegram delivery.
+- Batch 6 product interface is merged.
+- Batch 7 hardening is merged, including security controls, structured stage observability, 20-job concurrency coverage, Ruff and CodeQL validation.
+- Production configuration is environment-driven; secrets are not committed.
+- `/health` is a liveness probe and `/ready` verifies database, Redis and FFmpeg dependencies.
+
+### Release verification
+- Unit tests: required CI gate.
+- Integration tests: real FFmpeg pipeline.
+- Load test: 20 concurrent jobs.
+- Static analysis: Ruff.
+- Security analysis: CodeQL.
+
 ## Legacy PR reconciliation
 PR1 supplied the central render configuration contract; PR2 supplied the smart square composition algorithm; PR3 supplied the real crop-only FFmpeg strategy; PR4 supplied the Python modular foundation. Useful concepts are preserved rather than blindly merged, while the final runtime is consolidated around Python, domain/application boundaries, queue workers and infrastructure adapters.
