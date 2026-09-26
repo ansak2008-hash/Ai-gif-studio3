@@ -1,17 +1,17 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 from uuid import UUID, uuid4
-import hashlib
 
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from ai_gif_studio.models import JobStatus, ProcessingJob, ProcessingMode, VideoSubmission
 
-from .tables import ArtifactRecord, ProcessingJobRecord
+from .tables import ArtifactRecord, JobStepRecord, ProcessingJobRecord
 
 
 class JobRepository(Protocol):
@@ -91,6 +91,51 @@ class SqlAlchemyJobRepository:
             result = await session.execute(statement.values(status=status))
             await session.commit()
         return result.rowcount == 1
+
+
+class JobStepRepository:
+    def __init__(self, session_factory: async_sessionmaker) -> None:
+        self._session_factory = session_factory
+
+    async def start(self, job_id: UUID, name: str) -> UUID:
+        step_id = uuid4()
+        async with self._session_factory() as session:
+            session.add(
+                JobStepRecord(
+                    id=str(step_id),
+                    job_id=str(job_id),
+                    name=name,
+                    status="running",
+                    started_at=datetime.now(UTC),
+                    retry_count=0,
+                )
+            )
+            await session.commit()
+        return step_id
+
+    async def complete(self, step_id: UUID) -> None:
+        async with self._session_factory() as session:
+            row = await session.scalar(select(JobStepRecord).where(JobStepRecord.id == str(step_id)))
+            if row is None:
+                raise RuntimeError(f"job step {step_id} not found")
+            now = datetime.now(UTC)
+            row.status = "completed"
+            row.completed_at = now
+            row.duration_ms = max(0, int((now - row.started_at).total_seconds() * 1000))
+            await session.commit()
+
+    async def fail(self, step_id: UUID, error: str, retry_count: int = 0) -> None:
+        async with self._session_factory() as session:
+            row = await session.scalar(select(JobStepRecord).where(JobStepRecord.id == str(step_id)))
+            if row is None:
+                raise RuntimeError(f"job step {step_id} not found")
+            now = datetime.now(UTC)
+            row.status = "failed"
+            row.completed_at = now
+            row.duration_ms = max(0, int((now - row.started_at).total_seconds() * 1000))
+            row.retry_count = retry_count
+            row.error = error[-4000:]
+            await session.commit()
 
 
 class ArtifactRepository:
