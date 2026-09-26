@@ -8,14 +8,15 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column("processing_jobs", sa.Column("source_message_id", sa.Integer(), nullable=True))
-    op.create_unique_constraint(
-        "uq_processing_jobs_submission",
-        "processing_jobs",
-        ["submitted_by", "source_message_id"],
-    )
+    with op.batch_alter_table("processing_jobs") as batch_op:
+        batch_op.add_column(sa.Column("source_message_id", sa.Integer(), nullable=True))
+        batch_op.create_unique_constraint(
+            "uq_processing_jobs_submission",
+            ["submitted_by", "source_message_id"],
+        )
 
 
 def downgrade():
-    op.drop_constraint("uq_processing_jobs_submission", "processing_jobs", type_="unique")
-    op.drop_column("processing_jobs", "source_message_id")
+    with op.batch_alter_table("processing_jobs") as batch_op:
+        batch_op.drop_constraint("uq_processing_jobs_submission", type_="unique")
+        batch_op.drop_column("source_message_id")
