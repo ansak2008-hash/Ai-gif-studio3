@@ -35,4 +35,11 @@ class IntakeService:
     async def mark_queued(self, job: ProcessingJob) -> None:
         setter = getattr(self._repository, "set_status", None)
         if setter is not None:
-            await setter(job.id, "queued", expected_status="created")
+            changed = await setter(job.id, "queued", expected_status="created")
+            if not changed:
+                raise IntakeError("The job state changed before it could be queued.")
+
+    async def mark_created(self, job: ProcessingJob) -> None:
+        setter = getattr(self._repository, "set_status", None)
+        if setter is not None:
+            await setter(job.id, "created", expected_status="queued")
