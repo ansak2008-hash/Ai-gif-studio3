@@ -9,7 +9,6 @@ from arq.connections import RedisSettings
 
 from ai_gif_studio.configuration import AppSettings
 from ai_gif_studio.configuration.render import RenderConfiguration
-from ai_gif_studio.configuration.render import RenderConfiguration
 from ai_gif_studio.database import Database
 from ai_gif_studio.database.repositories import (
     ArtifactRepository,
