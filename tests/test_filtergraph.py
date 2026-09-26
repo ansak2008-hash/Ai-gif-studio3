@@ -52,3 +52,20 @@ def test_filtergraph_validates_undefined_and_duplicate_labels():
 def test_filtergraph_accepts_external_inputs_and_terminal_output():
     graph = "[0:v]null[a];[a]null[out]"
     assert validate_filtergraph_labels(graph) == graph
+
+
+def test_filtergraph_multiple_statements_with_valid_labels():
+    parts = [
+        "[0:v]scale=320:320[v0]",
+        "color=c=red:s=320x320[bg]",
+        "[v0][bg]overlay=0:0[out]",
+    ]
+    graph = build_filtergraph(parts)
+    assert graph.count(";") == 2
+    assert not graph.startswith(";")
+    assert not graph.endswith(";")
+
+
+def test_filtergraph_can_skip_label_validation():
+    graph = build_filtergraph(["[v0]scale=320:320"], validate_labels=False)
+    assert graph == "[v0]scale=320:320"
