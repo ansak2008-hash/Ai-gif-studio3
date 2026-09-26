@@ -12,6 +12,8 @@ jobs:
         with:
           python-version: "3.11"
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Verify FFmpeg drawtext shaping support
+        run: ffmpeg -hide_banner -h filter=drawtext 2>&1 | grep -q "text_shaping"
       - run: python -m pip install -U pip
       - run: pip install -e ".[dev]"
       - run: ruff check .
