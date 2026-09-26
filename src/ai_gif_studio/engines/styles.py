@@ -41,7 +41,7 @@ def animated_background_filters(spec: dict[str, Any], bounds, duration: float) -
     x, y, w, h = int(bounds.x), int(bounds.y), int(bounds.width), int(bounds.height)
     if mode == "pulse":
         filters.append(
-            f"drawbox=x={x}:y={y}:w={w}:h={h}:color={spec.get('accent', '#ffffff')}@0.12:t='2+3*(0.5+0.5*sin(2*PI*t/2))'
+            f"drawbox=x={x}:y={y}:w={w}:h={h}:color={spec.get('accent', '#ffffff')}@0.12:t=" "2+3*(0.5+0.5*sin(2*PI*t/2))"
         )
     elif mode == "sweep":
         filters.append(
