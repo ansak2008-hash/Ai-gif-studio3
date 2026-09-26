@@ -56,3 +56,26 @@ async def test_design_gif_rejects_invalid_background(tmp_path: Path):
             DesignSpec(background={"mode": "solid", "color": "invalid"}),
             ProcessingSettings(max_duration_seconds=0.5, fps=8),
         )
+
+
+@pytest.mark.asyncio
+async def test_design_motion_layers_and_text(tmp_path: Path):
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        pytest.skip("ffmpeg unavailable")
+    src = tmp_path / "in.mp4"
+    out = tmp_path / "out.gif"
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i",
+         "testsrc=size=640x360:rate=10", "-t", "0.7", "-pix_fmt", "yuv420p", str(src)],
+        check=True,
+    )
+    design = DesignSpec(
+        motion={"style": "float", "amount": 0.08},
+        layers=[{"type": "border", "thickness": 3, "color": "#ffffff", "opacity": 0.7}],
+        text={"enabled": True, "content": "AI GIF", "size": 20, "x": 12, "y": 280},
+    )
+    await DesignGifEngine(FFmpegService(timeout=60)).convert(
+        src, out, design, ProcessingSettings(max_duration_seconds=0.7, fps=8)
+    )
+    assert out.exists()
+    assert out.read_bytes()[:6] in (b"GIF87a", b"GIF89a")
