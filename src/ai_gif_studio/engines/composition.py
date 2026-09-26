@@ -41,4 +41,4 @@ def media_mask_filter(bounds: Bounds, shape: str, radius: float = 24.0) -> str:
         )
     else:
         expr = "255"
-    return f"format=rgba,geq=a='{expr}'"
+    return f"format=rgba,geq=lum='lum(X,Y)':cb='cb(X,Y)':cr='cr(X,Y)':a='{expr}'"
