@@ -1,8 +1,8 @@
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 import numpy as np
 import pytest
 
-from ai_gif_studio.temporal_engine.particles import ParticleField
 from ai_gif_studio.temporal_engine import (
     AffineTransform,
     AnimationTimeline,
