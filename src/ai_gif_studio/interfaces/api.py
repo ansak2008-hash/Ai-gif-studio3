@@ -1,15 +1,17 @@
-from __future__ import annotations
 import asyncio
 from uuid import UUID, uuid4
-from arq import create_pool
+
+from __future__ import annotations
 from arq.connections import RedisSettings
+from arq import create_pool
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
+
 from ai_gif_studio.application.capabilities import CAPABILITIES
 from ai_gif_studio.configuration import AppSettings, get_settings
-from ai_gif_studio.database import Database
 from ai_gif_studio.database.repositories import SqlAlchemyJobRepository
+from ai_gif_studio.database import Database
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
 READINESS_TIMEOUT_SECONDS = 2.0
 async def _check_database(database_url: str) -> bool:
