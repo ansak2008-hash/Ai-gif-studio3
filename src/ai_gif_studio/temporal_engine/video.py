@@ -11,7 +11,7 @@ import numpy as np
 MASTER_SIZE = (320, 320)
 
 
-class CropStrategyStrEnum:
+class CropStrategy(StrEnum):
     CENTER = "center"
     SMART = "smart"
     FIT = "fit"
