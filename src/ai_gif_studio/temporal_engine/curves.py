@@ -126,4 +126,7 @@ class MotionCurve:
             factor = self._bezier_y(self._solve_bezier_x(u,x1,x2),y1,y2)
         else:
             factor = u
-        return a.value + factor*delta
+        value = a.value + factor * delta
+        if self.rotation_mode is RotationMode.SHORTEST:
+            return value % 360.0
+        return value
