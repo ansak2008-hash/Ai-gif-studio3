@@ -1,5 +1,5 @@
 from .gpu import GpuManager, GpuMemorySnapshot
-from .manager import ResourceManager, ResourceReservation, ResourceRequest, ResourceLimitError
+from .manager import ResourceLimitError, ResourceManager, ResourceRequest, ResourceReservation
 from .registry import ModelRegistry, ModelSpec
 __all__ = [
     "GpuManager",
