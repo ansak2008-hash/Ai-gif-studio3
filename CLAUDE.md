@@ -9,7 +9,7 @@
 ## Batch 11 Status
 - Phase 1 (Perspective Camera): implemented — `camera.py`, `manuscript_plane.py`.
 - Phase 2 (Canonical Depth): implemented — `depth_field.py`, `bevel.py`.
-- Phase 3 (Material/Environment): NOT STARTED. Do not create or modify it during Phase 2 verification.
+- Phase 3 (Material/Environment): NOT STARTED as an integrated Batch 11 stage. An older/prototype `material.py` exists in `temporal_engine`; treat it as legacy until the Phase 3 architecture explicitly replaces or adopts it. Do not modify it during Phase 2 verification.
 - Motion, color/export expansion, and final integration remain later phases.
 
 ## Hard Rules
