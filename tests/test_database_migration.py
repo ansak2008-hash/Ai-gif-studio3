@@ -32,4 +32,3 @@ def test_alembic_foundation_migration_creates_runtime_tables(tmp_path: Path) -> 
         "workflows",
     }
     assert expected <= tables
-}
