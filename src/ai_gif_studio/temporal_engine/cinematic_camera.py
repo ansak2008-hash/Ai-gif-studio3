@@ -56,7 +56,9 @@ class CinematicCamera:
     def state_for_key(self, key: CameraKey, aspect: float | None = None) -> CameraState:
         aspect = self.width / self.height if aspect is None else float(aspect)
         scale = max(float(key.scale), 1e-4)
-        distance = 1.20710678 / scale
+        # The legacy renderer normalizes its manuscript plane to 2x2; keep
+        # the camera outside the near plane even at maximum cinematic zoom.
+        distance = 2.0 / scale
         rx, ry = math.radians(key.rotate_x_deg), math.radians(key.rotate_y_deg)
         position = np.array([0.0, 0.0, distance], dtype=np.float64)
         cy, sy = math.cos(ry), math.sin(ry)
