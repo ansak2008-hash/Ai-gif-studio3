@@ -15,8 +15,10 @@ from ai_gif_studio.temporal_engine import (
     gaussian_glint,
     linearize_srgb,
     quantize_frames_global,
+    render_particles,
     warp_premultiplied_rgba,
 )
+from ai_gif_studio.temporal_engine.particles import ParticleField
 
 pytestmark = pytest.mark.unit
 
@@ -50,6 +52,38 @@ def test_rotation_modes():
         loop_mode=LoopMode.CLAMP,
     )
     assert p.evaluate(0.5) == pytest.approx(360)
+
+
+def test_rotation_modes_wrap_only_shortest():
+    shortest = MotionCurve(
+        (Keyframe(0, 10), Keyframe(1, 350)),
+        rotation_mode=RotationMode.SHORTEST,
+        loop_mode=LoopMode.CLAMP,
+    )
+    forward = MotionCurve(
+        (Keyframe(0, 10), Keyframe(1, 350)),
+        rotation_mode=RotationMode.FORWARD,
+        loop_mode=LoopMode.CLAMP,
+    )
+    preserve = MotionCurve(
+        (Keyframe(0, 0), Keyframe(1, 0)),
+        rotation_mode=RotationMode.PRESERVE_TURNS,
+        preserve_turns=2,
+        loop_mode=LoopMode.CLAMP,
+    )
+    assert shortest.evaluate(0.5) == pytest.approx(0.0)
+    assert forward.evaluate(0.5) == pytest.approx(180.0)
+    assert preserve.evaluate(0.5) == pytest.approx(360.0)
+
+
+def test_particle_render_is_deterministic_and_bounded():
+    field = ParticleField(count=12, seed=7)
+    a = render_particles((64, 96), field, 1.25, 1.8)
+    b = render_particles((64, 96), field, 1.25, 1.8)
+    np.testing.assert_array_equal(a, b)
+    assert a.shape == (64, 96, 3)
+    assert np.isfinite(a).all()
+    assert np.all(a >= 0.0)
 
 
 def test_bezier_rejects_invalid_x():
