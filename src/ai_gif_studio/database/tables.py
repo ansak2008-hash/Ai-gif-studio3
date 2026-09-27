@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 from datetime import datetime
 from uuid import uuid4
 
-from __future__ import annotations
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
 class Base(DeclarativeBase):
     pass
 
