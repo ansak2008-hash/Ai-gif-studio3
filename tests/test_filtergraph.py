@@ -1,12 +1,13 @@
 import pytest
 
-pytestmark = pytest.mark.unit
-
 from ai_gif_studio.engines.filtergraph import (
     build_filterchain,
     build_filtergraph,
     validate_filtergraph_labels,
 )
+
+
+pytestmark = pytest.mark.unit
 
 
 def test_filterchain_uses_commas_without_graph_separators():
