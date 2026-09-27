@@ -1,10 +1,9 @@
-from __future__ import annotations
-
 import hashlib
 from pathlib import Path
 
-from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
+from __future__ import annotations
 
+from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 class OutputValidator:
     def __init__(self, ffmpeg: FFmpegService | None = None) -> None:
         self._ffmpeg = ffmpeg
