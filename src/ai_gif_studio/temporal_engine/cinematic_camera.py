@@ -1,4 +1,9 @@
-"""Perspective-backed compatibility camera for manuscript animation."""
+"""LEGACY: cinematic camera compatibility shim for manuscript rendering.
+
+This module bridges legacy cinematic rendering to the Phase 2 perspective
+foundation. Do not extend or import it from new Phase 3 code.
+"""
+
 from __future__ import annotations
 from dataclasses import dataclass
 import math
