@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import Enum
 import math
+from dataclasses import dataclass
+from enum import StrEnum
 
-class InterpolatorType(str, Enum):
+class InterpolatorTypeStrEnum:
     LINEAR = "linear"
     CUBIC_BEZIER = "cubic_bezier"
     HARMONIC = "harmonic"
