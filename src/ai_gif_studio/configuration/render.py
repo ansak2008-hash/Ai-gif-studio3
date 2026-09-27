@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 RENDER_CONFIG_VERSION = 1
 
 
