@@ -39,10 +39,10 @@ class Job:
     id: UUID = field(default_factory=uuid4)
     status: JobStatus = JobStatus.CREATED
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     steps: list[JobStep] = field(default_factory=list)
     error: str | None = None
 
     def transition(self, status: JobStatus):
         self.status = status
-        self.updated_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(UTC)
