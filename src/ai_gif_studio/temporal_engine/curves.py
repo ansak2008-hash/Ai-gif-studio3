@@ -4,16 +4,19 @@ import math
 from dataclasses import dataclass
 from enum import StrEnum
 
+
 class InterpolatorType(StrEnum):
     LINEAR = "linear"
     CUBIC_BEZIER = "cubic_bezier"
     HARMONIC = "harmonic"
+
 
 class LoopMode(StrEnum):
     LOOP = "loop"
     PING_PONG = "ping_pong"
     HOLD = "hold"
     CLAMP = "clamp"
+
 
 class RotationMode(StrEnum):
     SHORTEST = "shortest"
