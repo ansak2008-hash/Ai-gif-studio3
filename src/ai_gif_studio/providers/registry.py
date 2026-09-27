@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from .base import AIProvider, ProviderRequest, ProviderResult
 from ai_gif_studio.resources import ModelRegistry
+
+from .base import AIProvider, ProviderRequest, ProviderResult
 
 
 class ProviderRegistry:
