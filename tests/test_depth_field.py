@@ -4,6 +4,8 @@ import pytest
 from ai_gif_studio.temporal_engine.bevel import BevelProfile
 from ai_gif_studio.temporal_engine.depth_field import DepthField
 
+pytestmark = pytest.mark.unit
+
 
 def square_alpha(size=64, start=16, end=48):
     a = np.zeros((size, size), dtype=np.float32)
@@ -26,9 +28,23 @@ def test_sdf_has_negative_outside_and_positive_inside():
     assert float(d.distance_px[32, 32]) > 0.0
 
 
+def test_sdf_gradient_magnitude_is_unity_near_straight_edges():
+    d = DepthField.from_alpha(square_alpha())
+    grad_y, grad_x = np.gradient(d.distance_px.astype(np.float64), edge_order=1)
+    magnitude = np.hypot(grad_x, grad_y)
+
+    # Sample a straight section of the left edge, avoiding corners and the
+    # medial axis. The sampled Euclidean SDF should have |grad d| ~= 1.
+    band = magnitude[24:40, 13:20]
+    near_edge = d.distance_px[24:40, 13:20]
+    selected = band[(near_edge > -5.0) & (near_edge < 5.0)]
+    assert selected.size > 0
+    assert float(np.median(selected)) == pytest.approx(1.0, abs=0.08)
+
+
 def test_height_is_zero_outside_and_flat_inside():
     d = DepthField.from_alpha(square_alpha(), bevel_width_px=8)
-    assert np.all(d.height[0] == 0)
+    np.testing.assert_allclose(d.height[0], 0.0, atol=1e-7)
     assert float(d.height[32, 16]) < 0.2
     assert float(d.height[32, 32]) == pytest.approx(1.0, abs=1e-6)
 
@@ -51,14 +67,12 @@ def test_normals_point_inward_at_edges():
 def test_normals_are_unit_length_on_surface():
     n = DepthField.from_alpha(square_alpha()).normals
     lengths = np.linalg.norm(n, axis=-1)
-    assert np.allclose(lengths, 1.0, atol=1e-5)
+    np.testing.assert_allclose(lengths, 1.0, atol=1e-5)
 
 
 def test_normals_at_center_are_flat():
     n = DepthField.from_alpha(square_alpha(), bevel_width_px=8).normals[32, 32]
-    assert n[0] == pytest.approx(0.0, abs=1e-6)
-    assert n[1] == pytest.approx(0.0, abs=1e-6)
-    assert n[2] == pytest.approx(1.0, abs=1e-6)
+    np.testing.assert_allclose(n, [0.0, 0.0, 1.0], atol=1e-6)
 
 
 def test_bevel_width_changes_profile():
@@ -73,6 +87,32 @@ def test_smoothstep_profile_has_zero_boundary_slope():
     d = np.array([0.0, 8.0], dtype=np.float32)
     derivative = profile.derivative(d)
     np.testing.assert_allclose(derivative, 0.0, atol=1e-7)
+
+
+def test_smoothstep_profile_matches_finite_difference():
+    profile = BevelProfile(width_px=8.0, power=0.75, smooth=True)
+    points = np.linspace(0.1, 7.9, 20, dtype=np.float64)
+    step = 1e-3
+    finite_difference = np.array(
+        [
+            (float(profile.evaluate(d + step)) - float(profile.evaluate(d - step)))
+            / (2.0 * step)
+            for d in points
+        ],
+        dtype=np.float64,
+    )
+    np.testing.assert_allclose(
+        finite_difference,
+        profile.derivative(points).astype(np.float64),
+        rtol=2e-3,
+        atol=1e-5,
+    )
+
+
+def test_default_bevel_has_no_near_boundary_normal_spike():
+    d = DepthField.from_alpha(square_alpha(), bevel_width_px=8, height_scale_px=2.5)
+    nx = np.abs(d.normals[32, 16:24, 0])
+    np.testing.assert_array_less(nx, 0.95)
 
 
 def test_closed_form_chain_rule_matches_field_gradient():
@@ -107,10 +147,10 @@ def test_height_scale_is_dimensionally_applied():
 def test_empty_alpha_produces_zero_height_and_canonical_normals():
     a = np.zeros((32, 32), dtype=np.float32)
     d = DepthField.from_alpha(a)
-    assert np.all(d.height == 0)
-    np.testing.assert_array_equal(d.normals[..., 0], 0.0)
-    np.testing.assert_array_equal(d.normals[..., 1], 0.0)
-    np.testing.assert_array_equal(d.normals[..., 2], 1.0)
+    np.testing.assert_allclose(d.height, 0.0, atol=1e-7)
+    np.testing.assert_allclose(d.normals[..., 0], 0.0, atol=1e-7)
+    np.testing.assert_allclose(d.normals[..., 1], 0.0, atol=1e-7)
+    np.testing.assert_allclose(d.normals[..., 2], 1.0, atol=1e-7)
 
 
 def test_full_alpha_produces_flat_height_and_normals():
