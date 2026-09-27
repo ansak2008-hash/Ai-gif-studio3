@@ -1,7 +1,10 @@
 import numpy as np
+import pytest
 
 from ai_gif_studio.temporal_engine.camera import CameraState, project_points
 from ai_gif_studio.temporal_engine.manuscript_plane import ManuscriptPlane, warp_manuscript
+
+pytestmark = [pytest.mark.unit, pytest.mark.determinism]
 
 
 def test_camera_projection_bit_identical():
