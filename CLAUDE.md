@@ -6,6 +6,18 @@
 - Manuscript Animation currently uses `camera.py`, `manuscript_plane.py`, `bevel.py`, and `depth_field.py`.
 - Do not introduce Gemini/DeepSeek runtime integrations. External engineering reports are input for human-reviewed changes only.
 
+
+## Phase Status
+
+| Phase | Status | Scope |
+|---|---|---|
+| 1 | Implemented | Perspective Camera + Manuscript Plane |
+| 2 | Verification in progress | Canonical SDF + Bevel + Normals |
+| 3 | Not started | PBR Material + Environment |
+| 4 | Not started | Motion separation |
+| 5 | Not started | Color / export expansion |
+| 6 | Not started | Final integration |
+
 ## Batch 11 Status
 - Phase 1 (Perspective Camera): implemented — `camera.py`, `manuscript_plane.py`.
 - Phase 2 (Canonical Depth): implemented — `depth_field.py`, `bevel.py`.
