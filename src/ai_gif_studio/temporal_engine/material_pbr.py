@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import numpy as np
 
-
 _EPS = np.float32(1e-7)
 
 
