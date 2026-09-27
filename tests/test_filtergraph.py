@@ -5,8 +5,6 @@ from ai_gif_studio.engines.filtergraph import (
     build_filtergraph,
     validate_filtergraph_labels,
 )
-
-
 pytestmark = pytest.mark.unit
 
 
