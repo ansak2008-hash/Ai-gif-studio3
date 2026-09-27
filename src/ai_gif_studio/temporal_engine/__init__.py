@@ -1,5 +1,4 @@
-"""Deterministic temporal video/motion rendering primitives for the 320x320 studio contract."""
-
+"""Deterministic temporal primitives plus an isolated manuscript animation engine."""
 from .timeline import AnimationTimeline, FrameTiming
 from .curves import Keyframe, MotionCurve, InterpolatorType, LoopMode, RotationMode
 from .color import linearize_srgb, encode_srgb
@@ -7,11 +6,12 @@ from .affine import AffineTransform, warp_premultiplied_rgba
 from .glint import GlintParameters, gaussian_glint
 from .palette import build_global_palette, quantize_frames_global
 from .quality import validate_temporal_sequence
-
-__all__ = [
-    "AnimationTimeline", "FrameTiming", "Keyframe", "MotionCurve",
-    "InterpolatorType", "LoopMode", "RotationMode", "linearize_srgb",
-    "encode_srgb", "AffineTransform", "warp_premultiplied_rgba",
-    "GlintParameters", "gaussian_glint", "build_global_palette",
-    "quantize_frames_global", "validate_temporal_sequence",
-]
+from .manuscript import ManuscriptAsset, MaterialPreset, alpha_bounds
+from .cinematic_camera import CameraKey, CinematicCamera
+from .material import Material, MaterialSpec, material_preset, normals_from_alpha, shade_metallic
+from .manuscript_renderer import ManuscriptCinematicProfile, ManuscriptCinematicRenderer
+__all__=["AnimationTimeline","FrameTiming","Keyframe","MotionCurve","InterpolatorType","LoopMode","RotationMode",
+"linearize_srgb","encode_srgb","AffineTransform","warp_premultiplied_rgba","GlintParameters","gaussian_glint",
+"build_global_palette","quantize_frames_global","validate_temporal_sequence","ManuscriptAsset","MaterialPreset",
+"alpha_bounds","CameraKey","CinematicCamera","Material","MaterialSpec","material_preset","normals_from_alpha",
+"shade_metallic","ManuscriptCinematicProfile","ManuscriptCinematicRenderer"]
