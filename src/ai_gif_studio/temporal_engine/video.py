@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import StrEnum
 import math
 
-from __future__ import annotations
 import cv2
 import numpy as np
+
 MASTER_SIZE = (320, 320)
 
 
