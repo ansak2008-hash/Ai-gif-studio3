@@ -1,7 +1,8 @@
-from hypothesis import given
-from hypothesis import strategies as st
 import numpy as np
 import pytest
+
+from hypothesis import given
+from hypothesis import strategies as st
 
 from ai_gif_studio.temporal_engine import (
     AffineTransform,
@@ -19,6 +20,7 @@ from ai_gif_studio.temporal_engine import (
     render_particles,
     warp_premultiplied_rgba,
 )
+from ai_gif_studio.temporal_engine.particles import ParticleField
 
 pytestmark = pytest.mark.unit
 
