@@ -7,6 +7,7 @@ from .glint import GlintParameters, gaussian_glint
 from .material import MaterialSpec, material_preset, Material, shade_metallic
 from .manuscript import ManuscriptAsset
 from .reveal import bloom, edge_reveal
+from .particles import ParticleField, render_particles
 
 @dataclass(frozen=True)
 class ManuscriptCinematicProfile:
@@ -63,6 +64,7 @@ class ManuscriptCinematicRenderer:
         gl=gaussian_glint(p.canvas[::-1],GlintParameters(glint_pos,p.glint_sigma,p.glint_peak,
                   math.radians(p.glint_angle_deg)),alpha,(p.canvas[0]/2,p.canvas[1]/2))
         out=np.clip(shaded+gl,0,4)
+        out += render_particles((p.canvas[1],p.canvas[0]), ParticleField(p.particle_count,p.particle_seed), t, key.scale)
         if t <= p.reveal_end:
             out += edge_reveal(alpha,t/p.reveal_end)
         out=bloom(out,threshold=1.0,sigma=5.0,strength=0.22)
