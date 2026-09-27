@@ -1,6 +1,6 @@
 from ai_gif_studio.domain.specs import DesignSpec
-from ai_gif_studio.engines.styles import background_filters, frame_filters
 from ai_gif_studio.engines.composition import Bounds
+from ai_gif_studio.engines.styles import background_filters, frame_filters
 from ai_gif_studio.engines.typography import MATERIALS, STYLES
 
 
