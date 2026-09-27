@@ -11,7 +11,7 @@ def test_alembic_foundation_migration_creates_runtime_tables(tmp_path: Path) -> 
     config.set_main_option("sqlalchemy.url", f"sqlite:///{database}")
     command.upgrade(config, "head")
 
-        engine = create_engine(f"sqlite:///{database}")
+    engine = create_engine(f"sqlite:///{database}")
     try:
         tables = set(inspect(engine).get_table_names())
     finally:
