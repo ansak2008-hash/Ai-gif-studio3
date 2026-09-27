@@ -88,7 +88,7 @@ class DesignSpec(BaseModel):
                 raise ValueError("unsupported typography animation")
 
     @classmethod
-    def from_payload(cls, payload: dict[str, Any]) -> "DesignSpec":
+    def from_payload(cls, payload: dict[str, Any]) -> DesignSpec:
         return cls.model_validate(payload)
 
 
