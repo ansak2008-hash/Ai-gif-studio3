@@ -7,6 +7,7 @@ Deprecated since: Batch 11.
 TODO(batch-11): delete after Phase 3 lands.
 """
 from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import StrEnum
 
