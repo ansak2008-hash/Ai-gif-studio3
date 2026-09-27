@@ -1,8 +1,7 @@
-from __future__ import annotations
-
-import math
 from dataclasses import dataclass
+import math
 
+from __future__ import annotations
 @dataclass(frozen=True)
 class FrameTiming:
     index: int
