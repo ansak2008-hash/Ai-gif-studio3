@@ -1,20 +1,28 @@
+from __future__ import annotations
+
 import logging
 from pathlib import Path
 from uuid import UUID
 
-from __future__ import annotations
-from aiogram.types import FSInputFile
 from aiogram import Bot
+from aiogram.types import FSInputFile
 from arq.connections import RedisSettings
 
 from ai_gif_studio.application import CreativeWorkflow
 from ai_gif_studio.configuration import get_settings
-from ai_gif_studio.database.repositories import ArtifactRepository, JobStepRepository, SqlAlchemyJobRepository
 from ai_gif_studio.database import Database
+from ai_gif_studio.database.repositories import (
+    ArtifactRepository,
+    JobStepRepository,
+    SqlAlchemyJobRepository,
+)
 from ai_gif_studio.engines.design_production2 import ProductionDesignGifEngine
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 from ai_gif_studio.observability import stage
+
 logger = logging.getLogger(__name__)
+
+
 async def process_job(ctx, job_id: str):
     settings = get_settings()
     db = Database(settings.database_url)
@@ -36,17 +44,33 @@ async def process_job(ctx, job_id: str):
         async with stage(job.id, "download"):
             tg_file = await bot.get_file(job.submission.telegram_file_id)
             await bot.download(tg_file, destination=source)
-        workflow = CreativeWorkflow(repo, JobStepRepository(db.session_factory), ArtifactRepository(db.session_factory), ProductionDesignGifEngine(FFmpegService(settings.ffmpeg_binary, settings.ffprobe_binary, settings.worker_timeout_seconds)))
+        workflow = CreativeWorkflow(
+            repo,
+            JobStepRepository(db.session_factory),
+            ArtifactRepository(db.session_factory),
+            ProductionDesignGifEngine(
+                FFmpegService(
+                    settings.ffmpeg_binary,
+                    settings.ffprobe_binary,
+                    settings.worker_timeout_seconds,
+                )
+            ),
+        )
         async with stage(job.id, "render"):
             result = await workflow.run(UUID(job_id), source, target)
         async with stage(job.id, "delivery"):
-            await bot.send_document(job.submission.submitted_by, FSInputFile(result.artifact_path))
+            await bot.send_document(
+                job.submission.submitted_by,
+                FSInputFile(result.artifact_path),
+            )
         return {"status": "completed", "job_id": job_id, "size_bytes": result.size_bytes}
     finally:
         if source is not None:
             source.unlink(missing_ok=True)
         await bot.session.close()
         await db.dispose()
+
+
 class WorkerSettings:
     functions = [process_job]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
