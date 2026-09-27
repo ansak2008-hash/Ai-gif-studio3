@@ -1,31 +1,22 @@
-"""Temporal engine: deterministic timeline, curves, color, and GIF encoding.
+"""Deterministic temporal primitives plus an isolated manuscript animation engine."""
 
-Manuscript animation primitives are re-exported here temporarily;
-they will move to `ai_gif_studio.manuscript` in Phase 5.
-"""
-from .timeline import AnimationTimeline, FrameTiming
+from .affine import AffineTransform, warp_premultiplied_rgba
+from .bevel import BevelProfile
+from .camera import CameraModel, CameraState, project_points
+from .color import encode_srgb, linearize_srgb
 from .curves import (
-    Keyframe,
-    MotionCurve,
     InterpolatorType,
+    Keyframe,
     LoopMode,
+    MotionCurve,
     RotationMode,
 )
-from .color import linearize_srgb, encode_srgb
-from .affine import AffineTransform, warp_premultiplied_rgba
+from .depth_field import DepthField
 from .glint import GlintParameters, gaussian_glint
+from .manuscript_plane import ManuscriptPlane, homography_from_corners, warp_manuscript
 from .palette import build_global_palette, quantize_frames_global
 from .quality import validate_temporal_sequence
-
-# --- Manuscript engine (Phase 1 + 2, temporary location) ---
-from .camera import CameraState, CameraModel, project_points
-from .manuscript_plane import (
-    ManuscriptPlane,
-    homography_from_corners,
-    warp_manuscript,
-)
-from .bevel import BevelProfile
-from .depth_field import DepthField
+from .timeline import AnimationTimeline, FrameTiming
 
 __all__ = [
     # Temporal
