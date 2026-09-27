@@ -3,6 +3,7 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
+
 def edge_reveal(alpha: np.ndarray, progress: float, softness: float = 7.0,
                 intensity: float = 2.0) -> np.ndarray:
     a = np.clip(np.asarray(alpha,dtype=np.float32),0,1)
