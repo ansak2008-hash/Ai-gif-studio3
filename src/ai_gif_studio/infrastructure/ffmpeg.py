@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 
 class FFmpegError(RuntimeError):
@@ -32,7 +32,7 @@ class FFmpegService:
         )
         try:
             out, err = await asyncio.wait_for(p.communicate(), timeout or self.timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             p.kill()
             await p.wait()
             raise FFmpegError("ffmpeg timeout") from None
