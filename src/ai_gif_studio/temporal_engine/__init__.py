@@ -15,6 +15,7 @@ from .depth_field import DepthField
 from .glint import GlintParameters, gaussian_glint
 from .manuscript_plane import ManuscriptPlane, homography_from_corners, warp_manuscript
 from .palette import build_global_palette, quantize_frames_global
+from .particles import ParticleField, render_particles
 from .quality import validate_temporal_sequence
 from .timeline import AnimationTimeline, FrameTiming
 
@@ -35,6 +36,8 @@ __all__ = [
     "gaussian_glint",
     "build_global_palette",
     "quantize_frames_global",
+    "ParticleField",
+    "render_particles",
     "validate_temporal_sequence",
     # Manuscript (Phase 1 + 2)
     "CameraState",
