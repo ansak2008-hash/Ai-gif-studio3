@@ -1,29 +1,52 @@
 from __future__ import annotations
-import asyncio, json, os
+
+import asyncio
+import json
+import os
 from pathlib import Path
 from typing import Sequence
-class FFmpegError(RuntimeError): pass
+
+
+class FFmpegError(RuntimeError):
+    pass
+
+
 class FFmpegService:
-    def __init__(self,ffmpeg="ffmpeg",ffprobe="ffprobe",timeout=120): self.ffmpeg=ffmpeg
-    self.ffprobe=ffprobe
-    self.timeout=timeout
-    async def _run(self,args:Sequence[str],timeout=None):
-        env={**os.environ,"FFREPORT":"file=/dev/null","http_proxy":"","https_proxy":""}
-        p=await asyncio.create_subprocess_exec(*args,stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.PIPE,env=env)
+    def __init__(self, ffmpeg="ffmpeg", ffprobe="ffprobe", timeout=120):
+        self.ffmpeg = ffmpeg
+        self.ffprobe = ffprobe
+        self.timeout = timeout
+
+    async def _run(self, args: Sequence[str], timeout=None):
+        env = {
+            **os.environ,
+            "FFREPORT": "file=/dev/null",
+            "http_proxy": "",
+            "https_proxy": "",
+        }
+        p = await asyncio.create_subprocess_exec(
+            *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            env=env,
+        )
         try:
-            out,err=await asyncio.wait_for(p.communicate(),timeout or self.timeout)
+            out, err = await asyncio.wait_for(p.communicate(), timeout or self.timeout)
         except asyncio.TimeoutError:
             p.kill()
             await p.wait()
             raise FFmpegError("ffmpeg timeout") from None
         if p.returncode:
             raise FFmpegError((err or out).decode(errors="replace")[-4000:])
-        return out,err
-    async def probe(self,path:Path,*,count_frames: bool = False)->dict:
-        args=[self.ffprobe,"-v","error"]
+        return out, err
+
+    async def probe(self, path: Path, *, count_frames: bool = False) -> dict:
+        args = [self.ffprobe, "-v", "error"]
         if count_frames:
             args.append("-count_frames")
-        args += ["-show_streams","-show_format","-of","json",str(path)]
-        out,_=await self._run(args)
+        args += ["-show_streams", "-show_format", "-of", "json", str(path)]
+        out, _ = await self._run(args)
         return json.loads(out)
-    async def run(self,args:Sequence[str]): return await self._run([self.ffmpeg,"-hide_banner","-nostdin","-y",*args])
+
+    async def run(self, args: Sequence[str]):
+        return await self._run([self.ffmpeg, "-hide_banner", "-nostdin", "-y", *args])
