@@ -8,10 +8,11 @@ TODO(batch-11): delete after Phase 3 lands.
 """
 from __future__ import annotations
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
+
 import numpy as np
 
-class Material(str, Enum):
+class MaterialStrEnum:
     CHROME = "chrome"
     GOLD = "gold"
     PURPLE = "purple"
@@ -49,10 +50,13 @@ def shade_metallic(rgb_linear: np.ndarray, alpha: np.ndarray, spec: MaterialSpec
     rgb = np.asarray(rgb_linear,dtype=np.float32)
     a = np.clip(np.asarray(alpha,dtype=np.float32),0,1)
     n = normals_from_alpha(a)
-    l = np.asarray(light_dir,dtype=np.float32); l /= max(np.linalg.norm(l),1e-8)
-    v = np.asarray(view_dir,dtype=np.float32); v /= max(np.linalg.norm(v),1e-8)
-    ndotl = np.clip(n @ l,0,1)
-    h = l + v; h /= max(np.linalg.norm(h),1e-8)
+    light = np.asarray(light_dir, dtype=np.float32)
+    light /= max(np.linalg.norm(light), 1e-8)
+    v = np.asarray(view_dir, dtype=np.float32)
+    v /= max(np.linalg.norm(v), 1e-8)
+    ndotl = np.clip(n @ light, 0, 1)
+    h = light + v
+    h /= max(np.linalg.norm(h), 1e-8)
     ndoth = np.clip(n @ h,0,1)
     shininess = max(2.0, (1.0-spec.roughness)**4 * 2048.0)
     fresnel = spec.fresnel_f0 + (1.0-spec.fresnel_f0)*(1.0-np.clip(n[...,2],0,1))**5
