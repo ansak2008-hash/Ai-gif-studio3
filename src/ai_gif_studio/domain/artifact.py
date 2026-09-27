@@ -1,7 +1,8 @@
-from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
+
+from __future__ import annotations
 @dataclass(frozen=True, slots=True)
 class Artifact:
     job_id:UUID
