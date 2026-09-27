@@ -1,3 +1,10 @@
+"""LEGACY: 2D cinematic renderer; not part of the Phase 3 PBR pipeline.
+
+This module bridges the legacy cinematic camera/material path with the
+Perspective foundation. Do not extend or import it from new Phase 3 code.
+It is retained until the planned manuscript renderer replacement.
+"""
+
 from __future__ import annotations
 
 import math
@@ -71,7 +78,7 @@ class ManuscriptCinematicRenderer:
             rz = -10 * e
         else:
             u = (t - p.macro_end) / (p.hero_end - p.macro_end)
-            e = u * u * (3 - 2 * u)
+            e = u * u * (3 - 2 * e)
             s = p.zoom_max + (1.10 - p.zoom_max) * e
             rx = 20 * (1 - e)
             ry = 15 * (1 - e)
