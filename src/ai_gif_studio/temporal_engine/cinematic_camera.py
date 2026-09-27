@@ -5,9 +5,12 @@ foundation. Do not extend or import it from new Phase 3 code.
 """
 
 from __future__ import annotations
-from dataclasses import dataclass
+
 import math
+from dataclasses import dataclass
+
 import numpy as np
+
 from .camera import CameraState
 from .manuscript_plane import ManuscriptPlane, warp_manuscript
 
