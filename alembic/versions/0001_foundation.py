@@ -13,6 +13,8 @@ def upgrade():
     op.create_table("ai_executions",sa.Column("id",sa.String(36),primary_key=True),sa.Column("job_id",sa.String(36),nullable=False),sa.Column("provider",sa.String(64),nullable=False),sa.Column("model_id",sa.String(128)),sa.Column("duration_ms",sa.Integer()),sa.Column("status",sa.String(32),nullable=False),sa.Column("metadata",sa.JSON(),nullable=False))
     op.create_table("models",sa.Column("model_id",sa.String(128),primary_key=True),sa.Column("version",sa.String(64),nullable=False),sa.Column("exact_source",sa.Text()),sa.Column("exact_weight_source",sa.Text()),sa.Column("weight_sha256",sa.String(64)),sa.Column("code_license",sa.String(128),nullable=False),sa.Column("weights_license",sa.String(128),nullable=False),sa.Column("commercial_allowed",sa.Boolean(),nullable=False),sa.Column("redistribution_allowed",sa.Boolean(),nullable=False),sa.Column("attribution_required",sa.Boolean(),nullable=False),sa.Column("gpu_required",sa.Boolean(),nullable=False),sa.Column("minimum_vram_mb",sa.Integer()),sa.Column("recommended_vram_mb",sa.Integer()),sa.Column("backend",sa.String(64)),sa.Column("precision",sa.String(32)),sa.Column("verified_at",sa.DateTime(timezone=True)),sa.Column("verification_source",sa.Text()))
     op.create_table("workflows",sa.Column("workflow_id",sa.String(128),primary_key=True),sa.Column("version",sa.String(32),nullable=False),sa.Column("definition",sa.JSON(),nullable=False))
+
+
 def downgrade():
     for t in ("workflows","models","ai_executions","processing_settings","design_specs","job_steps","artifacts","processing_jobs"):
         op.drop_table(t)
