@@ -1,9 +1,11 @@
-import shutil,subprocess
 from pathlib import Path
+import shutil,subprocess
+
 import pytest
+
+from ai_gif_studio.domain.specs import ProcessingSettings
 from ai_gif_studio.engines.crop import CropOnlyEngine
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
-from ai_gif_studio.domain.specs import ProcessingSettings
 @pytest.mark.asyncio
 async def test_real_video_to_gif(tmp_path:Path):
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"): pytest.skip("ffmpeg unavailable")
