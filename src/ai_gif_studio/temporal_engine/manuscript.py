@@ -1,11 +1,15 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
-from __future__ import annotations
 import numpy as np
+
+
 class MaterialPresetStrEnum:
     CHROME = "chrome"
     GOLD = "gold"
     PURPLE = "purple"
+
 
 @dataclass(frozen=True)
 class ManuscriptAsset:
@@ -39,11 +43,17 @@ class ManuscriptAsset:
         if arr.ndim != 3 or arr.shape[2] != 4:
             raise ValueError("expected HxWx4 RGBA")
         x = arr.astype(np.float32) / 255.0
-        rgb = np.where(x[..., :3] <= 0.04045, x[..., :3] / 12.92,
-                       ((x[..., :3] + 0.055) / 1.055) ** 2.4)
+        rgb = np.where(
+            x[..., :3] <= 0.04045,
+            x[..., :3] / 12.92,
+            ((x[..., :3] + 0.055) / 1.055) ** 2.4,
+        )
         return cls(np.concatenate([rgb, x[..., 3:4]], axis=-1), name)
 
-def alpha_bounds(alpha: np.ndarray, threshold: float = 1e-3) -> tuple[int,int,int,int] | None:
+
+def alpha_bounds(
+    alpha: np.ndarray, threshold: float = 1e-3
+) -> tuple[int, int, int, int] | None:
     a = np.asarray(alpha)
     if a.ndim != 2:
         raise ValueError("alpha must be 2D")
