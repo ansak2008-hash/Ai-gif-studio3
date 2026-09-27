@@ -118,7 +118,7 @@ class ManuscriptCinematicRenderer:
             key.scale,
         )
         if t <= p.reveal_end:
-            out += edge_reveal(alpha, t / p.reveal_end)
+            out += edge_reveal(alpha, t / p.reveal_end)[..., None]
         out = bloom(out, threshold=1.0, sigma=5.0, strength=0.22)
         return np.concatenate(
             [np.clip(out, 0, 4), alpha[..., None]], axis=-1
