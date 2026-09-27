@@ -1,9 +1,9 @@
 from alembic import op
 import sqlalchemy as sa
-revision="0001_foundation"
- down_revision=None
- branch_labels=None
- depends_on=None
+revision = "0001_foundation"
+down_revision = None
+branch_labels = None
+depends_on = None
 def upgrade():
     op.create_table("processing_jobs",sa.Column("id",sa.String(36),primary_key=True),sa.Column("status",sa.String(32),nullable=False),sa.Column("telegram_file_id",sa.String(255),nullable=False),sa.Column("original_filename",sa.String(255)),sa.Column("content_type",sa.String(128)),sa.Column("file_size_bytes",sa.Integer(),nullable=False),sa.Column("submitted_by",sa.Integer(),nullable=False),sa.Column("mode",sa.String(32),nullable=False),sa.Column("created_at",sa.DateTime(timezone=True),nullable=False))
     op.create_table("artifacts",sa.Column("artifact_id",sa.String(36),primary_key=True),sa.Column("job_id",sa.String(36),sa.ForeignKey("processing_jobs.id"),nullable=False),sa.Column("type",sa.String(64),nullable=False),sa.Column("storage_path",sa.Text(),nullable=False),sa.Column("mime_type",sa.String(128),nullable=False),sa.Column("size_bytes",sa.Integer(),nullable=False),sa.Column("sha256",sa.String(64),nullable=False),sa.Column("created_at",sa.DateTime(timezone=True),nullable=False),sa.Column("expires_at",sa.DateTime(timezone=True)),sa.Column("metadata",sa.JSON(),nullable=False))
