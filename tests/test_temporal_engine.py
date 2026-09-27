@@ -53,6 +53,8 @@ def test_rotation_modes():
     )
     assert p.evaluate(0.5) == pytest.approx(360)
 
+    assert c.evaluate(1.0) == pytest.approx(10.0)
+
 
 def test_rotation_modes_wrap_only_shortest():
     shortest = MotionCurve(
