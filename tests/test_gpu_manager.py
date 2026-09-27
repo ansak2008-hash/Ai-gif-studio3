@@ -1,8 +1,6 @@
 import pytest
 
 from ai_gif_studio.resources import GpuManager, GpuMemorySnapshot, ResourceLimitError, ResourceManager
-
-
 @pytest.mark.unit
 def test_gpu_snapshot_validates_memory() -> None:
     snapshot = GpuMemorySnapshot(8 * 1024**3, 6 * 1024**3, 2 * 1024**3)
