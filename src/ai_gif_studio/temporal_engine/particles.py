@@ -1,8 +1,8 @@
 """Deterministic particle field and efficient local Gaussian renderer."""
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
 import numpy as np
 
