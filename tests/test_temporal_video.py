@@ -1,7 +1,13 @@
 import numpy as np
 import pytest
 
-from ai_gif_studio.temporal_engine.video import CropController, CropStrategy, OneEuroFilter, SubjectState
+from ai_gif_studio.temporal_engine.video import (
+    CropController,
+    CropStrategy,
+    OneEuroFilter,
+    SubjectState,
+)
+
 pytestmark = pytest.mark.unit
 
 
