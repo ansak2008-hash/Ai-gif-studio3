@@ -7,7 +7,10 @@ from .glint import GlintParameters, gaussian_glint
 from .palette import build_global_palette, quantize_frames_global
 from .quality import validate_temporal_sequence
 from .manuscript import ManuscriptAsset, MaterialPreset, alpha_bounds
-from .camera import CameraState, CameraModel, project_points\nfrom .manuscript_plane import ManuscriptPlane, homography_from_corners, warp_manuscript\nfrom .cinematic_camera import CameraKey, CinematicCamera
+from .camera import CameraState, CameraModel, project_points
+from .manuscript_plane import ManuscriptPlane, homography_from_corners, warp_manuscript
+from .depth_field import DepthField
+from .cinematic_camera import CameraKey, CinematicCamera
 from .material import Material, MaterialSpec, material_preset, normals_from_alpha, shade_metallic
 from .manuscript_renderer import ManuscriptCinematicProfile, ManuscriptCinematicRenderer
 from .particles import ParticleField, render_particles
