@@ -15,6 +15,7 @@ from ai_gif_studio.temporal_engine import (
     gaussian_glint,
     linearize_srgb,
     quantize_frames_global,
+    warp_premultiplied_rgba,
 )
 
 
@@ -94,12 +95,8 @@ def test_warp_is_deterministic():
     src[8:24, 8:24, :3] = (0.8, 0.4, 0.2)
     src[8:24, 8:24, 3] = 1
     tr = AffineTransform(translation_px=(2.5, 1.25), rotation_deg=5)
-    a = __import__("ai_gif_studio.temporal_engine", fromlist=["warp_premultiplied_rgba"]).warp_premultiplied_rgba(
-        src, tr, (64, 64)
-    )
-    b = __import__("ai_gif_studio.temporal_engine", fromlist=["warp_premultiplied_rgba"]).warp_premultiplied_rgba(
-        src, tr, (64, 64)
-    )
+    a = warp_premultiplied_rgba(src, tr, (64, 64))
+    b = warp_premultiplied_rgba(src, tr, (64, 64))
     np.testing.assert_array_equal(a, b)
 
 
@@ -107,9 +104,7 @@ def test_warp_preserves_straight_alpha_contract():
     src = np.zeros((16, 16, 4), np.float32)
     src[4:12, 4:12, :3] = 1
     src[4:12, 4:12, 3] = 0.5
-    out = __import__("ai_gif_studio.temporal_engine", fromlist=["warp_premultiplied_rgba"]).warp_premultiplied_rgba(
-        src, AffineTransform.identity(), (16, 16)
-    )
+    out = warp_premultiplied_rgba(src, AffineTransform.identity(), (16, 16))
     assert np.all((out[:, :, 3] >= 0) & (out[:, :, 3] <= 1))
     assert np.all((out[:, :, :3] >= 0) & (out[:, :, :3] <= 1))
 
