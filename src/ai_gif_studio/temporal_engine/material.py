@@ -1,7 +1,7 @@
-"""LEGACY: Alpha-Sobel normals. Not used by Phase 3.
+"""LEGACY: Alpha-Sobel material renderer. Not used by Phase 3.
 
-Phase 3 (GGX/Cook-Torrance) will be implemented in a NEW module
-`material_pbr.py`. Do NOT extend this file.
+Phase 3 (GGX/Cook-Torrance) will be implemented in the NEW module
+material_pbr.py. Do NOT extend this file.
 
 Deprecated since: Batch 11.
 TODO(batch-11): delete after Phase 3 lands.
