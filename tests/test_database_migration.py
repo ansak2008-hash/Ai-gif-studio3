@@ -1,15 +1,17 @@
 from pathlib import Path
 
-from alembic.config import Config
 from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine, inspect
+
+
 def test_alembic_foundation_migration_creates_runtime_tables(tmp_path: Path) -> None:
     database = tmp_path / "migration.db"
     config = Config("alembic.ini")
     config.set_main_option("sqlalchemy.url", f"sqlite:///{database}")
     command.upgrade(config, "head")
 
-    engine = create_engine(f"sqlite:///{database}")
+        engine = create_engine(f"sqlite:///{database}")
     try:
         tables = set(inspect(engine).get_table_names())
     finally:
