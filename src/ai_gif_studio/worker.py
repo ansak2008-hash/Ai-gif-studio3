@@ -1,14 +1,16 @@
-from __future__ import annotations
 import logging
 from pathlib import Path
 from uuid import UUID
-from aiogram import Bot
+
+from __future__ import annotations
 from aiogram.types import FSInputFile
+from aiogram import Bot
 from arq.connections import RedisSettings
+
 from ai_gif_studio.application import CreativeWorkflow
 from ai_gif_studio.configuration import get_settings
-from ai_gif_studio.database import Database
 from ai_gif_studio.database.repositories import ArtifactRepository, JobStepRepository, SqlAlchemyJobRepository
+from ai_gif_studio.database import Database
 from ai_gif_studio.engines.design_production2 import ProductionDesignGifEngine
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 from ai_gif_studio.observability import stage
