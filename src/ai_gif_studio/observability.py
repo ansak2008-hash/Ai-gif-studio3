@@ -4,7 +4,7 @@ import json
 import logging
 import time
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 from uuid import UUID
 
 
