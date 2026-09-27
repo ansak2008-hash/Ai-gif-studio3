@@ -1,9 +1,10 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
+
 import numpy as np
 
-class MaterialPreset(str, Enum):
+class MaterialPresetStrEnum:
     CHROME = "chrome"
     GOLD = "gold"
     PURPLE = "purple"
@@ -35,7 +36,7 @@ class ManuscriptAsset:
         return np.clip(np.asarray(self.rgba_linear[..., 3], dtype=np.float32), 0.0, 1.0)
 
     @classmethod
-    def from_rgba_u8(cls, rgba: np.ndarray, name: str = "manuscript") -> "ManuscriptAsset":
+    def from_rgba_u8(cls, rgba: np.ndarray, name: str = "manuscript") -> ManuscriptAsset:
         arr = np.asarray(rgba)
         if arr.ndim != 3 or arr.shape[2] != 4:
             raise ValueError("expected HxWx4 RGBA")
