@@ -12,6 +12,9 @@
       "Glob(*)",
       "Grep(*)"
     ],
+    "ask": [
+      "Write(*)"
+    ],
     "deny": [
       "Bash(git push:*)",
       "Bash(git reset --hard:*)",
