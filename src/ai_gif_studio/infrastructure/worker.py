@@ -1,20 +1,23 @@
+from __future__ import annotations
+
 from uuid import UUID
 
-from __future__ import annotations
-from aiogram.types import FSInputFile
 from aiogram import Bot
-from arq.connections import RedisSettings
+from aiogram.types import FSInputFile
 from arq import Retry
+from arq.connections import RedisSettings
 
 from ai_gif_studio.configuration import AppSettings
-from ai_gif_studio.database.repositories import ArtifactRepository, JobStepRepository, SqlAlchemyJobRepository
 from ai_gif_studio.database import Database
+from ai_gif_studio.database.repositories import ArtifactRepository, JobStepRepository, SqlAlchemyJobRepository
 from ai_gif_studio.domain.specs import ProcessingSettings
 from ai_gif_studio.engines.crop import CropOnlyEngine
 from ai_gif_studio.engines.design import DesignGifEngine
 from ai_gif_studio.engines.validator import OutputValidator
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 from ai_gif_studio.infrastructure.storage import ArtifactStorage
+
+
 async def process_job(ctx, job_id: str, **_):
     settings = ctx["settings"]
     db = Database(settings.database_url)
