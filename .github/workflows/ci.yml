@@ -39,7 +39,8 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: python -m pip check
       - name: Import temporal engine
-        run: python -c "import ai_gif_studio.temporal_engine; print('temporal_engine import: OK')"
+        run: |
+          python -c "import ai_gif_studio.temporal_engine; print('temporal_engine import: OK')"
       - name: Collect unit tests
         run: pytest --collect-only -m "unit and not integration and not slow" -q
       - name: Unit tests
