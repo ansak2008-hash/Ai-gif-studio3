@@ -33,7 +33,7 @@ class DepthField:
         height_scale_px: float = 2.5,
         alpha_threshold: float = 0.5,
         smooth: bool = True,
-    ) -> "DepthField":
+    ) -> DepthField:
         """Build a deterministic canonical field from an alpha mask.
 
         The signed distance is constructed from inside/outside Euclidean
