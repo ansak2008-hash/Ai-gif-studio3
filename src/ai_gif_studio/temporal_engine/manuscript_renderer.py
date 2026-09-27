@@ -14,8 +14,8 @@ import numpy as np
 
 from .cinematic_camera import CameraKey, CinematicCamera
 from .glint import GlintParameters, gaussian_glint
-from .material import Material, MaterialSpec, material_preset, shade_metallic
 from .manuscript import ManuscriptAsset
+from .material import Material, MaterialSpec, material_preset, shade_metallic
 from .particles import ParticleField, render_particles
 from .reveal import bloom, edge_reveal
 
