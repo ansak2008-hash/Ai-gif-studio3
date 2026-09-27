@@ -1,10 +1,13 @@
 from __future__ import annotations
+
 import logging
 from pathlib import Path
 from uuid import UUID
+
 from aiogram import Bot
 from aiogram.types import FSInputFile
 from arq.connections import RedisSettings
+
 from ai_gif_studio.application import CreativeWorkflow
 from ai_gif_studio.configuration import get_settings
 from ai_gif_studio.database import Database
@@ -12,7 +15,10 @@ from ai_gif_studio.database.repositories import ArtifactRepository, JobStepRepos
 from ai_gif_studio.engines.design_production2 import ProductionDesignGifEngine
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 from ai_gif_studio.observability import stage
+
 logger = logging.getLogger(__name__)
+
+
 async def process_job(ctx, job_id: str):
     settings = get_settings()
     db = Database(settings.database_url)
@@ -41,10 +47,11 @@ async def process_job(ctx, job_id: str):
             await bot.send_document(job.submission.submitted_by, FSInputFile(result.artifact_path))
         return {"status": "completed", "job_id": job_id, "size_bytes": result.size_bytes}
     finally:
-        if source is not None:
-            source.unlink(missing_ok=True)
+        if source is not None: source.unlink(missing_ok=True)
         await bot.session.close()
         await db.dispose()
+
+
 class WorkerSettings:
     functions = [process_job]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
