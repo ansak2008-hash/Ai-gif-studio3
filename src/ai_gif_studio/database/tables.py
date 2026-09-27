@@ -13,7 +13,11 @@ class Base(DeclarativeBase):
 
 class ProcessingJobRecord(Base):
     __tablename__ = "processing_jobs"
-    __table_args__ = (\n        UniqueConstraint(\n            "submitted_by", "source_message_id", name="uq_processing_jobs_submission"\n        ),\n    )
+    __table_args__ = (
+        UniqueConstraint(
+            "submitted_by", "source_message_id", name="uq_processing_jobs_submission"
+        ),
+    )
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     telegram_file_id: Mapped[str] = mapped_column(String(255), nullable=False)
