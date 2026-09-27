@@ -1,13 +1,11 @@
-from __future__ import annotations
-
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 import json
 import logging
 import time
-from contextlib import asynccontextmanager
-from collections.abc import AsyncIterator
 from uuid import UUID
 
-
+from __future__ import annotations
 logger = logging.getLogger("ai_gif_studio.observability")
 
 
