@@ -44,7 +44,7 @@ class AffineTransform:
         return self.to_matrix()
 
     @classmethod
-    def from_matrix(cls, matrix: np.ndarray, opacity: float = 1.0) -> "AffineTransform":
+    def from_matrix(cls, matrix: np.ndarray, opacity: float = 1.0) -> AffineTransform:
         m = np.asarray(matrix, dtype=np.float64)
         if m.shape == (3, 3):
             if not np.allclose(m[2], (0.0, 0.0, 1.0), atol=1e-6):
