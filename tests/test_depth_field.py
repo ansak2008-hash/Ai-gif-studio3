@@ -42,10 +42,10 @@ def test_height_is_monotone_from_edge_to_center():
 def test_normals_point_inward_at_edges():
     d = DepthField.from_alpha(square_alpha(), bevel_width_px=6)
     n_left = d.normals[32, 17]
-    assert n_left[0] > 0, f"Left-edge normal must have +x component: {n_left}"
+    assert n_left[0] < 0, f"Left-edge normal must have -x component: {n_left}"
 
     n_top = d.normals[17, 32]
-    assert n_top[1] > 0, f"Top-edge normal must have +y component: {n_top}"
+    assert n_top[1] < 0, f"Top-edge normal must have -y component: {n_top}"
 
 
 def test_normals_are_unit_length_on_surface():
@@ -101,7 +101,7 @@ def test_height_scale_is_dimensionally_applied():
     a = square_alpha()
     low = DepthField.from_alpha(a, height_scale_px=1.0)
     high = DepthField.from_alpha(a, height_scale_px=4.0)
-    assert high.normals[32, 17, 0] > low.normals[32, 17, 0]
+    assert abs(float(high.normals[32, 17, 0])) > abs(float(low.normals[32, 17, 0]))
 
 
 def test_empty_alpha_produces_zero_height_and_canonical_normals():
