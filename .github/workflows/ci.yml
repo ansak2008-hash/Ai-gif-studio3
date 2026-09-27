@@ -4,6 +4,7 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Keep numerical/rendering behavior stable across runners.
 env:
   PYTHONHASHSEED: "0"
   OMP_NUM_THREADS: "1"
@@ -16,7 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: "3.11"}
+        with:
+          python-version: "3.11"
+          cache: pip
       - run: python -m pip install -U pip
       - run: pip install -e ".[dev]"
       - run: ruff check .
@@ -27,7 +30,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: "3.11"}
+        with:
+          python-version: "3.11"
+          cache: pip
       - run: python -m pip install -U pip
       - run: pip install -e ".[dev]"
       - name: Render twice, compare
@@ -38,7 +43,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: "3.11"}
+        with:
+          python-version: "3.11"
+          cache: pip
+      # OpenCV is headless, so libGL is not required for this workflow.
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Verify FFmpeg drawtext shaping support
         run: ffmpeg -hide_banner -h filter=drawtext 2>&1 | grep -q "text_shaping"
@@ -52,7 +60,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: "3.11"}
+        with:
+          python-version: "3.11"
+          cache: pip
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: python -m pip install -U pip
       - run: pip install -e ".[dev]"
