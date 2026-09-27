@@ -1,5 +1,9 @@
 import numpy as np
+import pytest
+
 from ai_gif_studio.temporal_engine.camera import CameraState, project_points
+
+pytestmark = pytest.mark.unit
 
 
 def test_identity_projection():
