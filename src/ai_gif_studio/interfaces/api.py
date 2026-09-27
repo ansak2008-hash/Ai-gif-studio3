@@ -79,7 +79,8 @@ def create_api(settings: AppSettings | None = None) -> FastAPI:
         response.headers["cache-control"] = "no-store"
         return response
     @app.get("/health")
-    async def health(): return {"status": "ok"}
+    async def health():
+        return {"status": "ok"}
     @app.get("/ready")
     async def ready():
         checks = await _readiness_checks(settings)
