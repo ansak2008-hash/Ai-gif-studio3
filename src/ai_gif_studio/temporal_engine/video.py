@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 import cv2
 import numpy as np
@@ -11,7 +11,7 @@ import numpy as np
 MASTER_SIZE = (320, 320)
 
 
-class CropStrategy(str, Enum):
+class CropStrategyStrEnum:
     CENTER = "center"
     SMART = "smart"
     FIT = "fit"
