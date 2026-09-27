@@ -13,6 +13,7 @@ from enum import StrEnum
 
 import numpy as np
 
+
 class Material(StrEnum):
     CHROME = "chrome"
     GOLD = "gold"
@@ -21,7 +22,7 @@ class Material(StrEnum):
 @dataclass(frozen=True)
 class MaterialSpec:
     material: Material = Material.GOLD
-    base_color: tuple[float,float,float] = (0.83,0.62,0.18)
+    base_color: tuple[float, float, float] = (0.83,0.62,0.18)
     metallic: float = 1.0
     roughness: float = 0.10
     specular: float = 1.0
