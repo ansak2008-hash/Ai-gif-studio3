@@ -19,6 +19,7 @@ from ai_gif_studio.temporal_engine import (
     render_particles,
     warp_premultiplied_rgba,
 )
+
 pytestmark = pytest.mark.unit
 
 
