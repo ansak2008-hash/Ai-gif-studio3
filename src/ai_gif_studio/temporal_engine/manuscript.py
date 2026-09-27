@@ -1,9 +1,7 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
 
+from __future__ import annotations
 import numpy as np
-
 class MaterialPresetStrEnum:
     CHROME = "chrome"
     GOLD = "gold"
