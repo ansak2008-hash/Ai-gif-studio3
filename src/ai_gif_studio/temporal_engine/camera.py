@@ -1,7 +1,5 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
-from typing import Tuple
+
 import numpy as np
 
 
@@ -14,9 +12,9 @@ def _normalize(v: np.ndarray) -> np.ndarray:
 
 @dataclass(frozen=True)
 class CameraState:
-    position: Tuple[float, float, float]
-    target: Tuple[float, float, float]
-    up: Tuple[float, float, float]
+    position: tuple[float, float, float]
+    target: tuple[float, float, float]
+    up: tuple[float, float, float]
     fov_y_deg: float
     aspect: float
     near: float = 0.01
@@ -42,18 +40,28 @@ class CameraState:
             r = np.deg2rad(self.roll_deg)
             c, s = float(np.cos(r)), float(np.sin(r))
             x_axis, y_axis = c * x_axis + s * y_axis, -s * x_axis + c * y_axis
-        return np.array([[*x_axis, -float(np.dot(x_axis, eye))],
-                         [*y_axis, -float(np.dot(y_axis, eye))],
-                         [*z_axis, -float(np.dot(z_axis, eye))],
-                         [0.0, 0.0, 0.0, 1.0]], dtype=np.float64)
+        return np.array(
+            [
+                [*x_axis, -float(np.dot(x_axis, eye))],
+                [*y_axis, -float(np.dot(y_axis, eye))],
+                [*z_axis, -float(np.dot(z_axis, eye))],
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+            dtype=np.float64,
+        )
 
     def projection_matrix(self) -> np.ndarray:
         f = 1.0 / np.tan(np.deg2rad(self.fov_y_deg) * 0.5)
         n, fa = self.near, self.far
-        return np.array([[f / self.aspect, 0.0, 0.0, 0.0],
-                         [0.0, f, 0.0, 0.0],
-                         [0.0, 0.0, (fa + n) / (n - fa), 2.0 * fa * n / (n - fa)],
-                         [0.0, 0.0, -1.0, 0.0]], dtype=np.float64)
+        return np.array(
+            [
+                [f / self.aspect, 0.0, 0.0, 0.0],
+                [0.0, f, 0.0, 0.0],
+                [0.0, 0.0, (fa + n) / (n - fa), 2.0 * fa * n / (n - fa)],
+                [0.0, 0.0, -1.0, 0.0],
+            ],
+            dtype=np.float64,
+        )
 
     def view_projection(self) -> np.ndarray:
         return self.projection_matrix() @ self.view_matrix()
@@ -76,7 +84,11 @@ class CameraModel:
         return self.state.view_projection()
 
 
-def project_points(view_projection: np.ndarray, points_world: np.ndarray, viewport: Tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
+def project_points(
+    view_projection: np.ndarray,
+    points_world: np.ndarray,
+    viewport: tuple[int, int],
+) -> tuple[np.ndarray, np.ndarray]:
     points = np.asarray(points_world, dtype=np.float64)
     matrix = np.asarray(view_projection, dtype=np.float64)
     if points.ndim != 2 or points.shape[1] != 3 or matrix.shape != (4, 4):
