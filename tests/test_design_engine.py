@@ -1,12 +1,13 @@
-from pathlib import Path
 import shutil
 import subprocess
+from pathlib import Path
 
 import pytest
 
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
 from ai_gif_studio.engines.design import DesignGifEngine
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
+
 pytestmark = pytest.mark.integration
 
 
