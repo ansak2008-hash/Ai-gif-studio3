@@ -28,10 +28,12 @@ def ggx_distribution(ndoth: np.ndarray | float, roughness: float) -> np.ndarray:
     if not np.isfinite(roughness) or not 0.0 < roughness <= 1.0:
         raise ValueError("roughness must be finite and in (0, 1]")
     c = _clamp01(ndoth)
-    alpha = np.float32(roughness * roughness)
+    alpha = np.float64(roughness * roughness)
     alpha2 = alpha * alpha
-    denominator = np.pi * np.square(np.square(c) * (alpha2 - 1.0) + 1.0)
-    return alpha2 / np.maximum(denominator, _EPS)
+    c64 = np.asarray(c, dtype=np.float64)
+    denominator = np.pi * np.square(np.square(c64) * (alpha2 - 1.0) + 1.0)
+    result = alpha2 / np.maximum(denominator, np.float64(_EPS))
+    return np.asarray(result, dtype=np.float32)
 
 
 def _smith_ggx_g1(ndotx: np.ndarray, roughness: float) -> np.ndarray:
