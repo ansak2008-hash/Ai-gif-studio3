@@ -51,8 +51,8 @@ def smith_geometry(
     if not np.isfinite(roughness) or not 0.0 < roughness <= 1.0:
         raise ValueError("roughness must be finite and in (0, 1]")
     v = _clamp01(ndotv)
-    l = _clamp01(ndotl)
-    return _smith_ggx_g1(v, roughness) * _smith_ggx_g1(l, roughness)
+    ndl = _clamp01(ndotl)
+    return _smith_ggx_g1(v, roughness) * _smith_ggx_g1(ndl, roughness)
 
 
 def cook_torrance_specular(
@@ -65,11 +65,11 @@ def cook_torrance_specular(
 ) -> np.ndarray:
     """Evaluate the Cook-Torrance microfacet specular BRDF."""
     v = _clamp01(ndotv)
-    l = _clamp01(ndotl)
+    ndl = _clamp01(ndotl)
     h = _clamp01(ndoth)
     vh = _clamp01(vdoth)
     d = ggx_distribution(h, roughness)
-    g = smith_geometry(v, l, roughness)
+    g = smith_geometry(v, ndl, roughness)
     f = fresnel_schlick(vh, f0)
-    denominator = np.maximum(4.0 * v * l, _EPS)
+    denominator = np.maximum(4.0 * v * ndl, _EPS)
     return d * g * f / denominator
