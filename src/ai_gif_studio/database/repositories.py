@@ -1,18 +1,21 @@
-from datetime import UTC, datetime, timedelta
+from __future__ import annotations
+
 import hashlib
+from datetime import UTC, datetime, timedelta
+from mimetypes import guess_type
 from pathlib import Path
 from typing import Protocol
 from uuid import UUID, uuid4
 
-from __future__ import annotations
-from .tables import ArtifactRecord, DesignSpecRecord, JobStepRecord, ProcessingJobRecord, ProcessingSettingsRecord
-from mimetypes import guess_type
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlalchemy import func, select, update
 
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
 from ai_gif_studio.models import JobStatus, ProcessingJob, ProcessingMode, VideoSubmission, can_transition
+from .tables import ArtifactRecord, DesignSpecRecord, JobStepRecord, ProcessingJobRecord, ProcessingSettingsRecord
+
+
 class JobRepository(Protocol):
     async def create(self, submission: VideoSubmission) -> ProcessingJob: ...
     async def get(self, job_id: UUID) -> ProcessingJob | None: ...
