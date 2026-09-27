@@ -1,13 +1,16 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 import math
 
-from __future__ import annotations
+
 @dataclass(frozen=True)
 class FrameTiming:
     index: int
     timestamp_sec: float
     duration_sec: float
     delay_cs: int
+
 
 @dataclass(frozen=True)
 class AnimationTimeline:
@@ -53,4 +56,7 @@ class AnimationTimeline:
     def timings(self) -> tuple[FrameTiming, ...]:
         times = self.frame_times
         delays = self.centisecond_delays()
-        return tuple(FrameTiming(i, t, d / 100.0, delays[i]) for i, (t, d) in enumerate(zip(times, delays)))
+        return tuple(
+            FrameTiming(i, t, d / 100.0, delays[i])
+            for i, (t, d) in enumerate(zip(times, delays))
+        )
