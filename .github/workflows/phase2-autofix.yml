@@ -1,0 +1,42 @@
+name: Phase 2 one-time lint repair
+
+on:
+  push:
+    branches:
+      - codex/batch-11-perspective-foundation
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.ref == 'refs/heads/codex/batch-11-perspective-foundation'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/batch-11-perspective-foundation
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -U pip
+      - run: pip install -e ".[dev]"
+      - name: Repair safe Ruff issues
+        run: |
+          ruff check . --fix --exit-zero             --exclude 'src/ai_gif_studio/temporal_engine/{camera.py,depth_field.py,bevel.py,material.py,manuscript_plane.py,cinematic_camera.py}'
+          ruff format .             --exclude 'src/ai_gif_studio/temporal_engine/{camera.py,depth_field.py,bevel.py,material.py,manuscript_plane.py,cinematic_camera.py}'
+      - name: Verify Ruff
+        run: ruff check .
+      - name: Remove one-time workflow and commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/phase2-autofix.yml
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No repair changes to commit"
+            exit 0
+          fi
+          git commit -m "fix: harden Phase 2 lint and formatting"
+          git push origin HEAD:codex/batch-11-perspective-foundation
