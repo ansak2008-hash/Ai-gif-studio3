@@ -30,4 +30,4 @@ def test_square_crop_stays_in_bounds():
     x, y, w, h = r
     assert w == h == 1080
     assert 0 <= x <= 840
-    assert 0 <= y <= 0
+    assert y == 0
