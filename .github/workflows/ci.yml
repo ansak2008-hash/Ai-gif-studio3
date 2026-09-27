@@ -14,7 +14,7 @@ env:
 
 jobs:
   ruff_autofix:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/codex/batch-11-perspective-foundation'
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'codex/batch-11-perspective-foundation' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: write
