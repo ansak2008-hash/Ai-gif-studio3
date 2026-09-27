@@ -6,7 +6,8 @@ from ai_gif_studio.models import JobStatus, ProcessingJob, ProcessingMode, Video
 class Repo:
     def __init__(self, job): self.job = job
  self.statuses = []
-    async def get(self, _): return self.job
+    async def get(self, _):
+        return self.job
     async def set_status(self, _, status, expected_status=None):
         self.statuses.append((status, expected_status))
  self.job = ProcessingJob(self.job.id, JobStatus(status), self.job.submission, self.job.created_at)
@@ -18,9 +19,12 @@ class Repo:
         from ai_gif_studio.domain.specs import ProcessingSettings
         return ProcessingSettings()
 class Steps:
-    async def start(self, *_): return uuid4()
-    async def complete(self, *_): pass
-    async def fail(self, *_): pass
+    async def start(self, *_):
+        return uuid4()
+    async def complete(self, *_):
+        pass
+    async def fail(self, *_):
+        pass
 class Artifacts:
     async def register(self, job_id, path, *_args, **_kwargs):
         return type("A", (), {"storage_path": str(path), "size_bytes": 123})()
