@@ -12,7 +12,7 @@ from enum import StrEnum
 
 import numpy as np
 
-class MaterialStrEnum:
+class Material(StrEnum):
     CHROME = "chrome"
     GOLD = "gold"
     PURPLE = "purple"
