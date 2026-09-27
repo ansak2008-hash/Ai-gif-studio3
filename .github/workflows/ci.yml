@@ -13,7 +13,7 @@ env:
   MKL_NUM_THREADS: "1"
 
 jobs:
-  unit-ruff:
+  ruff:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,10 +25,9 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: python -m pip check
       - run: python -c "import cv2, numpy; print('numpy', numpy.__version__); print('opencv', cv2.__version__)"
-      - name: Ruff
-        run: ruff check .
+      - run: ruff check .
 
-  unit-pytest:
+  unit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +38,6 @@ jobs:
       - run: python -m pip install -U pip
       - run: pip install -e ".[dev]"
       - run: python -m pip check
-      - name: Import temporal engine\n        run: >-\n          python -c 'import ai_gif_studio.temporal_engine; print("temporal_engine import: OK")'
       - name: Collect unit tests
         run: pytest --collect-only -m "unit and not integration and not slow" -q
       - name: Unit tests
@@ -80,11 +78,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: python -m pip install -U pip
       - run: pip install -e ".[dev]"
       - run: pytest -q tests/load_test.py -m slow
