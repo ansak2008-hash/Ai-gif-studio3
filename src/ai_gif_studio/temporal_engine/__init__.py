@@ -18,7 +18,7 @@ from .camera import CameraState, CameraModel, project_points
 from .manuscript_plane import (
     ManuscriptPlane, homography_from_corners, warp_manuscript,
 )
-from .depth_field import DepthField
+from .bevel import BevelProfile\nfrom .depth_field import DepthField
 
 __all__ = [
     # Temporal
@@ -32,5 +32,5 @@ __all__ = [
     # Manuscript (Phase 1 + 2)
     "CameraState", "CameraModel", "project_points",
     "ManuscriptPlane", "homography_from_corners", "warp_manuscript",
-    "DepthField",
+    "BevelProfile", "DepthField",
 ]
