@@ -1,10 +1,9 @@
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, inspect
-
 from alembic import command
 from alembic.config import Config
+from sqlalchemy import create_engine, inspect
 
 
 @pytest.mark.integration
