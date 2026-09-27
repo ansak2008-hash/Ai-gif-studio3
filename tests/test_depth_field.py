@@ -39,12 +39,14 @@ def test_sdf_gradient_magnitude_is_unity_near_straight_edges():
     near_edge = d.distance_px[24:40, 13:20]
     selected = band[(near_edge > -5.0) & (near_edge < 5.0)]
     assert selected.size > 0
-    # Expected magnitude: Euclidean SDF gradient is dimensionless and centered at 1.0.\n    assert float(np.median(selected)) == pytest.approx(1.0, abs=0.08)
+    # Expected magnitude: Euclidean SDF gradient is dimensionless and centered at 1.0.
+    assert float(np.median(selected)) == pytest.approx(1.0, abs=0.08)
 
 
 def test_height_is_zero_outside_and_flat_inside():
     d = DepthField.from_alpha(square_alpha(), bevel_width_px=8)
-    # Expected magnitude: exterior height is exactly zero.\n    np.testing.assert_allclose(d.height[0], 0.0, atol=1e-7)
+    # Expected magnitude: exterior height is exactly zero.
+    np.testing.assert_allclose(d.height[0], 0.0, atol=1e-7)
     assert float(d.height[32, 16]) < 0.2
     assert float(d.height[32, 32]) == pytest.approx(1.0, abs=1e-6)
 
@@ -67,12 +69,14 @@ def test_normals_point_inward_at_edges():
 def test_normals_are_unit_length_on_surface():
     n = DepthField.from_alpha(square_alpha()).normals
     lengths = np.linalg.norm(n, axis=-1)
-    # Expected magnitude: every normal is unit length, target norm = 1.0.\n    np.testing.assert_allclose(lengths, 1.0, atol=1e-5)
+    # Expected magnitude: every normal is unit length, target norm = 1.0.
+    np.testing.assert_allclose(lengths, 1.0, atol=1e-5)
 
 
 def test_normals_at_center_are_flat():
     n = DepthField.from_alpha(square_alpha(), bevel_width_px=8).normals[32, 32]
-    # Expected magnitude: flat center normal is exactly the +Z unit vector.\n    np.testing.assert_allclose(n, [0.0, 0.0, 1.0], atol=1e-6)
+    # Expected magnitude: flat center normal is exactly the +Z unit vector.
+    np.testing.assert_allclose(n, [0.0, 0.0, 1.0], atol=1e-6)
 
 
 def test_bevel_width_changes_profile():
@@ -86,7 +90,8 @@ def test_smoothstep_profile_has_zero_boundary_slope():
     profile = BevelProfile(width_px=8.0, power=0.75, smooth=True)
     d = np.array([0.0, 8.0], dtype=np.float32)
     derivative = profile.derivative(d)
-    # Expected magnitude: smoothstep boundary derivative is exactly zero.\n    np.testing.assert_allclose(derivative, 0.0, atol=1e-7)
+    # Expected magnitude: smoothstep boundary derivative is exactly zero.
+    np.testing.assert_allclose(derivative, 0.0, atol=1e-7)
 
 
 def test_smoothstep_profile_matches_finite_difference():
@@ -147,8 +152,10 @@ def test_height_scale_is_dimensionally_applied():
 def test_empty_alpha_produces_zero_height_and_canonical_normals():
     a = np.zeros((32, 32), dtype=np.float32)
     d = DepthField.from_alpha(a)
-    # Expected magnitude: empty alpha has zero height everywhere.\n    np.testing.assert_allclose(d.height, 0.0, atol=1e-7)
-    # Expected magnitude: canonical empty normals are [0, 0, 1].\n    np.testing.assert_allclose(d.normals[..., 0], 0.0, atol=1e-7)
+    # Expected magnitude: empty alpha has zero height everywhere.
+    np.testing.assert_allclose(d.height, 0.0, atol=1e-7)
+    # Expected magnitude: canonical empty normals are [0, 0, 1].
+    np.testing.assert_allclose(d.normals[..., 0], 0.0, atol=1e-7)
     np.testing.assert_allclose(d.normals[..., 1], 0.0, atol=1e-7)
     np.testing.assert_allclose(d.normals[..., 2], 1.0, atol=1e-7)
 
@@ -156,7 +163,8 @@ def test_empty_alpha_produces_zero_height_and_canonical_normals():
 def test_full_alpha_produces_flat_height_and_normals():
     a = np.ones((32, 32), dtype=np.float32)
     d = DepthField.from_alpha(a)
-    # Expected magnitude: fully opaque normalized height is 1.0.\n    assert float(d.height[16, 16]) == pytest.approx(1.0)
+    # Expected magnitude: fully opaque normalized height is 1.0.
+    assert float(d.height[16, 16]) == pytest.approx(1.0)
     np.testing.assert_allclose(d.normals[16, 16], [0.0, 0.0, 1.0], atol=1e-6)
 
 
