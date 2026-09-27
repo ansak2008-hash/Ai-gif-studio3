@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
 import cv2
 import numpy as np
@@ -19,7 +19,7 @@ class AffineTransform:
     _matrix_override: tuple[float, float, float, float, float, float] | None = None
 
     @classmethod
-    def identity(cls) -> "AffineTransform":
+    def identity(cls) -> AffineTransform:
         return cls()
 
     def to_matrix(self) -> np.ndarray:
@@ -55,7 +55,7 @@ class AffineTransform:
         return cls(opacity=float(opacity), _matrix_override=tuple(float(v) for v in m.ravel()))
 
     @staticmethod
-    def compose(first: "AffineTransform", second: "AffineTransform") -> "AffineTransform":
+    def compose(first: AffineTransform, second: AffineTransform) -> "AffineTransform":
         """Return the exact transform equivalent to applying first, then second."""
         a = np.vstack([first.to_matrix(), [0.0, 0.0, 1.0]]).astype(np.float64)
         b = np.vstack([second.to_matrix(), [0.0, 0.0, 1.0]]).astype(np.float64)
