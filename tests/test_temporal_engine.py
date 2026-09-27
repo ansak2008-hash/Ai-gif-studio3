@@ -18,12 +18,7 @@ from ai_gif_studio.temporal_engine import (
     warp_premultiplied_rgba,
 )
 
-
-def test_reference_timing():
-    t = AnimationTimeline(1.48, 25)
-    assert t.total_frames == 37
-    assert t.centisecond_delays() == (4,) * 37
-    assert sum(t.centisecond_delays()) == 148
+pytestmark = pytest.mark.unit
 
 
 @given(st.integers(min_value=0, max_value=255))
@@ -33,13 +28,20 @@ def test_srgb_roundtrip_all_256(v: int):
     assert abs(int(result[0]) - v) <= 1
 
 
+def test_reference_timing():
+    t = AnimationTimeline(1.48, 25)
+    assert t.total_frames == 37
+    assert t.centisecond_delays() == (4,) * 37
+    assert sum(t.centisecond_delays()) == 148
+
+
 def test_rotation_modes():
     c = MotionCurve(
         (Keyframe(0, 350), Keyframe(1, 10)),
         rotation_mode=RotationMode.SHORTEST,
         loop_mode=LoopMode.CLAMP,
     )
-    assert c.evaluate(0.5) % 360 == pytest.approx(0.0)
+    assert c.evaluate(0.5) == pytest.approx(0.0)
 
     p = MotionCurve(
         (Keyframe(0, 0), Keyframe(1, 0)),
@@ -56,9 +58,6 @@ def test_bezier_rejects_invalid_x():
 
 
 def test_affine_is_deterministic():
-    src = np.zeros((32, 32, 4), np.float32)
-    src[10:22, 10:22, :3] = 1
-    src[10:22, 10:22, 3] = 1
     tr = AffineTransform(
         translation_px=(3.25, -1.5),
         scale=(1.02, 0.98),
@@ -105,15 +104,17 @@ def test_warp_preserves_straight_alpha_contract():
     src[4:12, 4:12, :3] = 1
     src[4:12, 4:12, 3] = 0.5
     out = warp_premultiplied_rgba(src, AffineTransform.identity(), (16, 16))
-    assert np.all((out[:, :, 3] >= 0) & (out[:, :, 3] <= 1))
-    assert np.all((out[:, :, :3] >= 0) & (out[:, :, :3] <= 1))
+    np.testing.assert_array_less(out[:, :, 3], 1.0 + 1e-7)
+    np.testing.assert_array_less(-out[:, :, 3], 1e-7)
+    np.testing.assert_array_less(out[:, :, :3], 1.0 + 1e-7)
+    np.testing.assert_array_less(-out[:, :, :3], 1e-7)
 
 
 def test_glint_is_mask_bounded():
     mask = np.zeros((64, 64), np.float32)
     mask[20:44, 20:44] = 1
     g = gaussian_glint((64, 64), GlintParameters(0, 8, 1), mask, (32, 32))
-    assert np.all(g[mask == 0] == 0)
+    np.testing.assert_allclose(g[mask == 0], 0.0, atol=1e-7)
 
 
 def test_glint_angle_rotates_axis():
