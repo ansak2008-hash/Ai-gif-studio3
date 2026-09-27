@@ -8,6 +8,7 @@ from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from ai_gif_studio.database.tables import Base
+from alembic import context
 
 config = context.config
 target_metadata = Base.metadata
