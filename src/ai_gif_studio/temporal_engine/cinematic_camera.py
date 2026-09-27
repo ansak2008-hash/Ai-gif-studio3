@@ -14,6 +14,7 @@ import numpy as np
 from .camera import CameraState
 from .manuscript_plane import ManuscriptPlane, warp_manuscript
 
+
 def smoothstep01(t: float) -> float:
     t = max(0.0, min(1.0, float(t)))
     return t * t * (3.0 - 2.0 * t)
