@@ -33,6 +33,8 @@ class ManuscriptCinematicProfile:
     glint_angle_deg: float = 35.0
     glint_sigma: float = 25.0
     glint_peak: float = 2.55
+    particle_count: int = 90
+    particle_seed: int = 20260927
 
     def __post_init__(self):
         if self.duration_sec <= 0 or self.fps <= 0:
@@ -50,6 +52,8 @@ class ManuscriptCinematicProfile:
             raise ValueError("invalid canvas")
         if self.zoom_max < 1:
             raise ValueError("zoom_max must be >= 1")
+        if self.particle_count < 0:
+            raise ValueError("particle_count must be >= 0")
 
 
 @dataclass
