@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +21,7 @@ class DebugTraceBundle:
         filtergraph: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> Path:
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+        stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
         base = self.root or target.parent / "debug-traces"
         bundle = base / f"{target.stem}-{stamp}"
         bundle.mkdir(parents=True, exist_ok=True)
