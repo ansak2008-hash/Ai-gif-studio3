@@ -2,7 +2,6 @@ from __future__ import annotations
 from pathlib import Path
 import hashlib
 import numpy as np
-from PIL import Image
 from .palette import build_global_palette,quantize_frames_global
 
 def encode_gif(frames:list[np.ndarray],delays_cs:tuple[int,...],output:Path|str)->str:
