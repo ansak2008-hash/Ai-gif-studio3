@@ -19,8 +19,9 @@ dependencies = [
   "arq>=0.26,<1",
   "fastapi>=0.115,<1",
   "uvicorn>=0.30,<1",
-  "numpy>=1.24,<3",
-  "opencv-python-headless>=4.8,<5",
+  # Render-critical numerical stack is pinned for cross-runner reproducibility.
+  "numpy==2.2.6",
+  "opencv-python-headless==4.11.0.86",
   "Pillow>=10,<12",
 ]
 [project.optional-dependencies]
