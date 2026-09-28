@@ -5,7 +5,6 @@ import pytest
 
 from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
 
-
 pytestmark = pytest.mark.unit
 
 
