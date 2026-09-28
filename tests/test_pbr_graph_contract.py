@@ -5,8 +5,8 @@ import pytest
 
 from ai_gif_studio.temporal_engine.material_pbr import DirectLight, PBRMaterial
 from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
-from ai_gif_studio.temporal_engine.render_graph import RenderGraph, RenderNode
 from ai_gif_studio.temporal_engine.pbr_graph import PBRDirectLightNode
+from ai_gif_studio.temporal_engine.render_graph import RenderGraph, RenderNode
 
 pytestmark = pytest.mark.unit
 
@@ -71,9 +71,8 @@ def test_pbr_graph_node_rejects_wrong_input_count() -> None:
 def test_pbr_graph_node_rejects_geometry_dimension_mismatch() -> None:
     source, normals, views, material, lights = _scene()
     bad_normals = normals[:-1]
-    node = PBRDirectLightNode(bad_normals, views, material, lights)
-    with pytest.raises(ValueError):
-        node.process((source,))
+    with pytest.raises(ValueError, match="normals and views must have identical shapes"):
+        PBRDirectLightNode(bad_normals, views, material, lights)
 
 
 def test_pbr_graph_node_integrates_with_render_graph() -> None:
