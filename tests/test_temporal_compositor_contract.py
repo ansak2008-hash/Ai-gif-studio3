@@ -51,7 +51,8 @@ def test_composite_motion_layers_samples_in_declaration_order() -> None:
 
     result = composite_motion_layers(base, [first, second], 0.5)
 
-    np.testing.assert_allclose(result.data[..., :3], (1.0, 0.0, 1.0))
+    expected_rgb = np.broadcast_to(np.array((1.0, 0.0, 1.0), dtype=np.float32), result.data[..., :3].shape)
+    np.testing.assert_allclose(result.data[..., :3], expected_rgb)
     np.testing.assert_allclose(result.data[..., 3], 1.0)
 
 
