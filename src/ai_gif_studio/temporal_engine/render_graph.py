@@ -4,7 +4,10 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
+import numpy as np
+
 from .render_buffer import RenderBuffer
+from .render_mask import RenderMask
 
 RenderNodeFn = Callable[[tuple[RenderBuffer, ...]], RenderBuffer]
 
@@ -16,6 +19,7 @@ class RenderNode:
     name: str
     process: RenderNodeFn
     dependencies: tuple[str, ...] = ()
+    mask: RenderMask | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str) or not self.name.strip():
@@ -28,6 +32,35 @@ class RenderNode:
             raise ValueError("render node dependency names must be non-empty strings")
         if len(set(self.dependencies)) != len(self.dependencies):
             raise ValueError("render node dependencies must be unique")
+        if self.mask is not None and not isinstance(self.mask, RenderMask):
+            raise TypeError("render node mask must be a RenderMask")
+        if self.mask is not None and len(self.dependencies) > 1:
+            raise ValueError("masked render nodes must be unary")
+
+    def _validate_mask_source(self, source: RenderBuffer) -> None:
+        if self.mask is not None and self.mask.shape != source.shape[:2]:
+            raise ValueError("render mask dimensions must match RenderBuffer dimensions")
+
+    def _apply_mask(
+        self,
+        source: RenderBuffer,
+        processed: RenderBuffer,
+    ) -> RenderBuffer:
+        if self.mask is None:
+            return processed
+
+        self._validate_mask_source(source)
+        mask = self.mask.data
+        if np.all(mask == 0.0):
+            return source.copy()
+        if np.all(mask == 1.0):
+            return processed.copy()
+
+        coverage = mask[..., None]
+        blended = (
+            source.data * (1.0 - coverage) + processed.data * coverage
+        ).astype(np.float32, copy=False)
+        return RenderBuffer.from_linear_rgba(blended)
 
 
 class RenderGraph:
@@ -114,6 +147,8 @@ class RenderGraph:
                 inputs = tuple(outputs[dependency] for dependency in node.dependencies)
             else:
                 inputs = (initial.copy(),)
+
+            node._validate_mask_source(inputs[0])
             result = node.process(inputs)
             if not isinstance(result, RenderBuffer):
                 raise TypeError(f"render node {name!r} must return a RenderBuffer")
@@ -121,6 +156,7 @@ class RenderGraph:
                 raise ValueError(f"render node {name!r} must return a new RenderBuffer")
             if result.shape != initial.shape:
                 raise ValueError(f"render node {name!r} changed render dimensions")
-            outputs[name] = result
+
+            outputs[name] = node._apply_mask(inputs[0], result)
 
         return outputs[self._terminal]
