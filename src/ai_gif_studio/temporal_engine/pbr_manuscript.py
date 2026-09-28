@@ -6,8 +6,8 @@ import numpy as np
 from .camera import CameraState
 from .depth_field import DepthField
 from .manuscript import ManuscriptAsset
-from .material_pbr import DirectLight, PBRMaterial
 from .manuscript_plane import ManuscriptPlane, warp_manuscript
+from .material_pbr import DirectLight, PBRMaterial
 from .pbr_renderer import render_pbr_depth_field
 
 
@@ -24,8 +24,12 @@ def _world_points_on_plane(
     y, x = np.mgrid[0:height, 0:width]
     ndc_x = (2.0 * (x + 0.5) / width) - 1.0
     ndc_y = 1.0 - (2.0 * (y + 0.5) / height)
-    near_clip = np.stack([ndc_x, ndc_y, -np.ones_like(ndc_x), np.ones_like(ndc_x)], axis=-1)
-    far_clip = np.stack([ndc_x, ndc_y, np.ones_like(ndc_x), np.ones_like(ndc_x)], axis=-1)
+    near_clip = np.stack(
+        [ndc_x, ndc_y, -np.ones_like(ndc_x), np.ones_like(ndc_x)], axis=-1
+    )
+    far_clip = np.stack(
+        [ndc_x, ndc_y, np.ones_like(ndc_x), np.ones_like(ndc_x)], axis=-1
+    )
 
     inverse_vp = np.linalg.inv(camera.view_projection())
     near_world_h = near_clip @ inverse_vp.T
