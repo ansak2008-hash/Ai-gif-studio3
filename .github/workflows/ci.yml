@@ -27,7 +27,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - run: python -m pip install -U pip pip-audit
+      - run: python -m pip install -U pip pip-audit 'setuptools>=83'
       - run: pip install -e .
       - run: pip-audit
 
