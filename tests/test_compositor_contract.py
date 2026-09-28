@@ -40,7 +40,30 @@ def test_composite_over_handles_transparent_destination() -> None:
 
     result = composite_over(destination, source)
 
-    np.testing.assert_allclose(result.data, [[[0.75, 0.5, 0.25, 0.25]]], rtol=0, atol=1e-7)
+    np.testing.assert_allclose(result.data, [[[3.0, 2.0, 1.0, 0.25]]], rtol=0, atol=1e-7)
+
+
+def test_composite_over_normalizes_rgb_for_partial_output_alpha() -> None:
+    destination = _buffer((2.0, 0.0, 0.0, 0.25))
+    source = _buffer((0.0, 4.0, 0.0, 0.25))
+
+    result = composite_over(destination, source)
+
+    np.testing.assert_allclose(
+        result.data,
+        [[[0.8, 3.2, 0.0, 0.4375]]],
+        rtol=0,
+        atol=1e-6,
+    )
+
+
+def test_composite_over_handles_fully_transparent_inputs() -> None:
+    destination = _buffer((5.0, 6.0, 7.0, 0.0))
+    source = _buffer((9.0, 8.0, 7.0, 0.0))
+
+    result = composite_over(destination, source)
+
+    np.testing.assert_allclose(result.data, [[[0.0, 0.0, 0.0, 0.0]]], rtol=0, atol=1e-7)
 
 
 def test_composite_over_requires_matching_shapes() -> None:
