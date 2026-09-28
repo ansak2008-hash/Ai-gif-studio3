@@ -42,6 +42,7 @@ from .render_buffer import RenderBuffer
 from .render_graph import RenderGraph, RenderNode
 from .render_mask import RenderMask
 from .selective_region import SelectiveRegionEffect
+from .temporal_effects import TemporalFadeEffect
 from .timeline import AnimationTimeline, FrameTiming
 from .tone_curve import ToneCurve, ToneCurveEffect
 
@@ -83,6 +84,7 @@ __all__ = [
     "AffineTransformKeyframe",
     "AffineTransformTrack",
     "MotionLayer",
+    "TemporalFadeEffect",
     "ExposureEffect",
     "GammaEffect",
     "RGBGainEffect",
