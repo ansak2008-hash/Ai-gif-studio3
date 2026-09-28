@@ -23,11 +23,13 @@ class ManuscriptPipeline:
     timeline: AnimationTimeline
     motion: CameraMotionTrack
     viewport: tuple[int, int]
-    color_spec: ExportColorSpec = ExportColorSpec()
+    color_spec: ExportColorSpec | None = None
 
     def __post_init__(self) -> None:
         if self.viewport[0] < 1 or self.viewport[1] < 1:
             raise ValueError("viewport dimensions must be positive")
+        if self.color_spec is None:
+            object.__setattr__(self, "color_spec", ExportColorSpec())
 
     def render_frames(
         self,
