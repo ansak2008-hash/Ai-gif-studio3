@@ -32,7 +32,7 @@ class RenderBuffer:
         self._validate_shape(raw)
         if raw.dtype != np.float32:
             raise TypeError("RenderBuffer storage must use float32")
-        self._validate_values(raw)
+        self._validate_buffer_values(raw)
         owned = np.array(raw, dtype=np.float32, copy=True)
         owned.setflags(write=False)
         object.__setattr__(self, "_storage", owned)
@@ -99,7 +99,7 @@ class RenderBuffer:
         value = np.asarray(rgba_linear, dtype=np.float32)
         if value.shape != (4,):
             raise ValueError("clear color must contain exactly four values")
-        self._validate_values(value)
+        self._validate_color_value(value)
         updated = np.broadcast_to(value, self._storage.shape).copy()
         updated.setflags(write=False)
         object.__setattr__(self, "_storage", updated)
@@ -125,7 +125,16 @@ class RenderBuffer:
             raise ValueError("RenderBuffer dimensions must be positive")
 
     @staticmethod
-    def _validate_values(values: np.ndarray) -> None:
+    def _validate_buffer_values(values: np.ndarray) -> None:
+        if not np.isfinite(values).all():
+            raise ValueError("RenderBuffer values must be finite")
+        if np.any(values[..., :3] < 0.0):
+            raise ValueError("RenderBuffer RGB must contain non-negative linear-light values")
+        if np.any((values[..., 3] < 0.0) | (values[..., 3] > 1.0)):
+            raise ValueError("RenderBuffer alpha must be in [0, 1]")
+
+    @staticmethod
+    def _validate_color_value(values: np.ndarray) -> None:
         if not np.isfinite(values).all():
             raise ValueError("RenderBuffer values must be finite")
         if np.any(values[:3] < 0.0):
