@@ -40,7 +40,7 @@ def test_render_buffer_rejects_invalid_contract_values() -> None:
 def test_render_buffer_owns_input_and_exposes_read_only_data() -> None:
     source = np.full((1, 1, 4), 0.5, dtype=np.float32)
     source[..., 3] = 1.0
-    buffer = RenderBuffer(source)
+    buffer = RenderBuffer.from_linear_rgba(source)
 
     source[0, 0, 0] = 0.0
     assert buffer.data[0, 0, 0] == 0.5
@@ -52,7 +52,7 @@ def test_render_buffer_owns_input_and_exposes_read_only_data() -> None:
 
 def test_render_buffer_preserves_hdr_rgb() -> None:
     rgba = np.array([[[4.0, 2.0, 0.5, 1.0]]], dtype=np.float32)
-    buffer = RenderBuffer(rgba)
+    buffer = RenderBuffer.from_linear_rgba(rgba)
     np.testing.assert_array_equal(buffer.data, rgba)
 
 
