@@ -37,6 +37,10 @@ class RenderNode:
         if self.mask is not None and len(self.dependencies) > 1:
             raise ValueError("masked render nodes must be unary")
 
+    def _validate_mask_source(self, source: RenderBuffer) -> None:
+        if self.mask is not None and self.mask.shape != source.shape[:2]:
+            raise ValueError("render mask dimensions must match RenderBuffer dimensions")
+
     def _apply_mask(
         self,
         source: RenderBuffer,
@@ -44,9 +48,8 @@ class RenderNode:
     ) -> RenderBuffer:
         if self.mask is None:
             return processed
-        if self.mask.shape != source.shape[:2]:
-            raise ValueError("render mask dimensions must match RenderBuffer dimensions")
 
+        self._validate_mask_source(source)
         mask = self.mask.data
         if np.all(mask == 0.0):
             return source.copy()
@@ -145,6 +148,7 @@ class RenderGraph:
             else:
                 inputs = (initial.copy(),)
 
+            node._validate_mask_source(inputs[0])
             result = node.process(inputs)
             if not isinstance(result, RenderBuffer):
                 raise TypeError(f"render node {name!r} must return a RenderBuffer")
