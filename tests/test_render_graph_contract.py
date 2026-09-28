@@ -8,14 +8,16 @@ from ai_gif_studio.temporal_engine.render_graph import RenderGraph, RenderNode
 
 pytestmark = pytest.mark.unit
 
+
 def _buffer(value: float = 1.0) -> RenderBuffer:
     return RenderBuffer.from_linear_rgba(
         np.full((1, 1, 4), (value, value, value, 1.0), dtype=np.float32)
     )
 
+
 def test_render_node_requires_non_empty_unique_name() -> None:
     with pytest.raises(ValueError, match="name"):
-        RenderNode("", lambda buffer: buffer)
+        RenderNode("", lambda inputs: inputs[0])
     with pytest.raises(TypeError, match="callable"):
         RenderNode("stage", None)  # type: ignore[arg-type]
 
@@ -23,7 +25,7 @@ def test_graph_rejects_duplicate_names() -> None:
     with pytest.raises(ValueError, match="duplicate"):
         RenderGraph([
             RenderNode("stage", lambda inputs: inputs[0]),
-            RenderNode("stage", lambda buffer: buffer),
+            RenderNode("stage", lambda inputs: inputs[0]),
         ])
 
 def test_graph_rejects_missing_dependency_and_self_dependency() -> None:
@@ -104,3 +106,37 @@ def test_graph_runtime_node_errors_propagate() -> None:
     with pytest.raises(RuntimeError) as caught:
         graph.execute(_buffer())
     assert caught.value is error
+
+
+def test_graph_passes_dependencies_in_declared_order() -> None:
+    received: list[tuple[float, ...]] = []
+
+    def first(inputs: tuple[RenderBuffer, ...]) -> RenderBuffer:
+        return RenderBuffer.from_linear_rgba(
+            np.full((1, 1, 4), (1, 1, 1, 1), dtype=np.float32)
+        )
+
+    def second(inputs: tuple[RenderBuffer, ...]) -> RenderBuffer:
+        return RenderBuffer.from_linear_rgba(
+            np.full((1, 1, 4), (2, 2, 2, 1), dtype=np.float32)
+        )
+
+    def merge(inputs: tuple[RenderBuffer, ...]) -> RenderBuffer:
+        received.append(tuple(float(item.data[0, 0, 0]) for item in inputs))
+        return inputs[1].copy()
+
+    graph = RenderGraph(
+        [
+            RenderNode("first", first),
+            RenderNode("second", second),
+            RenderNode("merge", merge, ("second", "first")),
+        ]
+    )
+    graph.execute(_buffer())
+    assert received == [(2.0, 1.0)]
+
+
+def test_graph_rejects_returning_an_input_buffer() -> None:
+    graph = RenderGraph([RenderNode("alias", lambda inputs: inputs[0])])
+    with pytest.raises(ValueError, match="new RenderBuffer"):
+        graph.execute(_buffer())
