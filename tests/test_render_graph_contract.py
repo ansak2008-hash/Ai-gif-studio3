@@ -145,3 +145,39 @@ def test_graph_rejects_returning_an_input_buffer() -> None:
     graph = RenderGraph([RenderNode("alias", lambda inputs: inputs[0])])
     with pytest.raises(ValueError, match="new RenderBuffer"):
         graph.execute(_buffer())
+
+
+def test_graph_failure_does_not_leak_partial_state_and_can_recover() -> None:
+    source = _buffer(2.0)
+    before = source.data.copy()
+    captured: list[RenderBuffer] = []
+    should_fail = {"value": True}
+
+    def root(inputs: tuple[RenderBuffer, ...]) -> RenderBuffer:
+        result = inputs[0].copy()
+        captured.append(result)
+        return result
+
+    def unstable(_: tuple[RenderBuffer, ...]) -> RenderBuffer:
+        if should_fail["value"]:
+            raise RuntimeError("injected graph failure")
+        return _buffer(7.0)
+
+    graph = RenderGraph(
+        [
+            RenderNode("root", root),
+            RenderNode("unstable", unstable, ("root",)),
+            RenderNode("terminal", lambda inputs: inputs[0].copy(), ("unstable",)),
+        ]
+    )
+
+    with pytest.raises(RuntimeError, match="injected graph failure"):
+        graph.execute(source)
+
+    np.testing.assert_array_equal(source.data, before)
+    np.testing.assert_array_equal(captured[0].data, before)
+
+    should_fail["value"] = False
+    recovered = graph.execute(source)
+    np.testing.assert_array_equal(source.data, before)
+    np.testing.assert_array_equal(recovered.data, _buffer(7.0).data)
