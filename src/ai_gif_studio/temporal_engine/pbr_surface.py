@@ -5,7 +5,9 @@ import numpy as np
 
 from .camera import CameraModel, CameraState
 from .depth_field import DepthField
-from .material_pbr import shade_pbr
+from .material_pbr import DirectLight, PBRMaterial, shade_pbr, shade_pbr_lights
+
+_DEFAULT_LIGHT = DirectLight(direction=(0.0, 0.0, 1.0))
 
 
 def shade_depth_field(
@@ -17,6 +19,9 @@ def shade_depth_field(
     metallic: float = 0.0,
     light_color: np.ndarray | list[float] | float = 1.0,
     light_intensity: float = 1.0,
+    *,
+    material: PBRMaterial | None = None,
+    lights: tuple[DirectLight, ...] | list[DirectLight] | None = None,
 ) -> np.ndarray:
     """Shade a canonical DepthField without recomputing its surface normals.
 
@@ -34,16 +39,19 @@ def shade_depth_field(
     if normals.shape != (*distance.shape, 3):
         raise ValueError("depth_field.normals must have shape (H, W, 3)")
 
-    rgb = shade_pbr(
-        normals,
-        view,
-        light,
-        albedo,
-        roughness,
+    active_material = material or PBRMaterial(
+        albedo=tuple(np.asarray(albedo, dtype=np.float64).tolist()),
+        roughness=roughness,
         metallic=metallic,
-        light_color=light_color,
-        light_intensity=light_intensity,
     )
+    active_lights = tuple(lights) if lights is not None else (
+        DirectLight(
+            direction=tuple(np.asarray(light, dtype=np.float64).tolist()),
+            color=tuple(np.broadcast_to(np.asarray(light_color, dtype=np.float64), (3,)).tolist()),
+            intensity=light_intensity,
+        ),
+    )
+    rgb = shade_pbr_lights(normals, view, active_lights, active_material)
     surface = distance > 0.0
     return np.where(surface[..., None], rgb, 0.0).astype(np.float64)
 
@@ -76,6 +84,9 @@ def shade_depth_field_from_camera(
     light: np.ndarray | tuple[float, float, float] = (0.0, 0.0, 1.0),
     light_color: np.ndarray | list[float] | float = 1.0,
     light_intensity: float = 1.0,
+    *,
+    material: PBRMaterial | None = None,
+    lights: tuple[DirectLight, ...] | list[DirectLight] | None = None,
 ) -> np.ndarray:
     """Shade a DepthField using per-pixel view directions from a camera.
 
@@ -99,15 +110,18 @@ def shade_depth_field_from_camera(
     view = camera_position - points
     # The camera path uses the canonical world-space surface points and the
     # camera position only; no depth-derived normal reconstruction occurs here.
-    shaded = shade_pbr(
-        world_normals,
-        view,
-        light,
-        albedo,
-        roughness,
+    active_material = material or PBRMaterial(
+        albedo=tuple(np.asarray(albedo, dtype=np.float64).tolist()),
+        roughness=roughness,
         metallic=metallic,
-        light_color=light_color,
-        light_intensity=light_intensity,
     )
+    active_lights = tuple(lights) if lights is not None else (
+        DirectLight(
+            direction=tuple(np.asarray(light, dtype=np.float64).tolist()),
+            color=tuple(np.broadcast_to(np.asarray(light_color, dtype=np.float64), (3,)).tolist()),
+            intensity=light_intensity,
+        ),
+    )
+    shaded = shade_pbr_lights(world_normals, view, active_lights, active_material)
     surface = np.asarray(depth_field.distance_px) > 0.0
     return np.where(surface[..., None], shaded, 0.0).astype(np.float64)
