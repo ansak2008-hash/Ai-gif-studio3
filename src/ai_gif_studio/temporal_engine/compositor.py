@@ -7,6 +7,8 @@ from dataclasses import dataclass
 import numpy as np
 
 from .blend import BlendMode, BlendModeEffect
+from ai_gif_studio.resources import ResourceManager, ResourceRequest
+
 from .render_buffer import RenderBuffer
 from .render_mask import RenderMask
 
@@ -78,19 +80,46 @@ def composite_layers(layers: Iterable[RenderBuffer]) -> RenderBuffer:
 def composite_blend_layers(
     base: RenderBuffer,
     layers: Iterable[BlendLayer],
+    *,
+    resource_manager: ResourceManager | None = None,
 ) -> RenderBuffer:
-    """Composite typed blend layers over an independent copy of the base."""
+    """Composite typed blend layers with optional pre-allocation admission control.
+
+    When a resource manager is supplied, the complete pixel working-set estimate
+    is reserved before the first output buffer is allocated. The reservation is
+    always released, including exceptional paths.
+    """
     if not isinstance(base, RenderBuffer):
         raise TypeError("base must be a RenderBuffer")
 
-    result = base.copy()
-    for layer in layers:
+    layer_values = tuple(layers)
+    for layer in layer_values:
         if not isinstance(layer, BlendLayer):
             raise TypeError("layers must contain BlendLayer values")
-        result = BlendModeEffect(layer.mode, mask=layer.mask)(
-            (result, layer.source)
+        _validate_pair(base, layer.source)
+
+    reservation = None
+    if resource_manager is not None:
+        requested = resource_manager.estimate_render_memory_bytes(
+            base.width,
+            base.height,
+            len(layer_values),
+            dtype=base.dtype,
         )
-    return result
+        reservation = resource_manager.reserve(
+            ResourceRequest(requested, model="cpu-render")
+        )
+
+    try:
+        result = base.copy()
+        for layer in layer_values:
+            result = BlendModeEffect(layer.mode, mask=layer.mask)(
+                (result, layer.source)
+            )
+        return result
+    finally:
+        if reservation is not None:
+            resource_manager.release(reservation)
 
 
 def _validate_pair(destination: RenderBuffer, source: RenderBuffer) -> None:
