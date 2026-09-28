@@ -1,10 +1,9 @@
 import numpy as np
+import pytest
 
 from ai_gif_studio.temporal_engine.camera import CameraState
 from ai_gif_studio.temporal_engine.depth_field import DepthField
 from ai_gif_studio.temporal_engine.pbr_renderer import render_pbr_depth_field
-
-import pytest
 
 pytestmark = pytest.mark.unit
 
