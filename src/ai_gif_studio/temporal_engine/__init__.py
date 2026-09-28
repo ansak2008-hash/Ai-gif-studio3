@@ -28,6 +28,7 @@ from .pbr_surface import shade_depth_field, shade_depth_field_from_camera
 from .quality import validate_temporal_sequence
 from .render_buffer import RenderBuffer
 from .render_graph import RenderGraph, RenderNode
+from .render_mask import RenderMask
 from .timeline import AnimationTimeline, FrameTiming
 
 __all__ = [
@@ -53,6 +54,7 @@ __all__ = [
     "render_particles",
     "validate_temporal_sequence",
     "RenderBuffer",
+    "RenderMask",
     "RenderNode",
     "RenderGraph",
     "composite_over",
