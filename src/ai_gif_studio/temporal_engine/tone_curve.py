@@ -7,7 +7,7 @@ import numpy as np
 from .render_buffer import RenderBuffer
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class ToneCurve:
     """Immutable piecewise-linear color grading curve."""
 
@@ -52,7 +52,7 @@ class ToneCurve:
         return y0 + (values - x0) * slope
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class ToneCurveEffect:
     """Deterministic channel-wise tone curves over canonical linear RGB."""
 
