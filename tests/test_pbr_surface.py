@@ -154,3 +154,35 @@ def test_shade_depth_field_from_camera_rejects_point_shape():
             [0.8, 0.3, 0.1],
             0.4,
         )
+
+
+def test_camera_path_transforms_image_normal_into_world_space():
+    field = DepthField(
+        distance_px=np.ones((1, 1), dtype=np.float32),
+        height=np.ones((1, 1), dtype=np.float32),
+        normals=np.array([[[0.0, 0.0, 1.0]]], dtype=np.float32),
+    )
+    camera = CameraState(
+        position=(0.0, 0.0, 4.0),
+        target=(0.0, 0.0, 0.0),
+        up=(0.0, 1.0, 0.0),
+        fov_y_deg=45.0,
+        aspect=1.0,
+        roll_deg=90.0,
+    )
+    points = np.zeros((1, 1, 3), dtype=np.float64)
+    result = shade_depth_field_from_camera(
+        field,
+        camera,
+        points,
+        [0.8, 0.3, 0.1],
+        0.4,
+    )
+    expected = shade_depth_field(
+        field,
+        np.array([[[0.0, 0.0, 4.0]]]),
+        np.array([0.0, 0.0, 1.0]),
+        [0.8, 0.3, 0.1],
+        0.4,
+    )
+    np.testing.assert_allclose(result, expected, rtol=1e-12, atol=1e-12)
