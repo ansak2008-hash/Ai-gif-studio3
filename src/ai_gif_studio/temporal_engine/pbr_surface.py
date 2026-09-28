@@ -48,6 +48,24 @@ def shade_depth_field(
     return np.where(surface[..., None], rgb, 0.0).astype(np.float64)
 
 
+def _image_normals_to_world(
+    normals_image: np.ndarray,
+    camera_state: CameraState,
+) -> np.ndarray:
+    """Map image-plane normals (x=right, y=down, z=toward camera) to world."""
+    normals = np.asarray(normals_image, dtype=np.float64)
+    if normals.ndim != 3 or normals.shape[-1] != 3:
+        raise ValueError("normals must have shape (H, W, 3)")
+    view = camera_state.view_matrix()
+    right = view[0, :3]
+    up = view[1, :3]
+    toward_camera = view[2, :3]
+    basis = np.stack([right, -up, toward_camera], axis=1)
+    world = normals @ basis.T
+    length = np.linalg.norm(world, axis=-1, keepdims=True)
+    return world / np.maximum(length, np.finfo(np.float64).eps)
+
+
 def shade_depth_field_from_camera(
     depth_field: DepthField,
     camera: CameraState | CameraModel,
@@ -76,9 +94,11 @@ def shade_depth_field_from_camera(
     if points.shape != (*depth_field.distance_px.shape, 3):
         raise ValueError("surface_points_world must have shape (H, W, 3)")
 
+    state = camera.state if isinstance(camera, CameraModel) else camera
+    world_normals = _image_normals_to_world(depth_field.normals, state)
     view = camera_position - points
-    return shade_depth_field(
-        depth_field,
+    shaded = shade_pbr(
+        world_normals,
         view,
         light,
         albedo,
@@ -87,3 +107,5 @@ def shade_depth_field_from_camera(
         light_color=light_color,
         light_intensity=light_intensity,
     )
+    surface = np.asarray(depth_field.distance_px) > 0.0
+    return np.where(surface[..., None], shaded, 0.0).astype(np.float64)
