@@ -23,7 +23,7 @@ def test_temporal_crossfade_interpolates_two_sources() -> None:
 
     result = TemporalCrossfadeEffect(0.0, 1.0)((first, second), 0.5)
 
-    np.testing.assert_allclose(result.data[..., :3], 0.5)
+    np.testing.assert_allclose(result.data[..., :3], (0.5, 0.0, 0.5))
     np.testing.assert_allclose(result.data[..., 3], 1.0)
 
 
