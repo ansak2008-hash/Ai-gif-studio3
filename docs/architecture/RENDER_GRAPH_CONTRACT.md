@@ -32,6 +32,9 @@ The graph:
 - rejects a node that changes the canonical render dimensions;
 - never mutates the caller's initial buffer.
 
+
+A node with multiple dependencies receives their outputs in the exact dependency declaration order. This provides deterministic fan-in for future compositor/effect stages without introducing implicit global state.
+
 ## Execution model
 The first implementation intentionally exposes a single-output graph:
 
