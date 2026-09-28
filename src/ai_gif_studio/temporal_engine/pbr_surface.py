@@ -5,7 +5,7 @@ import numpy as np
 
 from .camera import CameraModel, CameraState
 from .depth_field import DepthField
-from .material_pbr import DirectLight, PBRMaterial, shade_pbr_lights
+from .material_pbr import DirectLight, PBRMaterial, shade_pbr, shade_pbr_lights
 
 
 def shade_depth_field(
@@ -37,19 +37,35 @@ def shade_depth_field(
     if normals.shape != (*distance.shape, 3):
         raise ValueError("depth_field.normals must have shape (H, W, 3)")
 
-    active_material = material or PBRMaterial(
-        albedo=tuple(np.asarray(albedo, dtype=np.float64).tolist()),
-        roughness=roughness,
-        metallic=metallic,
-    )
-    active_lights = tuple(lights) if lights is not None else (
-        DirectLight(
-            direction=tuple(np.asarray(light, dtype=np.float64).tolist()),
-            color=tuple(np.broadcast_to(np.asarray(light_color, dtype=np.float64), (3,)).tolist()),
-            intensity=light_intensity,
-        ),
-    )
-    rgb = shade_pbr_lights(normals, view, active_lights, active_material)
+    if material is None and lights is None:
+        rgb = shade_pbr(
+            normals,
+            view,
+            light,
+            albedo,
+            roughness,
+            metallic=metallic,
+            light_color=light_color,
+            light_intensity=light_intensity,
+        )
+    else:
+        active_material = material or PBRMaterial(
+            albedo=tuple(np.asarray(albedo, dtype=np.float64).tolist()),
+            roughness=roughness,
+            metallic=metallic,
+        )
+        active_lights = tuple(lights) if lights is not None else (
+            DirectLight(
+                direction=tuple(np.asarray(light, dtype=np.float64).tolist()),
+                color=tuple(
+                    np.broadcast_to(
+                        np.asarray(light_color, dtype=np.float64), (3,)
+                    ).tolist()
+                ),
+                intensity=light_intensity,
+            ),
+        )
+        rgb = shade_pbr_lights(normals, view, active_lights, active_material)
     surface = distance > 0.0
     return np.where(surface[..., None], rgb, 0.0).astype(np.float64)
 
@@ -108,18 +124,36 @@ def shade_depth_field_from_camera(
     view = camera_position - points
     # The camera path uses the canonical world-space surface points and the
     # camera position only; no depth-derived normal reconstruction occurs here.
-    active_material = material or PBRMaterial(
-        albedo=tuple(np.asarray(albedo, dtype=np.float64).tolist()),
-        roughness=roughness,
-        metallic=metallic,
-    )
-    active_lights = tuple(lights) if lights is not None else (
-        DirectLight(
-            direction=tuple(np.asarray(light, dtype=np.float64).tolist()),
-            color=tuple(np.broadcast_to(np.asarray(light_color, dtype=np.float64), (3,)).tolist()),
-            intensity=light_intensity,
-        ),
-    )
-    shaded = shade_pbr_lights(world_normals, view, active_lights, active_material)
+    if material is None and lights is None:
+        shaded = shade_pbr(
+            world_normals,
+            view,
+            light,
+            albedo,
+            roughness,
+            metallic=metallic,
+            light_color=light_color,
+            light_intensity=light_intensity,
+        )
+    else:
+        active_material = material or PBRMaterial(
+            albedo=tuple(np.asarray(albedo, dtype=np.float64).tolist()),
+            roughness=roughness,
+            metallic=metallic,
+        )
+        active_lights = tuple(lights) if lights is not None else (
+            DirectLight(
+                direction=tuple(np.asarray(light, dtype=np.float64).tolist()),
+                color=tuple(
+                    np.broadcast_to(
+                        np.asarray(light_color, dtype=np.float64), (3,)
+                    ).tolist()
+                ),
+                intensity=light_intensity,
+            ),
+        )
+        shaded = shade_pbr_lights(
+            world_normals, view, active_lights, active_material
+        )
     surface = np.asarray(depth_field.distance_px) > 0.0
     return np.where(surface[..., None], shaded, 0.0).astype(np.float64)
