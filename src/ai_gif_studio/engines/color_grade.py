@@ -68,7 +68,7 @@ def apply_color_grade(frame: np.ndarray, spec: ColorGradeSpec) -> np.ndarray:
     indices = np.clip(np.rint(saturated * 255.0), 0, 255).astype(np.uint8)
     graded = np.empty_like(indices)
     for channel in range(3):
-        graded[..., channel] = lut[indices[..., channel], channel]
+        graded[..., channel] = np.rint(lut[indices[..., channel], channel]).astype(np.uint8)
     if frame.shape[2] == 4:
         return np.dstack((graded, frame[..., 3]))
     return graded
