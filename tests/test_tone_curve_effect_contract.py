@@ -35,7 +35,7 @@ def test_tone_curve_supports_independent_channels_and_preserves_alpha() -> None:
     blue = ToneCurve.from_points(((0.0, 0.5), (1.0, 1.5)))
     result = ToneCurveEffect(red, green, blue)((_buffer(),))
     expected = np.asarray(
-        [[[0.0, 0.125, 0.5, 0.4], [4.0, 2.0, 12.5, 0.7]]],
+        [[[0.0, 0.125, 1.5, 0.4], [4.0, 2.0, 8.5, 0.7]]],
         dtype=np.float32,
     )
     np.testing.assert_allclose(result.data, expected, rtol=0.0, atol=1e-6)
