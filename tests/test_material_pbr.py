@@ -247,6 +247,22 @@ def test_shade_pbr_is_black_when_light_is_behind_surface():
     np.testing.assert_array_equal(result, np.zeros(3, dtype=np.float64))
 
 
+def test_shade_pbr_handles_antiparallel_view_light_in_batch():
+    normal = np.array([[0.0, 0.0, 1.0], [0.0, 0.0, 1.0]])
+    view = normal.copy()
+    light = np.array([[0.0, 0.0, -1.0], [0.0, 0.0, 1.0]])
+    result = shade_pbr(
+        normal,
+        view,
+        light,
+        np.array([[0.8, 0.4, 0.2], [0.8, 0.4, 0.2]]),
+        0.5,
+    )
+    assert np.isfinite(result).all()
+    np.testing.assert_array_equal(result[0], np.zeros(3, dtype=np.float64))
+    assert np.all(result[1] > 0.0)
+
+
 def test_shade_pbr_supports_batch_geometry():
     normal = np.array([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0]])
     view = normal.copy()
