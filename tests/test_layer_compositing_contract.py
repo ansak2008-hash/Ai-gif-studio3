@@ -115,3 +115,40 @@ def test_layer_mask_dimensions_are_validated_at_composition_boundary() -> None:
     mask = RenderMask.allocate(2, 1, value=1.0)
     with pytest.raises(ValueError, match="mask shape"):
         composite_blend_layers(base, [BlendLayer(source, mask=mask)])
+
+
+def test_compositor_releases_render_reservation_on_success() -> None:
+    from ai_gif_studio.resources import ResourceManager
+
+    manager = ResourceManager(1024**2)
+    base = _buffer((0.0, 0.0, 0.0, 1.0))
+    source = _buffer((1.0, 0.0, 0.0, 1.0))
+    result = composite_blend_layers(
+        base,
+        [BlendLayer(source)],
+        resource_manager=manager,
+    )
+    assert result.shape == base.shape
+    assert manager.reserved_bytes == 0
+
+
+def test_compositor_releases_render_reservation_on_failure(monkeypatch) -> None:
+    from ai_gif_studio.resources import ResourceManager
+    from ai_gif_studio.temporal_engine import compositor
+
+    manager = ResourceManager(1024**2)
+    base = _buffer((0.0, 0.0, 0.0, 1.0))
+    source = _buffer((1.0, 0.0, 0.0, 1.0))
+
+    def fail(self, inputs):
+        raise RuntimeError("injected layer failure")
+
+    monkeypatch.setattr(compositor.BlendModeEffect, "__call__", fail)
+    with pytest.raises(RuntimeError, match="injected layer failure"):
+        composite_blend_layers(
+            base,
+            [BlendLayer(source)],
+            resource_manager=manager,
+        )
+    assert manager.reserved_bytes == 0
+    np.testing.assert_array_equal(base.data, _buffer((0.0, 0.0, 0.0, 1.0)).data)
