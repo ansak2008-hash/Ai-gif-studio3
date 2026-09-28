@@ -68,7 +68,7 @@ def render_pbr_manuscript(
 ) -> np.ndarray:
     """Render a manuscript plane through the Phase 3 PBR path."""
     width, height = viewport
-    warped, alpha = warp_manuscript(asset.rgba_linear, camera, plane, viewport)
+    _, alpha = warp_manuscript(asset.rgba_linear, camera, plane, viewport)
     field = DepthField.from_alpha(
         alpha,
         bevel_width_px=bevel_width_px,
