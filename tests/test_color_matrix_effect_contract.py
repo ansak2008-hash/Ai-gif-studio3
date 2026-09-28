@@ -101,11 +101,14 @@ def test_color_matrix_rejects_nonfinite_or_negative_output_at_canonical_boundary
 
     overflow_matrix = np.asarray(
         [
-            [1.0e20, 0.0, 0.0, 0.0],
+            [3.0e38, 0.0, 0.0, 0.0],
             [0.0, 1.0, 0.0, 0.0],
             [0.0, 0.0, 1.0, 0.0],
         ],
         dtype=np.float32,
     )
-    with pytest.raises(ValueError, match="finite"):
-        ColorMatrixEffect(overflow_matrix)((_buffer(),))
+    hdr_source = RenderBuffer.from_linear_rgba(
+        np.asarray([[[2.0, 0.4, 0.8, 0.35]]], dtype=np.float32)
+    )
+    with pytest.raises(ValueError, match="finite"), np.errstate(over="ignore"):
+        ColorMatrixEffect(overflow_matrix)((hdr_source,))
