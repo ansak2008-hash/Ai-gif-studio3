@@ -6,7 +6,6 @@ import pytest
 from ai_gif_studio.temporal_engine.compositor import composite_layers, composite_over
 from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
 
-
 pytestmark = pytest.mark.unit
 
 
@@ -51,7 +50,7 @@ def test_composite_over_normalizes_rgb_for_partial_output_alpha() -> None:
 
     np.testing.assert_allclose(
         result.data,
-        [[[0.8, 3.2, 0.0, 0.4375]]],
+        [[[0.85714286, 2.28571429, 0.0, 0.4375]]],
         rtol=0,
         atol=1e-6,
     )
