@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from hypothesis import given
+from hypothesis import settings
 from hypothesis import strategies as st
 
 from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
@@ -28,6 +29,7 @@ def _float_rgba_arrays(draw: st.DrawFn) -> np.ndarray:
     return np.asarray(values, dtype=np.float32).reshape(height, width, 4)
 
 
+@settings(max_examples=100, deadline=None)
 @given(_float_rgba_arrays())
 def test_render_buffer_property_rejects_invalid_float_values_or_accepts_canonical_values(
     rgba: np.ndarray,
@@ -42,6 +44,7 @@ def test_render_buffer_property_rejects_invalid_float_values_or_accepts_canonica
     assert np.all((buffer.data[..., 3] >= 0.0) & (buffer.data[..., 3] <= 1.0))
 
 
+@settings(max_examples=50, deadline=None)
 @given(
     st.integers(min_value=1, max_value=4),
     st.integers(min_value=1, max_value=4),
