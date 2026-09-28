@@ -86,3 +86,72 @@ def cook_torrance_specular(
     f = fresnel_schlick(vh, f0)
     denominator = np.maximum(4.0 * v * ndl, _EPS_DENOM)
     return d * g * f / denominator
+
+
+def _normalize_vectors(value: np.ndarray | list[float], name: str) -> np.ndarray:
+    vectors = np.asarray(value, dtype=np.float64)
+    if vectors.shape[-1] != 3:
+        raise ValueError(f"{name} must have a final dimension of 3")
+    length = np.linalg.norm(vectors, axis=-1, keepdims=True)
+    if np.any(length <= _EPS_DENOM) or not np.isfinite(length).all():
+        raise ValueError(f"{name} must contain finite non-zero vectors")
+    return vectors / length
+
+
+def shade_pbr(
+    normal: np.ndarray,
+    view: np.ndarray,
+    light: np.ndarray,
+    albedo: np.ndarray | list[float],
+    roughness: float,
+    metallic: float = 0.0,
+    light_color: np.ndarray | list[float] | float = 1.0,
+    light_intensity: float = 1.0,
+) -> np.ndarray:
+    """Evaluate one deterministic direct-light PBR sample.
+
+    The inputs N, V, and L are normalized internally. The returned value is
+    linear RGB radiance. This stage owns geometry-derived dot products and
+    the standard metallic energy split; the microfacet primitives remain
+    renderer-agnostic.
+    """
+    if not np.isfinite(metallic) or not 0.0 <= metallic <= 1.0:
+        raise ValueError("metallic must be finite and in [0, 1]")
+    if not np.isfinite(light_intensity) or light_intensity < 0.0:
+        raise ValueError("light_intensity must be finite and non-negative")
+
+    n = _normalize_vectors(normal, "normal")
+    v = _normalize_vectors(view, "view")
+    l = _normalize_vectors(light, "light")
+    base_color = np.asarray(albedo, dtype=np.float64)
+    if base_color.shape[-1] != 3:
+        raise ValueError("albedo must have a final dimension of 3")
+    if np.any(base_color < 0.0) or np.any(base_color > 1.0):
+        raise ValueError("albedo must be in [0, 1]")
+
+    radiance = np.asarray(light_color, dtype=np.float64)
+    if np.any(radiance < 0.0) or not np.isfinite(radiance).all():
+        raise ValueError("light_color must be finite and non-negative")
+
+    half = _normalize_vectors(v + l, "view + light")
+    ndotv = np.sum(n * v, axis=-1)
+    ndotl = np.sum(n * l, axis=-1)
+    ndoth = np.sum(n * half, axis=-1)
+    vdoth = np.sum(v * half, axis=-1)
+    visible = (ndotv > 0.0) & (ndotl > 0.0)
+
+    f0 = 0.04 * (1.0 - metallic) + base_color * metallic
+    fresnel = fresnel_schlick(vdoth[..., None], f0)
+    specular = cook_torrance_specular(
+        ndotv[..., None],
+        ndotl[..., None],
+        ndoth[..., None],
+        vdoth[..., None],
+        roughness,
+        f0,
+    )
+    diffuse_weight = (1.0 - fresnel) * (1.0 - metallic)
+    diffuse = diffuse_weight * base_color / np.pi
+    brdf = diffuse + specular
+    result = brdf * ndotl[..., None] * radiance * light_intensity
+    return np.where(visible[..., None], result, 0.0)
