@@ -11,7 +11,8 @@ A render graph is an ordered, acyclic collection of named render nodes.
 Each node:
 - has a unique non-empty string name;
 - declares zero or more upstream node names;
-- receives exactly one canonical RenderBuffer value when executed;
+- receives an ordered tuple of canonical RenderBuffer outputs, one for each declared dependency;
+- root nodes receive a one-element tuple containing an owned copy of the graph's initial RenderBuffer;
 - returns a new canonical RenderBuffer;
 - must not mutate its input;
 - must preserve the input dimensions unless the graph contract is explicitly extended for resampling;
@@ -31,7 +32,6 @@ The graph:
 - rejects a node that returns anything other than RenderBuffer;
 - rejects a node that changes the canonical render dimensions;
 - never mutates the caller's initial buffer.
-
 
 A node with multiple dependencies receives their outputs in the exact dependency declaration order. This provides deterministic fan-in for future compositor/effect stages without introducing implicit global state.
 
