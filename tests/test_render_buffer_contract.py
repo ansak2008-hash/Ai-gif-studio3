@@ -24,17 +24,17 @@ def test_render_buffer_rejects_invalid_contract_values() -> None:
     negative_rgb = np.zeros((1, 1, 4), dtype=np.float32)
     negative_rgb[0, 0, 0] = -1.0
     with pytest.raises(ValueError, match="non-negative"):
-        RenderBuffer(negative_rgb)
+        RenderBuffer.from_linear_rgba(negative_rgb)
 
     invalid_alpha = np.ones((1, 1, 4), dtype=np.float32)
     invalid_alpha[0, 0, 3] = 1.01
     with pytest.raises(ValueError, match="alpha"):
-        RenderBuffer(invalid_alpha)
+        RenderBuffer.from_linear_rgba(invalid_alpha)
 
     nan_value = np.zeros((1, 1, 4), dtype=np.float32)
     nan_value[0, 0, 1] = np.nan
     with pytest.raises(ValueError, match="finite"):
-        RenderBuffer(nan_value)
+        RenderBuffer.from_linear_rgba(nan_value)
 
 
 def test_render_buffer_owns_input_and_exposes_read_only_data() -> None:
@@ -97,6 +97,20 @@ def test_render_buffer_rejects_storage_replacement() -> None:
     buffer = RenderBuffer.allocate(1, 1)
     with pytest.raises((AttributeError, TypeError)):
         buffer._rgba_linear = np.zeros((1, 1, 4), dtype=np.float32)
+
+
+def test_raw_ndarray_construction_requires_explicit_color_space_boundary() -> None:
+    rgba = np.zeros((1, 1, 4), dtype=np.float32)
+    with pytest.raises(TypeError, match="created through"):
+        RenderBuffer(rgba)
+
+
+def test_from_srgb_u8_converts_rgb_and_alpha_explicitly() -> None:
+    srgb = np.array([[[128, 64, 255, 128]]], dtype=np.uint8)
+    buffer = RenderBuffer.from_srgb_u8(srgb)
+    expected_rgb = np.array([[[0.2158605, 0.05126946, 1.0]]], dtype=np.float32)
+    expected = np.concatenate([expected_rgb, np.array([[[128 / 255.0]]], dtype=np.float32)], axis=-1)
+    np.testing.assert_allclose(buffer.data, expected, rtol=0.0, atol=2e-6)
 
 
 def test_clear_replaces_storage_without_exposing_writable_alias() -> None:
