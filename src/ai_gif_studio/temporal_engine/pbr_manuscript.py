@@ -6,6 +6,7 @@ import numpy as np
 from .camera import CameraState
 from .depth_field import DepthField
 from .manuscript import ManuscriptAsset
+from .material_pbr import DirectLight, PBRMaterial
 from .manuscript_plane import ManuscriptPlane, warp_manuscript
 from .pbr_renderer import render_pbr_depth_field
 
@@ -65,6 +66,9 @@ def render_pbr_manuscript(
     bevel_width_px: float = 8.0,
     bevel_power: float = 0.75,
     height_scale_px: float = 2.5,
+    *,
+    material: PBRMaterial | None = None,
+    lights: tuple[DirectLight, ...] | list[DirectLight] | None = None,
 ) -> np.ndarray:
     """Render a manuscript plane through the Phase 3 PBR path."""
     width, height = viewport
@@ -86,4 +90,6 @@ def render_pbr_manuscript(
         light=light,
         light_color=light_color,
         light_intensity=light_intensity,
+        material=material,
+        lights=lights,
     )
