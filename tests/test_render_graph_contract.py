@@ -28,6 +28,11 @@ def test_graph_rejects_duplicate_names() -> None:
             RenderNode("stage", lambda inputs: inputs[0]),
         ])
 
+def test_graph_rejects_duplicate_dependencies() -> None:
+    with pytest.raises(ValueError, match="unique"):
+        RenderNode("stage", lambda inputs: inputs[0], ("root", "root"))
+
+
 def test_graph_rejects_missing_dependency_and_self_dependency() -> None:
     with pytest.raises(ValueError, match="missing"):
         RenderGraph([RenderNode("stage", lambda buffer: buffer, ("unknown",))])
