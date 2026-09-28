@@ -25,6 +25,7 @@ from .geometry_transforms import (
     PerspectiveTransformSpec,
 )
 from .glint import GlintParameters, gaussian_glint
+from .keyframed_transforms import AffineTransformKeyframe, AffineTransformTrack
 from .manuscript_pipeline import ManuscriptPipeline
 from .manuscript_plane import ManuscriptPlane, homography_from_corners, warp_manuscript
 from .material_pbr import DirectLight, PBRMaterial, shade_pbr_lights
@@ -78,6 +79,8 @@ __all__ = [
     "AffineTransformEffect",
     "PerspectiveTransformSpec",
     "PerspectiveTransformEffect",
+    "AffineTransformKeyframe",
+    "AffineTransformTrack",
     "ExposureEffect",
     "GammaEffect",
     "RGBGainEffect",
