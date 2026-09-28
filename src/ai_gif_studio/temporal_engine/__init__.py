@@ -15,6 +15,7 @@ from .curves import (
 from .depth_field import DepthField
 from .glint import GlintParameters, gaussian_glint
 from .manuscript_pipeline import ManuscriptPipeline
+from .material_pbr import DirectLight, PBRMaterial, shade_pbr_lights
 from .manuscript_plane import ManuscriptPlane, homography_from_corners, warp_manuscript
 from .motion import CameraMotionTrack, MotionKeyframe, smoothstep01
 from .palette import build_global_palette, quantize_frames_global
@@ -65,6 +66,9 @@ __all__ = [
     "render_pbr_manuscript",
     "smoothstep01",
     "render_pbr_depth_field",
+    "PBRMaterial",
+    "DirectLight",
+    "shade_pbr_lights",
     "shade_depth_field",
     "shade_depth_field_from_camera",
 ]
