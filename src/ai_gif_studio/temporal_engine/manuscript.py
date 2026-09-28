@@ -17,13 +17,22 @@ class ManuscriptAsset:
     name: str = "manuscript"
 
     def __post_init__(self) -> None:
-        a = np.asarray(self.rgba_linear)
-        if a.ndim != 3 or a.shape[2] != 4:
+        raw = np.asarray(self.rgba_linear)
+        if raw.ndim != 3 or raw.shape[2] != 4:
             raise ValueError("manuscript must be RGBA")
-        if not np.issubdtype(a.dtype, np.floating):
+        if not np.issubdtype(raw.dtype, np.floating):
             raise TypeError("manuscript RGBA must use floating point linear-light values")
+        a = np.array(raw, dtype=np.float32, copy=True)
         if a.shape[0] < 1 or a.shape[1] < 1:
             raise ValueError("manuscript dimensions must be positive")
+        if not np.isfinite(a).all():
+            raise ValueError("manuscript RGBA must contain finite values")
+        if np.any(a[..., :3] < 0.0):
+            raise ValueError("manuscript RGB must contain non-negative linear-light values")
+        if np.any((a[..., 3] < 0.0) | (a[..., 3] > 1.0)):
+            raise ValueError("manuscript alpha must be in [0, 1]")
+        a.setflags(write=False)
+        object.__setattr__(self, "rgba_linear", a)
 
     @property
     def height(self) -> int:
@@ -35,11 +44,13 @@ class ManuscriptAsset:
 
     @property
     def alpha(self) -> np.ndarray:
-        return np.clip(np.asarray(self.rgba_linear[..., 3], dtype=np.float32), 0.0, 1.0)
+        return np.asarray(self.rgba_linear[..., 3], dtype=np.float32)
 
     @classmethod
     def from_rgba_u8(cls, rgba: np.ndarray, name: str = "manuscript") -> ManuscriptAsset:
         arr = np.asarray(rgba)
+        if arr.dtype != np.uint8:
+            raise TypeError("rgba must use uint8")
         if arr.ndim != 3 or arr.shape[2] != 4:
             raise ValueError("expected HxWx4 RGBA")
         x = arr.astype(np.float32) / 255.0
