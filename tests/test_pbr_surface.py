@@ -115,7 +115,7 @@ def test_shade_depth_field_from_camera_matches_explicit_view_vectors():
     expected = shade_depth_field(
         field,
         explicit_view,
-        np.array([0.0, 1.0, 0.0]),
+        np.array([0.0, 0.0, 1.0]),
         [0.8, 0.3, 0.1],
         0.4,
     )
