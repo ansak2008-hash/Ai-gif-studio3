@@ -36,9 +36,9 @@ Implemented:
 - immutable ordered transform chains
 - deterministic batch application
 - crop/fit/fill policies (Phase 4.15 foundation: canonical linear RGBA framing)
+- affine/perspective transforms (Phase 4.16 foundation: canonical linear RGBA geometry warps)
 
 Next:
-- affine/perspective transforms
 - color curves and LUT-style grading (Phase 4.11 foundation: deterministic tone curves)
 - blend modes and masks (Phase 4.12 foundation: deterministic binary blending with canonical masks)
 - layer compositing (Phase 4.13 foundation: typed deterministic blend-layer orchestration)

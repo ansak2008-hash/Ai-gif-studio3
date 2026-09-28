@@ -17,6 +17,12 @@ from .curves import (
 )
 from .depth_field import DepthField
 from .framing import FramingEffect, FramingMode, FramingSpec
+from .geometry_transforms import (
+    AffineTransformEffect,
+    AffineTransformSpec,
+    PerspectiveTransformEffect,
+    PerspectiveTransformSpec,
+)
 from .glint import GlintParameters, gaussian_glint
 from .manuscript_pipeline import ManuscriptPipeline
 from .manuscript_plane import ManuscriptPlane, homography_from_corners, warp_manuscript
@@ -66,6 +72,10 @@ __all__ = [
     "FramingMode",
     "FramingSpec",
     "FramingEffect",
+    "AffineTransformSpec",
+    "AffineTransformEffect",
+    "PerspectiveTransformSpec",
+    "PerspectiveTransformEffect",
     "ExposureEffect",
     "GammaEffect",
     "RGBGainEffect",
