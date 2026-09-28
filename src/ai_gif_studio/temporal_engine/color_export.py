@@ -35,14 +35,21 @@ def linear_rgba_to_srgb_rgb(
     """Composite linear RGBA over a linear background, then encode to sRGB uint8."""
     if spec is None:
         spec = ExportColorSpec()
-    rgba = np.asarray(rgba_linear, dtype=np.float64)
+    raw = np.asarray(rgba_linear)
+    if not np.issubdtype(raw.dtype, np.floating):
+        raise TypeError("linear RGBA must use floating point values")
+    rgba = np.asarray(raw, dtype=np.float64)
     if rgba.ndim != 3 or rgba.shape[-1] != 4:
         raise ValueError("expected HxWx4 linear RGBA")
     if not np.isfinite(rgba).all():
         raise ValueError("linear RGBA must be finite")
+    if np.any(rgba[..., :3] < 0.0):
+        raise ValueError("linear RGB must contain non-negative values")
+    if np.any((rgba[..., 3] < 0.0) | (rgba[..., 3] > 1.0)):
+        raise ValueError("linear alpha must be in [0, 1]")
 
-    rgb = np.maximum(rgba[..., :3], 0.0)
-    alpha = np.clip(rgba[..., 3], 0.0, 1.0)
+    rgb = rgba[..., :3]
+    alpha = rgba[..., 3]
     background = np.asarray(spec.background_linear, dtype=np.float64)
     composited = rgb * alpha[..., None] + background * (1.0 - alpha[..., None])
 
