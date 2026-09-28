@@ -55,7 +55,7 @@ def shade_depth_field_from_camera(
     albedo: np.ndarray | list[float],
     roughness: float,
     metallic: float = 0.0,
-    light: np.ndarray = np.array([0.0, 0.0, 1.0]),
+    light: np.ndarray | tuple[float, float, float] = (0.0, 0.0, 1.0),
     light_color: np.ndarray | list[float] | float = 1.0,
     light_intensity: float = 1.0,
 ) -> np.ndarray:
