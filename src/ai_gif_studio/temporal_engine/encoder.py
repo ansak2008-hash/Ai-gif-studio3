@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
+from .color_export import ExportColorSpec, linear_rgba_to_srgb_rgb
 from .palette import build_global_palette, quantize_frames_global
 
 
@@ -32,3 +33,16 @@ def encode_gif(
         optimize=False,
     )
     return hashlib.sha256(Path(output).read_bytes()).hexdigest()
+
+
+def encode_linear_gif(
+    frames_rgba_linear: list[np.ndarray],
+    delays_cs: tuple[int, ...],
+    output: Path | str,
+    color_spec: ExportColorSpec = ExportColorSpec(),
+) -> str:
+    """Convert linear RGBA frames through the explicit color boundary and encode GIF."""
+    if not frames_rgba_linear:
+        raise ValueError("frames_rgba_linear cannot be empty")
+    rgb_frames = [linear_rgba_to_srgb_rgb(frame, color_spec) for frame in frames_rgba_linear]
+    return encode_gif(rgb_frames, delays_cs, output)
