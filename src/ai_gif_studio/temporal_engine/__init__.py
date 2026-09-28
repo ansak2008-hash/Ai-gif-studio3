@@ -16,6 +16,7 @@ from .glint import GlintParameters, gaussian_glint
 from .manuscript_plane import ManuscriptPlane, homography_from_corners, warp_manuscript
 from .palette import build_global_palette, quantize_frames_global
 from .particles import ParticleField, render_particles
+from .pbr_surface import shade_depth_field
 from .quality import validate_temporal_sequence
 from .timeline import AnimationTimeline, FrameTiming
 
@@ -48,4 +49,5 @@ __all__ = [
     "warp_manuscript",
     "BevelProfile",
     "DepthField",
+    "shade_depth_field",
 ]
