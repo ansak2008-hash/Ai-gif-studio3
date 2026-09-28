@@ -56,6 +56,7 @@ class ResourceManager:
         *,
         channels: int = 4,
         dtype: np.dtype | type[np.floating] = np.float32,
+        intermediate_dtype: np.dtype | type[np.floating] = np.float64,
         intermediate_buffers: int = DEFAULT_RENDER_INTERMEDIATE_BUFFERS,
     ) -> int:
         """Return a conservative pre-allocation budget for RGBA compositing.
@@ -78,9 +79,14 @@ class ResourceManager:
             raise ValueError(
                 "render dimensions must be positive and buffer counts non-negative"
             )
-        itemsize = np.dtype(dtype).itemsize
-        buffer_bytes = int(width) * int(height) * int(channels) * itemsize
-        return buffer_bytes * (1 + int(layers) + int(intermediate_buffers))
+        buffer_bytes = int(width) * int(height) * int(channels) * np.dtype(dtype).itemsize
+        intermediate_bytes = (
+            int(width)
+            * int(height)
+            * int(channels)
+            * np.dtype(intermediate_dtype).itemsize
+        )
+        return buffer_bytes * (1 + int(layers)) + intermediate_bytes * int(intermediate_buffers)
 
     @property
     def memory_limit_bytes(self) -> int:
