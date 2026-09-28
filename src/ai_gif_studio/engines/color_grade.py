@@ -53,6 +53,8 @@ def apply_color_grade(frame: np.ndarray, spec: ColorGradeSpec) -> np.ndarray:
         raise ValueError("frame must have shape HxWx3 or HxWx4")
     if frame.dtype != np.uint8:
         raise ValueError("frame must use uint8 pixels")
+    if spec == ColorGradeSpec():
+        return frame.copy()
 
     lut = build_rgb_lut(spec)
     rgb = frame[..., :3].astype(np.float64) / 255.0
