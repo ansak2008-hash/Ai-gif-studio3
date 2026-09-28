@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import numpy as np
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class RenderBuffer:
     """Owned float32 linear-light RGBA render storage.
 
@@ -15,7 +15,7 @@ class RenderBuffer:
     or bypass the representation contract.
     """
 
-    _rgba_linear: np.ndarray
+    _storage: np.ndarray
 
     def __post_init__(self) -> None:
         raw = np.asarray(self._rgba_linear)
@@ -29,8 +29,8 @@ class RenderBuffer:
         if np.any((raw[..., 3] < 0.0) | (raw[..., 3] > 1.0)):
             raise ValueError("RenderBuffer alpha must be in [0, 1]")
         owned = np.array(raw, dtype=np.float32, copy=True)
-        owned.setflags(write=True)
-        self._rgba_linear = owned
+        owned.setflags(write=False)
+        object.__setattr__(self, "_storage", owned)
 
     @classmethod
     def allocate(cls, width: int, height: int) -> RenderBuffer:
@@ -49,24 +49,24 @@ class RenderBuffer:
 
     @property
     def width(self) -> int:
-        return int(self._rgba_linear.shape[1])
+        return int(self._storage.shape[1])
 
     @property
     def height(self) -> int:
-        return int(self._rgba_linear.shape[0])
+        return int(self._storage.shape[0])
 
     @property
     def shape(self) -> tuple[int, int, int]:
-        return self._rgba_linear.shape
+        return self._storage.shape
 
     @property
     def dtype(self) -> np.dtype:
-        return self._rgba_linear.dtype
+        return self._storage.dtype
 
     @property
     def data(self) -> np.ndarray:
         """Return a read-only view of the canonical RGBA storage."""
-        view = self._rgba_linear.view()
+        view = self._storage.view()
         view.setflags(write=False)
         return view
 
@@ -76,11 +76,13 @@ class RenderBuffer:
         if value.shape != (4,):
             raise ValueError("clear color must contain exactly four values")
         self._validate_values(value)
-        self._rgba_linear[...] = value
+        updated = np.broadcast_to(value, self._storage.shape).copy()
+        updated.setflags(write=False)
+        object.__setattr__(self, "_storage", updated)
 
     def copy(self) -> RenderBuffer:
         """Return an independent owned copy."""
-        return RenderBuffer(self._rgba_linear)
+        return RenderBuffer(self._storage)
 
     @staticmethod
     def _positive_dimension(value: int, name: str) -> int:
