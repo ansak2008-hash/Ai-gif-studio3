@@ -7,7 +7,7 @@ Expose the existing Phase 3 deterministic direct-light PBR kernel as a RenderGra
 ## Contract
 
 - The node consumes exactly one RenderBuffer input.
-- Input RGB is linear albedo in [0, infinity) and input alpha is preserved.
+- Input alpha is preserved; material albedo comes from the existing immutable PBRMaterial contract.
 - The node uses the existing `PBRMaterial` for roughness/metallic parameters and existing `DirectLight` values for ordered direct-light accumulation.
 - Surface normal and view vectors are supplied by the node configuration and must match the RenderBuffer dimensions.
 - PBR calculations remain float64. Conversion to canonical RenderBuffer float32 happens exactly once at the node output boundary.
