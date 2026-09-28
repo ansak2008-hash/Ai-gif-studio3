@@ -1,8 +1,12 @@
 import numpy as np
 import pytest
 
+from ai_gif_studio.temporal_engine.camera import CameraState
 from ai_gif_studio.temporal_engine.depth_field import DepthField
-from ai_gif_studio.temporal_engine.pbr_surface import shade_depth_field
+from ai_gif_studio.temporal_engine.pbr_surface import (
+    shade_depth_field,
+    shade_depth_field_from_camera,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -83,4 +87,70 @@ def test_shade_depth_field_rejects_invalid_field_shape():
             light=np.array([0.0, 0.0, 1.0]),
             albedo=[0.8, 0.3, 0.1],
             roughness=0.4,
+        )
+
+
+def test_shade_depth_field_from_camera_matches_explicit_view_vectors():
+    field = DepthField(
+        distance_px=np.ones((1, 2), dtype=np.float32),
+        height=np.ones((1, 2), dtype=np.float32),
+        normals=np.array(
+            [[[0.0, 0.0, 1.0], [0.0, 0.0, 1.0]]],
+            dtype=np.float32,
+        ),
+    )
+    camera = CameraState(
+        position=(0.0, 0.0, 4.0),
+        target=(0.0, 0.0, 0.0),
+        up=(0.0, 1.0, 0.0),
+        fov_y_deg=45.0,
+        aspect=1.0,
+    )
+    points = np.array(
+        [[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]],
+        dtype=np.float64,
+    )
+    explicit_view = camera.position - points
+
+    expected = shade_depth_field(
+        field,
+        explicit_view,
+        np.array([0.0, 0.0, 1.0]),
+        [0.8, 0.3, 0.1],
+        0.4,
+    )
+    actual = shade_depth_field_from_camera(
+        field,
+        camera,
+        points,
+        [0.8, 0.3, 0.1],
+        0.4,
+    )
+    np.testing.assert_array_equal(actual, expected)
+    assert np.isfinite(actual).all()
+
+
+def test_shade_depth_field_from_camera_rejects_point_shape():
+    field = DepthField(
+        distance_px=np.ones((2, 2), dtype=np.float32),
+        height=np.ones((2, 2), dtype=np.float32),
+        normals=np.broadcast_to(
+            np.array([0.0, 0.0, 1.0], dtype=np.float32),
+            (2, 2, 3),
+        ).copy(),
+    )
+    camera = CameraState(
+        position=(0.0, 0.0, 4.0),
+        target=(0.0, 0.0, 0.0),
+        up=(0.0, 1.0, 0.0),
+        fov_y_deg=45.0,
+        aspect=1.0,
+    )
+    with pytest.raises(ValueError, match="surface_points_world"):
+        shade_depth_field_from_camera(
+            field,
+            camera,
+            np.zeros((2, 2, 2), dtype=np.float64),
+            [0.8, 0.3, 0.1],
+            0.4,
         )
