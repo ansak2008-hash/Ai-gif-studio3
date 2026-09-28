@@ -42,6 +42,9 @@ class ManuscriptPipeline:
         light: np.ndarray | tuple[float, float, float] = (0.0, 0.0, 1.0),
         light_color: np.ndarray | list[float] | float = 1.0,
         light_intensity: float = 1.0,
+        *,
+        material: PBRMaterial | None = None,
+        lights: tuple[DirectLight, ...] | list[DirectLight] | None = None,
     ) -> tuple[list[np.ndarray], tuple[int, ...], TemporalValidation]:
         renderer = PBRMotionRenderer(self.timeline, self.motion, self.viewport)
         frames, delays = renderer.render_sequence(
