@@ -40,7 +40,7 @@ Next:
 - crop/fit/fill policies as reusable transforms
 - affine/perspective transforms
 - color curves and LUT-style grading (Phase 4.11 foundation: deterministic tone curves)
-- blend modes and masks
+- blend modes and masks (Phase 4.12 foundation: deterministic binary blending with canonical masks)
 - layer compositing
 - selective region transforms
 

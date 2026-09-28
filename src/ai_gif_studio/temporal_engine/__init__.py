@@ -2,6 +2,7 @@
 
 from .affine import AffineTransform, warp_premultiplied_rgba
 from .bevel import BevelProfile
+from .blend import BlendMode, BlendModeEffect
 from .camera import CameraModel, CameraState, project_points
 from .color import encode_srgb, linearize_srgb
 from .color_effects import ColorMatrixEffect, ExposureEffect, GammaEffect, RGBGainEffect
@@ -65,6 +66,8 @@ __all__ = [
     "ColorMatrixEffect",
     "ToneCurve",
     "ToneCurveEffect",
+    "BlendMode",
+    "BlendModeEffect",
     "composite_over",
     "composite_layers",
     # Manuscript (Phase 1 + 2)
