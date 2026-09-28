@@ -10,6 +10,7 @@ from .color_export import ExportColorSpec
 from .encoder import encode_linear_gif
 from .manuscript import ManuscriptAsset
 from .manuscript_plane import ManuscriptPlane
+from .material_pbr import DirectLight, PBRMaterial
 from .motion import CameraMotionTrack
 from .pbr_motion import PBRMotionRenderer
 from .quality import TemporalValidation, validate_temporal_sequence
@@ -52,6 +53,8 @@ class ManuscriptPipeline:
             light=light,
             light_color=light_color,
             light_intensity=light_intensity,
+            material=material,
+            lights=lights,
         )
         validation = validate_temporal_sequence(frames)
         if not validation.passed:
@@ -71,6 +74,9 @@ class ManuscriptPipeline:
         light: np.ndarray | tuple[float, float, float] = (0.0, 0.0, 1.0),
         light_color: np.ndarray | list[float] | float = 1.0,
         light_intensity: float = 1.0,
+        *,
+        material: PBRMaterial | None = None,
+        lights: tuple[DirectLight, ...] | list[DirectLight] | None = None,
     ) -> str:
         frames, delays, _ = self.render_frames(
             asset,
@@ -81,5 +87,7 @@ class ManuscriptPipeline:
             light=light,
             light_color=light_color,
             light_intensity=light_intensity,
+            material=material,
+            lights=lights,
         )
         return encode_linear_gif(frames, delays, output, self.color_spec)
