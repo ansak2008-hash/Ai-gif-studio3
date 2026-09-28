@@ -2,8 +2,7 @@
 
 Status: **active product roadmap**
 
-The six-phase temporal rendering foundation is complete. The next product track expands the
-studio from a GIF renderer into a deterministic creative transformation platform.
+The deterministic temporal rendering foundation has been extended through Phase 4.22. The next product track expands the studio from a GIF renderer into a deterministic creative transformation platform.
 
 ## Design target
 
@@ -12,14 +11,14 @@ The product should combine:
 - Canva-class reusable design, typography, layout, presets, and workflow composition.
 - AI-native transformations behind explicit provider/model gates.
 - High-quality temporal rendering, PBR surfaces, camera motion, and GIF/video export.
-- A single typed capability/workflow system so every tool is discoverable, validated, testable,
-  and composable rather than implemented as isolated UI features.
+- A single typed capability/workflow system so every tool is discoverable, validated, testable, and composable rather than implemented as isolated UI features.
 
 This is a capability target, not a claim that the product currently matches any named competitor.
 
 ## Capability tracks
 
 ### Track A — Deterministic transformations
+
 Implemented:
 - resize
 - rotate
@@ -43,7 +42,8 @@ Implemented:
 - selective region transforms (Phase 4.14 foundation: reusable typed masked unary-transform orchestration)
 
 ### Track B — Design and motion
-Existing foundation:
+
+Implemented:
 - composition
 - typography
 - frames
@@ -52,17 +52,19 @@ Existing foundation:
 - motion
 - PBR manuscript rendering
 - linear-light export
-
-Implemented:
 - reusable effect stacks (Phase 4.17 foundation: immutable ordered RenderBuffer effect composition)
+- keyframed affine transform parameters (Phase 4.18 foundation: deterministic parameter sampling)
+- per-layer affine motion (Phase 4.19 foundation: time-sampled MotionLayer binding)
+- temporal fade effects (Phase 4.20 foundation: explicit-time unary temporal effect)
+- temporal effect stacks (Phase 4.21 foundation: immutable explicit-time unary effect composition)
+- temporal crossfade transition (Phase 4.22 foundation: deterministic two-input transition)
 
 Next:
-- keyframed transform parameters
-- per-layer motion
-- temporal effects
-- richer transitions
+- additional transition primitives only where concrete product requirements justify them
+- temporal scene/layer orchestration when an end-to-end frame composition contract is required
 
 ### Track C — AI transformations
+
 Provider/model gated until exact model code, weights, licenses, and SHA-256 provenance are verified:
 - background removal
 - background replacement
@@ -74,10 +76,10 @@ Provider/model gated until exact model code, weights, licenses, and SHA-256 prov
 - relighting
 - generative expansion
 
-AI capabilities must return typed validated results and must never be marked production-ready
-merely because a provider endpoint exists.
+AI capabilities must return typed validated results and must never be marked production-ready merely because a provider endpoint exists.
 
 ### Track D — Product composition
+
 Next:
 - project/revision graph
 - undo/redo through immutable commands

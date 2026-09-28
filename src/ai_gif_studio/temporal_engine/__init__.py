@@ -44,6 +44,7 @@ from .render_mask import RenderMask
 from .selective_region import SelectiveRegionEffect
 from .temporal_effects import TemporalFadeEffect
 from .temporal_stack import TemporalEffect, TemporalEffectStack
+from .temporal_transitions import TemporalCrossfadeEffect
 from .timeline import AnimationTimeline, FrameTiming
 from .tone_curve import ToneCurve, ToneCurveEffect
 
@@ -88,6 +89,7 @@ __all__ = [
     "TemporalFadeEffect",
     "TemporalEffect",
     "TemporalEffectStack",
+    "TemporalCrossfadeEffect",
     "ExposureEffect",
     "GammaEffect",
     "RGBGainEffect",
