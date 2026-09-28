@@ -16,9 +16,11 @@ def encode_gif(
         raise ValueError("frames cannot be empty")
     if len(frames) != len(delays_cs):
         raise ValueError("frame/delay count mismatch")
-    shape = frames[0].shape
-    if shape != (320, 320, 3) or any(np.asarray(f).shape != shape for f in frames):
-        raise ValueError("all frames must be 320x320 RGB")
+    shape = np.asarray(frames[0]).shape
+    if len(shape) != 3 or shape[2] != 3 or any(
+        np.asarray(frame).shape != shape for frame in frames
+    ):
+        raise ValueError("all frames must have a consistent HxWx3 RGB shape")
     if any(int(d) < 1 for d in delays_cs):
         raise ValueError("GIF delays must be >=1cs")
     palette = build_global_palette(frames, 256)
