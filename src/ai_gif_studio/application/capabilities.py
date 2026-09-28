@@ -24,6 +24,7 @@ CAPABILITIES = {
         Capability("transform", CapabilityState.AVAILABLE, ("opencv", "numpy"), "Deterministic bounded image/frame transformation chains."),
         Capability("warp", CapabilityState.AVAILABLE, ("opencv", "numpy"), "Deterministic affine and four-point perspective transforms."),
         Capability("blend", CapabilityState.AVAILABLE, ("opencv", "numpy"), "Masked normal, multiply, screen, and additive compositing."),
+        Capability("color_grade", CapabilityState.AVAILABLE, ("numpy",), "Deterministic LUT-style brightness, contrast, saturation, temperature, tint, levels, and gamma grading."),
         Capability("compose", CapabilityState.AVAILABLE, ("composition-engine",)),
         Capability("motion", CapabilityState.AVAILABLE, ("ffmpeg",), "Bounded float/pan motion."),
         Capability("layers", CapabilityState.AVAILABLE, ("ffmpeg",), "Bounded decorative layers."),
