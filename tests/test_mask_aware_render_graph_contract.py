@@ -105,19 +105,26 @@ def test_masked_node_works_with_one_dependency() -> None:
     np.testing.assert_allclose(result.data, expected, rtol=0.0, atol=1e-6)
 
 
-def test_masked_node_rejects_dimension_mismatch() -> None:
-    source = _buffer((1.0, 1.0, 1.0, 1.0))
+def test_masked_node_rejects_dimension_mismatch_before_processing() -> None:
+    called = False
+
+    def process(_: tuple[RenderBuffer, ...]) -> RenderBuffer:
+        nonlocal called
+        called = True
+        return _processed(())
+
     graph = RenderGraph(
         [
             RenderNode(
                 "masked",
-                _processed,
+                process,
                 mask=RenderMask.allocate(2, 1, value=1.0),
             )
         ]
     )
     with pytest.raises(ValueError, match="mask dimensions"):
-        graph.execute(source)
+        graph.execute(_buffer((1.0, 1.0, 1.0, 1.0)))
+    assert called is False
 
 
 def test_masking_does_not_mutate_source_or_processed_result() -> None:
@@ -139,7 +146,10 @@ def test_masking_does_not_mutate_source_or_processed_result() -> None:
     )
     result = graph.execute(source)
     np.testing.assert_array_equal(source.data, before)
-    np.testing.assert_array_equal(processed.data, _buffer((10.0, 20.0, 30.0, 0.25)).data)
+    np.testing.assert_array_equal(
+        processed.data,
+        _buffer((10.0, 20.0, 30.0, 0.25)).data,
+    )
     assert result is not source
     assert result is not processed
 
