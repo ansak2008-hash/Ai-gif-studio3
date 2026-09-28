@@ -96,7 +96,7 @@ def test_color_matrix_rejects_nonfinite_or_negative_output_at_canonical_boundary
         ],
         dtype=np.float32,
     )
-    with pytest.raises(ValueError, match="nonnegative"):
+    with pytest.raises(ValueError, match="non-negative"):
         ColorMatrixEffect(negative_matrix)((_buffer(),))
 
     overflow_matrix = np.asarray(
