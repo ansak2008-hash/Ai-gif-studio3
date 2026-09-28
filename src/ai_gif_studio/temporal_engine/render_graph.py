@@ -26,6 +26,8 @@ class RenderNode:
             raise TypeError("render node dependencies must be a tuple")
         if any(not isinstance(name, str) or not name.strip() for name in self.dependencies):
             raise ValueError("render node dependency names must be non-empty strings")
+        if len(set(self.dependencies)) != len(self.dependencies):
+            raise ValueError("render node dependencies must be unique")
 
 
 class RenderGraph:
