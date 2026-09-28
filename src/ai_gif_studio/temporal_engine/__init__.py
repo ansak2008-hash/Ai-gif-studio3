@@ -16,6 +16,7 @@ from .curves import (
     RotationMode,
 )
 from .depth_field import DepthField
+from .effect_stack import EffectStack
 from .framing import FramingEffect, FramingMode, FramingSpec
 from .geometry_transforms import (
     AffineTransformEffect,
@@ -69,6 +70,7 @@ __all__ = [
     "RenderNode",
     "RenderGraph",
     "SelectiveRegionEffect",
+    "EffectStack",
     "FramingMode",
     "FramingSpec",
     "FramingEffect",
