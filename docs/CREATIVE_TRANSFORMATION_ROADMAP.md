@@ -41,7 +41,7 @@ Next:
 - affine/perspective transforms
 - color curves and LUT-style grading (Phase 4.11 foundation: deterministic tone curves)
 - blend modes and masks (Phase 4.12 foundation: deterministic binary blending with canonical masks)
-- layer compositing
+- layer compositing (Phase 4.13 foundation: typed deterministic blend-layer orchestration)
 - selective region transforms
 
 ### Track B — Design and motion
