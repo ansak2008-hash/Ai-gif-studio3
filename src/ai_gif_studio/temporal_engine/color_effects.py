@@ -77,3 +77,44 @@ class RGBGainEffect:
         data[..., 1] *= self.green
         data[..., 2] *= self.blue
         return RenderBuffer.from_linear_rgba(data)
+
+
+@dataclass(frozen=True, slots=True)
+class ColorMatrixEffect:
+    """Deterministic affine transform over canonical linear RGB."""
+
+    _matrix: np.ndarray
+
+    def __post_init__(self) -> None:
+        matrix = np.asarray(self._matrix)
+        if matrix.shape != (3, 4):
+            raise ValueError("color matrix must have shape (3, 4)")
+        if not np.issubdtype(matrix.dtype, np.floating):
+            raise TypeError("color matrix must be floating point")
+        if not np.isfinite(matrix).all():
+            raise ValueError("color matrix must be finite")
+
+        owned = np.array(matrix, dtype=np.float32, copy=True)
+        if not np.isfinite(owned).all():
+            raise ValueError("color matrix must remain finite in float32 storage")
+        owned.setflags(write=False)
+        object.__setattr__(self, "_matrix", owned)
+
+    @classmethod
+    def from_matrix(cls, matrix: np.ndarray) -> ColorMatrixEffect:
+        """Construct a color matrix effect from a 3x4 affine matrix."""
+        return cls(matrix)
+
+    @property
+    def matrix(self) -> np.ndarray:
+        """Return the immutable owned affine matrix."""
+        return self._matrix
+
+    def __call__(self, inputs: tuple[RenderBuffer, ...]) -> RenderBuffer:
+        source = _single_input(inputs, "ColorMatrixEffect")
+
+        rgb = source.data[..., :3]
+        transformed = np.matmul(rgb, self._matrix[:, :3].T) + self._matrix[:, 3]
+        data = source.data.copy()
+        data[..., :3] = transformed
+        return RenderBuffer.from_linear_rgba(data)
