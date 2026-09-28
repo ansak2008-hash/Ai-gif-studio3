@@ -54,5 +54,17 @@ See docs/MODEL_REGISTRY.md. Code and weight licenses are recorded separately; ex
 - Static analysis: Ruff.
 - Security analysis: CodeQL.
 
+## Release v0.3.0-pbr-stable
+
+Phase 3 PBR scene-lighting work is merged and verified on `main`.
+
+- Explicit immutable `PBRMaterial` and `DirectLight` contracts.
+- Deterministic ordered multi-light accumulation.
+- End-to-end propagation through manuscript, depth-field, camera, PBR, color and GIF stages.
+- Legacy single-light compatibility preserved.
+- PBR precision and GGX/Cook-Torrance contracts hardened.
+- Phase 3 hardening and pipeline determinism tests are covered by CI.
+- Ruff, unit/integration/determinism/load checks and CodeQL passed on the release merge.
+
 ## Legacy PR reconciliation
 PR1 supplied the central render configuration contract; PR2 supplied the smart square composition algorithm; PR3 supplied the real crop-only FFmpeg strategy; PR4 supplied the Python modular foundation. Useful concepts are preserved rather than blindly merged, while the final runtime is consolidated around Python, domain/application boundaries, queue workers and infrastructure adapters.
