@@ -5,9 +5,7 @@ import numpy as np
 
 from .camera import CameraModel, CameraState
 from .depth_field import DepthField
-from .material_pbr import DirectLight, PBRMaterial, shade_pbr, shade_pbr_lights
-
-_DEFAULT_LIGHT = DirectLight(direction=(0.0, 0.0, 1.0))
+from .material_pbr import DirectLight, PBRMaterial, shade_pbr_lights
 
 
 def shade_depth_field(
