@@ -52,3 +52,24 @@ def test_invalid_grade_is_rejected():
         ColorGradeSpec(black_point=0.8, white_point=0.7)
     with pytest.raises(ValueError, match="gamma"):
         ColorGradeSpec(gamma=0.01)
+
+
+@pytest.mark.unit
+def test_lut_neutral_mapping_preserves_all_8bit_codes():
+    lut = build_rgb_lut(ColorGradeSpec())
+    expected = np.arange(256, dtype=np.float64)
+    np.testing.assert_array_equal(lut[:, 0], expected)
+    np.testing.assert_array_equal(lut[:, 1], expected)
+    np.testing.assert_array_equal(lut[:, 2], expected)
+
+
+@pytest.mark.unit
+def test_non_neutral_lut_is_integer_exact_and_bounded():
+    frame = np.array([[[17, 83, 241]]], dtype=np.uint8)
+    result = apply_color_grade(
+        frame,
+        ColorGradeSpec(temperature=0.4, tint=-0.2, contrast=1.7, gamma=1.3),
+    )
+    assert result.dtype == np.uint8
+    assert np.all(result >= 0)
+    assert np.all(result <= 255)
