@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Repository-level false-positive allowlist"
+paths = [
+  '''^docs/''',
+]
