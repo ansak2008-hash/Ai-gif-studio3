@@ -6,9 +6,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .blend import BlendMode, BlendModeEffect
 from ai_gif_studio.resources import ResourceManager, ResourceRequest
 
+from .blend import BlendMode, BlendModeEffect
 from .render_buffer import RenderBuffer
 from .render_mask import RenderMask
 
