@@ -18,7 +18,8 @@ def test_fill_crop_honors_focus_and_exact_geometry():
     frame[:, 6:, :] = 255
     result = crop_frame(frame, CropSpec(4, 4, CropMode.FILL, focus_x=1.0))
     assert result.shape == (4, 4, 3)
-    assert int(result.mean()) == 255
+    assert np.all(result[:, :2] == 0)
+    assert np.all(result[:, 2:] == 255)
 
 
 @pytest.mark.unit
