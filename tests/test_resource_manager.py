@@ -21,3 +21,20 @@ def test_reservations_are_bounded_and_released() -> None:
     manager.release(first)
     manager.release(first)
     assert manager.reserved_bytes == 0
+
+
+@pytest.mark.unit
+def test_render_memory_estimate_covers_4k_50_layers() -> None:
+    requested = ResourceManager.estimate_render_memory_bytes(3840, 2160, 50)
+    expected_per_buffer = 3840 * 2160 * 4 * 4
+    assert requested == expected_per_buffer * (1 + 50 + 8)
+    assert requested > 7 * 1024**3
+
+
+@pytest.mark.unit
+def test_4k_50_layer_render_is_rejected_before_execution() -> None:
+    manager = ResourceManager(4 * 1024**3)
+    requested = manager.estimate_render_memory_bytes(3840, 2160, 50)
+    with pytest.raises(ResourceLimitError, match="configured limit"):
+        manager.reserve(ResourceRequest(requested, model="cpu-render"))
+    assert manager.reserved_bytes == 0
