@@ -14,6 +14,7 @@ from .curves import (
 )
 from .depth_field import DepthField
 from .glint import GlintParameters, gaussian_glint
+from .manuscript_pipeline import ManuscriptPipeline
 from .manuscript_plane import ManuscriptPlane, homography_from_corners, warp_manuscript
 from .motion import CameraMotionTrack, MotionKeyframe, smoothstep01
 from .palette import build_global_palette, quantize_frames_global
@@ -52,6 +53,7 @@ __all__ = [
     "CameraModel",
     "ExportColorSpec",
     "project_points",
+    "ManuscriptPipeline",
     "ManuscriptPlane",
     "homography_from_corners",
     "warp_manuscript",
