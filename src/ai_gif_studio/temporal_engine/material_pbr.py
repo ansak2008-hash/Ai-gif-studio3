@@ -9,9 +9,9 @@ Precision contract:
 """
 from __future__ import annotations
 
-import numpy as np
-
 from dataclasses import dataclass
+
+import numpy as np
 
 _EPS_DENOM = np.finfo(np.float64).eps
 
@@ -25,7 +25,11 @@ class PBRMaterial:
 
     def __post_init__(self) -> None:
         color = np.asarray(self.albedo, dtype=np.float64)
-        if color.shape != (3,) or not np.isfinite(color).all() or np.any((color < 0.0) | (color > 1.0)):
+        if (
+            color.shape != (3,)
+            or not np.isfinite(color).all()
+            or np.any((color < 0.0) | (color > 1.0))
+        ):
             raise ValueError("albedo must contain three finite values in [0, 1]")
         if not np.isfinite(self.roughness) or not 0.0 < self.roughness <= 1.0:
             raise ValueError("roughness must be finite and in (0, 1]")
@@ -44,7 +48,11 @@ class DirectLight:
     def __post_init__(self) -> None:
         direction = np.asarray(self.direction, dtype=np.float64)
         color = np.asarray(self.color, dtype=np.float64)
-        if direction.shape != (3,) or not np.isfinite(direction).all() or np.linalg.norm(direction) <= _EPS_DENOM:
+        if (
+            direction.shape != (3,)
+            or not np.isfinite(direction).all()
+            or np.linalg.norm(direction) <= _EPS_DENOM
+        ):
             raise ValueError("direction must be a finite non-zero 3-vector")
         if color.shape != (3,) or not np.isfinite(color).all() or np.any(color < 0.0):
             raise ValueError("color must contain three finite non-negative values")
@@ -200,7 +208,6 @@ def shade_pbr(
     return np.where(visible[..., None], result, 0.0)
 
 
-
 def shade_pbr_lights(
     normal: np.ndarray,
     view: np.ndarray,
@@ -210,7 +217,10 @@ def shade_pbr_lights(
     """Accumulate an ordered direct-light set using the existing PBR kernel."""
     if not lights:
         raise ValueError("lights must contain at least one DirectLight")
-    result = np.zeros(np.broadcast_shapes(np.asarray(normal).shape[:-1], np.asarray(view).shape[:-1]) + (3,), dtype=np.float64)
+    output_shape = np.broadcast_shapes(
+        np.asarray(normal).shape[:-1], np.asarray(view).shape[:-1]
+    ) + (3,)
+    result = np.zeros(output_shape, dtype=np.float64)
     for light in lights:
         if not isinstance(light, DirectLight):
             raise TypeError("lights must contain DirectLight values")
