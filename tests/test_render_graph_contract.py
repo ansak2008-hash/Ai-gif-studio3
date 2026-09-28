@@ -22,7 +22,7 @@ def test_render_node_requires_non_empty_unique_name() -> None:
 def test_graph_rejects_duplicate_names() -> None:
     with pytest.raises(ValueError, match="duplicate"):
         RenderGraph([
-            RenderNode("stage", lambda buffer: buffer),
+            RenderNode("stage", lambda inputs: inputs[0]),
             RenderNode("stage", lambda buffer: buffer),
         ])
 
@@ -35,8 +35,8 @@ def test_graph_rejects_missing_dependency_and_self_dependency() -> None:
 def test_graph_rejects_cycles_before_execution() -> None:
     called = []
     nodes = [
-        RenderNode("a", lambda buffer: called.append("a") or buffer, ("b",)),
-        RenderNode("b", lambda buffer: called.append("b") or buffer, ("a",)),
+        RenderNode("a", lambda inputs: called.append("a") or inputs[0], ("b",)),
+        RenderNode("b", lambda inputs: called.append("b") or inputs[0], ("a",)),
     ]
     with pytest.raises(ValueError, match="cycle"):
         RenderGraph(nodes)
@@ -47,16 +47,16 @@ def test_graph_rejects_empty_graph() -> None:
         RenderGraph([])
 
 def test_graph_requires_one_terminal_output() -> None:
-    nodes = [RenderNode("a", lambda buffer: buffer), RenderNode("b", lambda buffer: buffer)]
+    nodes = [RenderNode("a", lambda inputs: inputs[0]), RenderNode("b", lambda inputs: inputs[0])]
     with pytest.raises(ValueError, match="terminal"):
         RenderGraph(nodes)
 
 def test_graph_executes_dependencies_in_stable_order() -> None:
     order: list[str] = []
     def stage(name: str):
-        def run(buffer: RenderBuffer) -> RenderBuffer:
+        def run(inputs: tuple[RenderBuffer, ...]) -> RenderBuffer:
             order.append(name)
-            return buffer.copy()
+            return inputs[-1].copy()
         return run
     graph = RenderGraph([
         RenderNode("root", stage("root")),
@@ -71,18 +71,18 @@ def test_graph_executes_dependencies_in_stable_order() -> None:
 def test_graph_does_not_mutate_initial_buffer() -> None:
     source = _buffer(2.0)
     before = source.data.copy()
-    graph = RenderGraph([RenderNode("copy", lambda buffer: buffer.copy())])
+    graph = RenderGraph([RenderNode("copy", lambda inputs: inputs[0].copy())])
     result = graph.execute(source)
     np.testing.assert_array_equal(source.data, before)
     assert result is not source
 
 def test_graph_rejects_non_renderbuffer_output() -> None:
-    graph = RenderGraph([RenderNode("bad", lambda buffer: np.zeros((1, 1, 4), dtype=np.float32))])
+    graph = RenderGraph([RenderNode("bad", lambda inputs: np.zeros((1, 1, 4), dtype=np.float32))])
     with pytest.raises(TypeError, match="bad"):
         graph.execute(_buffer())
 
 def test_graph_rejects_dimension_changes() -> None:
-    def resize(_: RenderBuffer) -> RenderBuffer:
+    def resize(_: tuple[RenderBuffer, ...]) -> RenderBuffer:
         return RenderBuffer.allocate(2, 1)
     graph = RenderGraph([RenderNode("resize", resize)])
     with pytest.raises(ValueError, match="dimensions"):
@@ -90,7 +90,7 @@ def test_graph_rejects_dimension_changes() -> None:
 
 def test_graph_produces_terminal_output_and_allows_identity() -> None:
     source = _buffer(3.0)
-    graph = RenderGraph([RenderNode("identity", lambda buffer: buffer.copy())])
+    graph = RenderGraph([RenderNode("identity", lambda inputs: inputs[0].copy())])
     result = graph.execute(source)
     assert isinstance(result, RenderBuffer)
     assert result is not source
@@ -98,7 +98,7 @@ def test_graph_produces_terminal_output_and_allows_identity() -> None:
 
 def test_graph_runtime_node_errors_propagate() -> None:
     error = RuntimeError("node failed")
-    def fail(_: RenderBuffer) -> RenderBuffer:
+    def fail(_: tuple[RenderBuffer, ...]) -> RenderBuffer:
         raise error
     graph = RenderGraph([RenderNode("fail", fail)])
     with pytest.raises(RuntimeError) as caught:
