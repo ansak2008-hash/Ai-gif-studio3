@@ -6,7 +6,6 @@ from typing import Final
 
 import numpy as np
 
-
 DEFAULT_RENDER_INTERMEDIATE_BUFFERS: Final[int] = 8
 
 
