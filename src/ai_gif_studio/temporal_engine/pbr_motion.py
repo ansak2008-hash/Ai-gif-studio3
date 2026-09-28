@@ -33,6 +33,9 @@ class PBRMotionRenderer:
         light: np.ndarray | tuple[float, float, float] = (0.0, 0.0, 1.0),
         light_color: np.ndarray | list[float] | float = 1.0,
         light_intensity: float = 1.0,
+        *,
+        material: PBRMaterial | None = None,
+        lights: tuple[DirectLight, ...] | list[DirectLight] | None = None,
     ) -> tuple[list[np.ndarray], tuple[int, ...]]:
         frames = [
             render_pbr_manuscript(
