@@ -23,7 +23,8 @@ def test_temporal_crossfade_interpolates_two_sources() -> None:
 
     result = TemporalCrossfadeEffect(0.0, 1.0)((first, second), 0.5)
 
-    np.testing.assert_allclose(result.data[..., :3], (0.5, 0.0, 0.5))
+    expected_rgb = np.array((0.5, 0.0, 0.5), dtype=np.float32)[None, None, :]
+    np.testing.assert_allclose(result.data[..., :3], expected_rgb)
     np.testing.assert_allclose(result.data[..., 3], 1.0)
 
 
@@ -33,8 +34,9 @@ def test_temporal_crossfade_interpolates_alpha_without_aliasing() -> None:
 
     result = TemporalCrossfadeEffect(0.0, 1.0)((first, second), 0.25)
 
+    expected_rgb = np.array((1.0, 0.0, 0.0), dtype=np.float32)[None, None, :]
     np.testing.assert_allclose(result.data[..., 3], 0.75)
-    np.testing.assert_allclose(result.data[..., :3], (1.0, 0.0, 0.0))
+    np.testing.assert_allclose(result.data[..., :3], expected_rgb)
     assert result is not first
     assert result is not second
 
