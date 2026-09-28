@@ -26,9 +26,10 @@ def test_reservations_are_bounded_and_released() -> None:
 @pytest.mark.unit
 def test_render_memory_estimate_covers_4k_50_layers() -> None:
     requested = ResourceManager.estimate_render_memory_bytes(3840, 2160, 50)
-    expected_per_buffer = 3840 * 2160 * 4 * 4
-    assert requested == expected_per_buffer * (1 + 50 + 8)
-    assert requested > 7 * 1024**3
+    float32_buffer = 3840 * 2160 * 4 * 4
+    float64_intermediate = 3840 * 2160 * 4 * 8
+    assert requested == float32_buffer * (1 + 50) + float64_intermediate * 8
+    assert requested > 8 * 1024**3
 
 
 @pytest.mark.unit
