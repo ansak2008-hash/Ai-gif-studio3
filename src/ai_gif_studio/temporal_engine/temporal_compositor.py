@@ -5,6 +5,8 @@ from collections.abc import Iterable
 
 import numpy as np
 
+from ai_gif_studio.resources import ResourceManager
+
 from .compositor import composite_blend_layers
 from .motion_layer import MotionLayer
 from .render_buffer import RenderBuffer
@@ -14,6 +16,8 @@ def composite_motion_layers(
     base: RenderBuffer,
     layers: Iterable[MotionLayer],
     time: float,
+    *,
+    resource_manager: ResourceManager | None = None,
 ) -> RenderBuffer:
     """Sample ordered motion layers at time and composite them over base."""
     if not isinstance(base, RenderBuffer):
@@ -26,4 +30,4 @@ def composite_motion_layers(
         if not isinstance(layer, MotionLayer):
             raise TypeError("layers must contain MotionLayer values")
         sampled.append(layer.sample(float(time)))
-    return composite_blend_layers(base, sampled)
+    return composite_blend_layers(base, sampled, resource_manager=resource_manager)

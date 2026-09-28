@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from threading import Lock
+from typing import Final
+
+import numpy as np
+
+DEFAULT_RENDER_INTERMEDIATE_BUFFERS: Final[int] = 8
 
 
 class ResourceLimitError(RuntimeError):
@@ -26,11 +31,12 @@ class ResourceReservation:
 
 
 class ResourceManager:
-    """Process-local admission controller for bounded accelerator memory.
+    """Process-local admission controller for bounded render memory.
 
     Reservation happens before work starts and release is idempotent. The manager
-    intentionally does not allocate device memory itself; it prevents known
-    over-budget jobs from reaching the execution layer.
+    intentionally does not allocate memory itself; it prevents known over-budget
+    work from reaching the execution layer. A shared instance should be injected
+    by the application when concurrent jobs must share one process budget.
     """
 
     def __init__(self, memory_limit_bytes: int) -> None:
@@ -41,6 +47,46 @@ class ResourceManager:
         self._next_id = 1
         self._active: dict[int, ResourceReservation] = {}
         self._lock = Lock()
+
+    @staticmethod
+    def estimate_render_memory_bytes(
+        width: int,
+        height: int,
+        layers: int,
+        *,
+        channels: int = 4,
+        dtype: np.dtype | type[np.floating] = np.float32,
+        intermediate_dtype: np.dtype | type[np.floating] = np.float64,
+        intermediate_buffers: int = DEFAULT_RENDER_INTERMEDIATE_BUFFERS,
+    ) -> int:
+        """Return a conservative pre-allocation budget for RGBA compositing.
+
+        The estimate includes the base plus all source layers and a fixed
+        conservative allowance for transient compositor intermediates. It is
+        an admission estimate, not a measurement of allocator RSS.
+        """
+        values = (width, height, layers, channels, intermediate_buffers)
+        if any(
+            isinstance(value, bool)
+            or not isinstance(value, (int, np.integer))
+            for value in values
+        ):
+            raise TypeError(
+                "render dimensions, layers, channels, and intermediate_buffers "
+                "must be integers"
+            )
+        if width < 1 or height < 1 or layers < 0 or channels < 1 or intermediate_buffers < 0:
+            raise ValueError(
+                "render dimensions must be positive and buffer counts non-negative"
+            )
+        buffer_bytes = int(width) * int(height) * int(channels) * np.dtype(dtype).itemsize
+        intermediate_bytes = (
+            int(width)
+            * int(height)
+            * int(channels)
+            * np.dtype(intermediate_dtype).itemsize
+        )
+        return buffer_bytes * (1 + int(layers)) + intermediate_bytes * int(intermediate_buffers)
 
     @property
     def memory_limit_bytes(self) -> int:

@@ -81,3 +81,29 @@ def test_dimensions_must_be_positive_in_allocate() -> None:
         RenderBuffer.allocate(0, 2)
     with pytest.raises(ValueError, match="positive"):
         RenderBuffer.allocate(2, 0)
+
+
+def test_render_buffer_rejects_writable_view_escalation() -> None:
+    buffer = RenderBuffer.allocate(1, 1)
+    view = buffer.data
+    with pytest.raises(ValueError, match="WRITEABLE"):
+        view.setflags(write=True)
+    nested = view.view()
+    with pytest.raises(ValueError, match="WRITEABLE"):
+        nested.setflags(write=True)
+
+
+def test_render_buffer_rejects_storage_replacement() -> None:
+    buffer = RenderBuffer.allocate(1, 1)
+    with pytest.raises((AttributeError, TypeError)):
+        buffer._rgba_linear = np.zeros((1, 1, 4), dtype=np.float32)
+
+
+def test_clear_replaces_storage_without_exposing_writable_alias() -> None:
+    buffer = RenderBuffer.allocate(1, 1)
+    before = buffer.data
+    buffer.clear((1.0, 0.0, 0.0, 1.0))
+    assert before[0, 0, 0] == 0.0
+    with pytest.raises(ValueError, match="WRITEABLE"):
+        buffer.data.setflags(write=True)
+    np.testing.assert_array_equal(buffer.data, [[[1.0, 0.0, 0.0, 1.0]]])
