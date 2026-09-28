@@ -48,6 +48,11 @@ class RenderBuffer:
         return cls(np.asarray(raw, dtype=np.float32))
 
     @property
+    def _rgba_linear(self) -> np.ndarray:
+        """Backward-compatible read-only view of canonical linear storage."""
+        return self.data
+
+    @property
     def width(self) -> int:
         return int(self._storage.shape[1])
 
