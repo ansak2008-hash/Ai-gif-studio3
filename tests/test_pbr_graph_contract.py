@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from ai_gif_studio.temporal_engine.material_pbr import DirectLight, PBRMaterial
-from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
 from ai_gif_studio.temporal_engine.pbr_graph import PBRDirectLightNode
+from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
 from ai_gif_studio.temporal_engine.render_graph import RenderGraph, RenderNode
 
 pytestmark = pytest.mark.unit
