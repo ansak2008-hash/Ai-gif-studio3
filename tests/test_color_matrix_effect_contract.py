@@ -45,6 +45,7 @@ def test_color_matrix_identity_is_independent() -> None:
         np.ones((3, 4), dtype=np.int32),
         np.full((3, 4), np.nan, dtype=np.float32),
         np.full((3, 4), np.inf, dtype=np.float32),
+        np.full((3, 4), 1.0e39, dtype=np.float64),
     ],
 )
 def test_color_matrix_rejects_invalid_matrix(matrix: np.ndarray) -> None:
