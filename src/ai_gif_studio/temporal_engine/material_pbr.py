@@ -133,12 +133,16 @@ def shade_pbr(
     if np.any(radiance < 0.0) or not np.isfinite(radiance).all():
         raise ValueError("light_color must be finite and non-negative")
 
-    half = _normalize_vectors(v + l, "view + light")
     ndotv = np.sum(n * v, axis=-1)
     ndotl = np.sum(n * l, axis=-1)
+    visible = (ndotv > 0.0) & (ndotl > 0.0)
+
+    half_raw = v + l
+    half_length = np.linalg.norm(half_raw, axis=-1, keepdims=True)
+    safe_half_length = np.maximum(half_length, _EPS_DENOM)
+    half = half_raw / safe_half_length
     ndoth = np.sum(n * half, axis=-1)
     vdoth = np.sum(v * half, axis=-1)
-    visible = (ndotv > 0.0) & (ndotl > 0.0)
 
     f0 = 0.04 * (1.0 - metallic) + base_color * metallic
     fresnel = fresnel_schlick(vdoth[..., None], f0)
