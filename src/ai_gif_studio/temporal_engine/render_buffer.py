@@ -18,7 +18,7 @@ class RenderBuffer:
     _storage: np.ndarray
 
     def __post_init__(self) -> None:
-        raw = np.asarray(self._rgba_linear)
+        raw = np.asarray(self._storage)
         self._validate_shape(raw)
         if raw.dtype != np.float32:
             raise TypeError("RenderBuffer storage must use float32")
