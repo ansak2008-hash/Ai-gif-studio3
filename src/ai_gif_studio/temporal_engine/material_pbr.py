@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import numpy as np
 
-
 _EPS_DENOM = np.finfo(np.float64).eps
 
 
