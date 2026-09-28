@@ -44,7 +44,7 @@ def build_rgb_lut(spec: ColorGradeSpec) -> np.ndarray:
     red = np.clip(x + spec.temperature * 0.12 + spec.tint * 0.04, 0.0, 1.0)
     green = np.clip(x - spec.tint * 0.08, 0.0, 1.0)
     blue = np.clip(x - spec.temperature * 0.12 + spec.tint * 0.04, 0.0, 1.0)
-    return np.stack((red, green, blue), axis=1)
+    return np.stack((red, green, blue), axis=1) * 255.0
 
 
 def apply_color_grade(frame: np.ndarray, spec: ColorGradeSpec) -> np.ndarray:
