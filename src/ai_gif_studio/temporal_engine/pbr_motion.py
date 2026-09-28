@@ -7,6 +7,7 @@ import numpy as np
 
 from .manuscript import ManuscriptAsset
 from .manuscript_plane import ManuscriptPlane
+from .material_pbr import DirectLight, PBRMaterial
 from .motion import CameraMotionTrack
 from .pbr_manuscript import render_pbr_manuscript
 from .timeline import AnimationTimeline
@@ -45,6 +46,8 @@ class PBRMotionRenderer:
                 light=light,
                 light_color=light_color,
                 light_intensity=light_intensity,
+                material=material,
+                lights=lights,
             )
             for timing in self.timeline.timings()
         ]
