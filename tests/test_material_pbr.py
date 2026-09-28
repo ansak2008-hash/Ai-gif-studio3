@@ -4,8 +4,8 @@ import pytest
 from ai_gif_studio.temporal_engine.material_pbr import (
     cook_torrance_specular,
     fresnel_schlick,
-    shade_pbr,
     ggx_distribution,
+    shade_pbr,
     smith_geometry,
 )
 
@@ -226,10 +226,10 @@ def test_shade_pbr_returns_linear_rgb_for_direct_light():
 def test_shade_pbr_metallic_removes_diffuse_component():
     normal = view = light = np.array([0.0, 0.0, 1.0])
     albedo = np.array([0.8, 0.3, 0.1])
-    dielectric = shade_pbr(normal, view, light, albedo, 0.5, metallic=0.0)
     metallic = shade_pbr(normal, view, light, albedo, 0.5, metallic=1.0)
+    expected_specular = cook_torrance_specular(1.0, 1.0, 1.0, 1.0, 0.5, albedo)
+    np.testing.assert_allclose(metallic, expected_specular, rtol=1e-14, atol=1e-14)
     assert np.all(metallic >= 0.0)
-    assert np.all(dielectric >= metallic)
 
 
 def test_shade_pbr_rejects_invalid_material():
@@ -263,8 +263,8 @@ def test_shade_pbr_supports_batch_geometry():
 
 
 def test_shade_pbr_is_deterministic():
-    n = v = l = np.array([0.1, 0.2, 0.97])
-    args = (n, v, l, [0.7, 0.4, 0.2], 0.32, 0.35, [1.0, 0.9, 0.8], 2.0)
+    n = v = light_vector = np.array([0.1, 0.2, 0.97])
+    args = (n, v, light_vector, [0.7, 0.4, 0.2], 0.32, 0.35, [1.0, 0.9, 0.8], 2.0)
     first = shade_pbr(*args)
     second = shade_pbr(*args)
     np.testing.assert_array_equal(first, second)
