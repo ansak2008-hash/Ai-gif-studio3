@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import numpy as np
-from PIL import Image
-
 import pytest
+from PIL import Image
 
 from ai_gif_studio.temporal_engine.manuscript import ManuscriptAsset
 from ai_gif_studio.temporal_engine.manuscript_plane import ManuscriptPlane
