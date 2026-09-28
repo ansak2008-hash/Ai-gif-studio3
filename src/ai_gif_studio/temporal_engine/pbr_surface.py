@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from .camera import CameraModel, CameraState
 from .depth_field import DepthField
 from .material_pbr import shade_pbr
 
@@ -45,3 +46,44 @@ def shade_depth_field(
     )
     surface = distance > 0.0
     return np.where(surface[..., None], rgb, 0.0).astype(np.float64)
+
+
+def shade_depth_field_from_camera(
+    depth_field: DepthField,
+    camera: CameraState | CameraModel,
+    surface_points_world: np.ndarray,
+    albedo: np.ndarray | list[float],
+    roughness: float,
+    metallic: float = 0.0,
+    light: np.ndarray = np.array([0.0, 0.0, 1.0]),
+    light_color: np.ndarray | list[float] | float = 1.0,
+    light_intensity: float = 1.0,
+) -> np.ndarray:
+    """Shade a DepthField using per-pixel view directions from a camera.
+
+    surface_points_world must be the canonical world-space surface positions
+    corresponding to the DepthField pixels. Camera projection math is not
+    modified; only the camera position is used to derive V = normalize(C-P).
+    """
+    if isinstance(camera, CameraModel):
+        camera_position = np.asarray(camera.state.position, dtype=np.float64)
+    elif isinstance(camera, CameraState):
+        camera_position = np.asarray(camera.position, dtype=np.float64)
+    else:
+        raise TypeError("camera must be CameraState or CameraModel")
+
+    points = np.asarray(surface_points_world, dtype=np.float64)
+    if points.shape != (*depth_field.distance_px.shape, 3):
+        raise ValueError("surface_points_world must have shape (H, W, 3)")
+
+    view = camera_position - points
+    return shade_depth_field(
+        depth_field,
+        view,
+        light,
+        albedo,
+        roughness,
+        metallic=metallic,
+        light_color=light_color,
+        light_intensity=light_intensity,
+    )
