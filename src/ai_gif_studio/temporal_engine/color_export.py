@@ -23,21 +23,18 @@ class ExportColorSpec:
 
 
 def tone_map_reinhard(linear_rgb: np.ndarray) -> np.ndarray:
-    """Compress non-negative HDR linear RGB into [0, 1] without hue-wise clipping."""
+    """Compress non-negative HDR linear RGB into [0, 1] per channel."""
     rgb = np.maximum(np.asarray(linear_rgb, dtype=np.float64), 0.0)
-    luminance = (
-        0.2126 * rgb[..., 0] + 0.7152 * rgb[..., 1] + 0.0722 * rgb[..., 2]
-    )
-    mapped_luminance = luminance / (1.0 + luminance)
-    scale = mapped_luminance / np.maximum(luminance, np.finfo(np.float64).eps)
-    return (rgb * scale[..., None]).astype(np.float64)
+    return rgb / (1.0 + rgb)
 
 
 def linear_rgba_to_srgb_rgb(
     rgba_linear: np.ndarray,
-    spec: ExportColorSpec = ExportColorSpec(),
+    spec: ExportColorSpec | None = None,
 ) -> np.ndarray:
     """Composite linear RGBA over a linear background, then encode to sRGB uint8."""
+    if spec is None:
+        spec = ExportColorSpec()
     rgba = np.asarray(rgba_linear, dtype=np.float64)
     if rgba.ndim != 3 or rgba.shape[-1] != 4:
         raise ValueError("expected HxWx4 linear RGBA")
