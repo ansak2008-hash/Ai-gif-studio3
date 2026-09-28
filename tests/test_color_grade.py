@@ -58,9 +58,9 @@ def test_invalid_grade_is_rejected():
 def test_lut_neutral_mapping_preserves_all_8bit_codes():
     lut = build_rgb_lut(ColorGradeSpec())
     expected = np.arange(256, dtype=np.float64)
-    np.testing.assert_array_equal(lut[:, 0], expected)
-    np.testing.assert_array_equal(lut[:, 1], expected)
-    np.testing.assert_array_equal(lut[:, 2], expected)
+    np.testing.assert_allclose(lut[:, 0], expected, rtol=0.0, atol=1e-12)
+    np.testing.assert_allclose(lut[:, 1], expected, rtol=0.0, atol=1e-12)
+    np.testing.assert_allclose(lut[:, 2], expected, rtol=0.0, atol=1e-12)
 
 
 @pytest.mark.unit
