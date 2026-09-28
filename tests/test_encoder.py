@@ -1,9 +1,8 @@
 import numpy as np
+import pytest
 from PIL import Image
 
 from ai_gif_studio.temporal_engine.encoder import encode_linear_gif
-
-import pytest
 
 pytestmark = pytest.mark.unit
 
