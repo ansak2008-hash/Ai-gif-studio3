@@ -21,25 +21,64 @@ from ai_gif_studio.temporal_engine.pbr_renderer import render_pbr_depth_field
 pytestmark = pytest.mark.unit
 
 
-def test_manuscript_asset_enforces_float_rgba_shape_but_not_semantic_color_space() -> None:
-    """Characterize the current gap: ndarray carries no runtime color-space identity."""
-    linear = np.full((2, 2, 4), 0.5, dtype=np.float32)
-    srgb_encoded = linear.copy()
-    srgb_encoded[..., :3] = 0.7353569830524495  # sRGB encoding of linear 0.5.
+def test_manuscript_asset_rejects_invalid_linear_ranges() -> None:
+    invalid_rgb = np.zeros((1, 1, 4), dtype=np.float32)
+    invalid_rgb[0, 0, 0] = -0.01
+    with pytest.raises(ValueError, match="non-negative"):
+        ManuscriptAsset(invalid_rgb)
 
-    asset = ManuscriptAsset(srgb_encoded)
-    np.testing.assert_array_equal(asset.rgba_linear, srgb_encoded)
+    invalid_alpha = np.ones((1, 1, 4), dtype=np.float32)
+    invalid_alpha[0, 0, 3] = 1.01
+    with pytest.raises(ValueError, match="alpha"):
+        ManuscriptAsset(invalid_alpha)
 
 
-def test_export_boundary_currently_accepts_uint8_despite_linear_float_contract() -> None:
-    """Characterize the current dtype gap without changing production behavior."""
+def test_manuscript_asset_owns_read_only_storage() -> None:
+    source = np.full((1, 1, 4), 0.5, dtype=np.float32)
+    source[..., 3] = 1.0
+    asset = ManuscriptAsset(source)
+
+    source[0, 0, 0] = 0.0
+    assert asset.rgba_linear[0, 0, 0] == 0.5
+    assert asset.rgba_linear.flags.writeable is False
+
+    with pytest.raises(ValueError, match="read-only"):
+        asset.rgba_linear[0, 0, 0] = 0.0
+
+
+def test_manuscript_asset_preserves_hdr_linear_rgb() -> None:
+    rgba = np.array([[[2.0, 1.0, 0.5, 1.0]]], dtype=np.float32)
+    asset = ManuscriptAsset(rgba)
+    np.testing.assert_array_equal(asset.rgba_linear, rgba)
+
+
+def test_from_rgba_u8_requires_uint8() -> None:
+    with pytest.raises(TypeError, match="uint8"):
+        ManuscriptAsset.from_rgba_u8(np.zeros((1, 1, 4), dtype=np.uint16))
+
+
+def test_export_boundary_rejects_non_float_linear_rgba() -> None:
     rgba_u8 = np.zeros((1, 1, 4), dtype=np.uint8)
-    rgba_u8[0, 0] = (255, 0, 0, 255)
+    with pytest.raises(TypeError, match="floating point"):
+        linear_rgba_to_srgb_rgb(rgba_u8, ExportColorSpec())
 
-    encoded = linear_rgba_to_srgb_rgb(rgba_u8, ExportColorSpec())
 
-    assert encoded.dtype == np.uint8
-    assert encoded.shape == (1, 1, 3)
+def test_export_boundary_rejects_invalid_alpha_and_negative_rgb() -> None:
+    invalid_alpha = np.ones((1, 1, 4), dtype=np.float32)
+    invalid_alpha[0, 0, 3] = -0.1
+    with pytest.raises(ValueError, match="alpha"):
+        linear_rgba_to_srgb_rgb(invalid_alpha)
+
+    invalid_rgb = np.ones((1, 1, 4), dtype=np.float32)
+    invalid_rgb[0, 0, 0] = -0.1
+    with pytest.raises(ValueError, match="non-negative"):
+        linear_rgba_to_srgb_rgb(invalid_rgb)
+
+
+def test_manuscript_asset_accepts_float_linear_data() -> None:
+    linear = np.full((2, 2, 4), 0.5, dtype=np.float32)
+    asset = ManuscriptAsset(linear)
+    np.testing.assert_array_equal(asset.rgba_linear, linear)
 
 
 def test_pbr_material_rejects_wrong_runtime_material_type() -> None:
@@ -67,7 +106,6 @@ def test_warp_public_contract_is_straight_alpha_and_internal_premultiplication_i
 
 
 def test_renderer_boundary_precision_is_explicitly_float32_after_float64_pbr() -> None:
-    """The current float64 PBR -> float32 render-buffer boundary is intentional."""
     distance = np.ones((1, 1), dtype=np.float64)
     normals = np.array([[[0.0, 0.0, 1.0]]], dtype=np.float64)
     field = DepthField(distance_px=distance, height=np.zeros_like(distance), normals=normals)
