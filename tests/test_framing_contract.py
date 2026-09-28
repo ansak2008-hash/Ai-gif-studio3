@@ -3,12 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from ai_gif_studio.temporal_engine.framing import FramingEffect, FramingMode, FramingSpec
 from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
-from ai_gif_studio.temporal_engine.framing import (
-    FramingEffect,
-    FramingMode,
-    FramingSpec,
-)
 
 
 pytestmark = pytest.mark.unit
