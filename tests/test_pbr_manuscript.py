@@ -72,7 +72,7 @@ def test_render_pbr_manuscript_rejects_plane_behind_camera():
         half_width=1.0,
         half_height=1.0,
     )
-    with pytest.raises(ValueError, match="behind the camera"):
+    with pytest.raises(ValueError, match="near plane"):
         render_pbr_manuscript(
             asset,
             camera,
