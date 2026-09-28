@@ -215,6 +215,8 @@ def shade_pbr_lights(
     material: PBRMaterial,
 ) -> np.ndarray:
     """Accumulate an ordered direct-light set using the existing PBR kernel."""
+    if not isinstance(material, PBRMaterial):
+        raise TypeError("material must be a PBRMaterial")
     if not lights:
         raise ValueError("lights must contain at least one DirectLight")
     output_shape = np.broadcast_shapes(
