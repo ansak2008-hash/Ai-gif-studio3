@@ -5,6 +5,7 @@ from .bevel import BevelProfile
 from .camera import CameraModel, CameraState, project_points
 from .color import encode_srgb, linearize_srgb
 from .color_export import ExportColorSpec, linear_rgba_to_srgb_rgb, tone_map_reinhard
+from .compositor import composite_layers, composite_over
 from .curves import (
     InterpolatorType,
     Keyframe,
@@ -51,6 +52,8 @@ __all__ = [
     "render_particles",
     "validate_temporal_sequence",
     "RenderBuffer",
+    "composite_over",
+    "composite_layers",
     # Manuscript (Phase 1 + 2)
     "CameraState",
     "CameraModel",
