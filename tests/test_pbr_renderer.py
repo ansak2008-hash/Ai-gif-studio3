@@ -38,11 +38,11 @@ def test_render_pbr_depth_field_returns_linear_rgba():
     )
 
     assert result.shape == (1, 2, 4)
-    assert result.dtype == np.float64
+    assert result.dtype == np.float32
     assert np.isfinite(result).all()
     assert np.all(result[0, 0, :3] >= 0.0)
     np.testing.assert_array_equal(result[0, 0, 3], 1.0)
-    np.testing.assert_array_equal(result[0, 1], np.zeros(4, dtype=np.float64))
+    np.testing.assert_array_equal(result[0, 1], np.zeros(4, dtype=np.float32))
 
 
 def test_render_pbr_depth_field_is_deterministic():
