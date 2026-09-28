@@ -1,4 +1,4 @@
-"""Deterministic straight-alpha compositor for canonical RenderBuffer layers."""
+""""Deterministic straight-alpha compositor for canonical RenderBuffer layers."""
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -22,8 +22,17 @@ def composite_over(destination: RenderBuffer, source: RenderBuffer) -> RenderBuf
     dst_alpha = dst[..., 3:4]
     inverse_src_alpha = 1.0 - src_alpha
 
-    rgb = src[..., :3] * src_alpha + dst[..., :3] * inverse_src_alpha
+    premultiplied_rgb = (
+        src[..., :3] * src_alpha
+        + dst[..., :3] * dst_alpha * inverse_src_alpha
+    )
     alpha = src_alpha + dst_alpha * inverse_src_alpha
+    rgb = np.divide(
+        premultiplied_rgb,
+        alpha,
+        out=np.zeros_like(premultiplied_rgb),
+        where=alpha > 0.0,
+    )
     return RenderBuffer.from_linear_rgba(
         np.concatenate([rgb, alpha], axis=-1).astype(np.float32)
     )
