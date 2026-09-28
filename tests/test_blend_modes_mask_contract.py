@@ -36,7 +36,7 @@ def test_normal_mode_matches_source_over() -> None:
     ("mode", "expected"),
     [
         (BlendMode.MULTIPLY, [0.12, 0.08, 0.32]),
-        (BlendMode.SCREEN, [0.68, 0.52, 0.92]),
+        (BlendMode.SCREEN, [0.68, 0.52, 0.88]),
         (BlendMode.OVERLAY, [0.24, 0.16, 0.76]),
     ],
 )
