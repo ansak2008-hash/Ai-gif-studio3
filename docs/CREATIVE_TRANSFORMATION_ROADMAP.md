@@ -39,7 +39,7 @@ Implemented:
 Next:
 - crop/fit/fill policies as reusable transforms
 - affine/perspective transforms
-- color curves and LUT-style grading
+- color curves and LUT-style grading (Phase 4.11 foundation: deterministic tone curves)
 - blend modes and masks
 - layer compositing
 - selective region transforms
