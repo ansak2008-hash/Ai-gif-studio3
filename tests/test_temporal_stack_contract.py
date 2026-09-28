@@ -121,5 +121,7 @@ def test_temporal_stack_enforces_size_limit() -> None:
 
 
 def test_temporal_stack_does_not_replace_the_non_temporal_effect_contract() -> None:
-    effect = lambda inputs: inputs[0]
+    def effect(inputs: tuple[RenderBuffer, ...]) -> RenderBuffer:
+        return inputs[0]
+
     assert EffectStack((effect,))((_buffer(),)).shape == (2, 2, 4)
