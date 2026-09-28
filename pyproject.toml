@@ -22,7 +22,7 @@ dependencies = [
   # Render-critical numerical stack is pinned for cross-runner reproducibility.
   "numpy==2.2.6",
   "opencv-python-headless==4.11.0.86",
-  "Pillow>=10,<12",
+  "Pillow>=12.3,<13",
 ]
 [project.optional-dependencies]
 dev = [
