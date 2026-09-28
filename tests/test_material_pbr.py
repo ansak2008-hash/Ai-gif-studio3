@@ -333,7 +333,11 @@ def test_pbr_material_and_direct_light_contracts_are_immutable_and_validated():
 
 
 def test_shade_pbr_lights_accumulates_in_explicit_order():
-    from ai_gif_studio.temporal_engine.material_pbr import DirectLight, PBRMaterial, shade_pbr_lights
+    from ai_gif_studio.temporal_engine.material_pbr import (
+        DirectLight,
+        PBRMaterial,
+        shade_pbr_lights,
+    )
 
     normal = view = np.array([0.0, 0.0, 1.0])
     material = PBRMaterial((0.7, 0.4, 0.2), roughness=0.35, metallic=0.1)
