@@ -16,6 +16,7 @@ from .curves import (
     RotationMode,
 )
 from .depth_field import DepthField
+from .framing import FramingEffect, FramingMode, FramingSpec
 from .glint import GlintParameters, gaussian_glint
 from .manuscript_pipeline import ManuscriptPipeline
 from .manuscript_plane import ManuscriptPlane, homography_from_corners, warp_manuscript
@@ -62,6 +63,9 @@ __all__ = [
     "RenderNode",
     "RenderGraph",
     "SelectiveRegionEffect",
+    "FramingMode",
+    "FramingSpec",
+    "FramingEffect",
     "ExposureEffect",
     "GammaEffect",
     "RGBGainEffect",
