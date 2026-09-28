@@ -95,6 +95,8 @@ class ColorMatrixEffect:
             raise ValueError("color matrix must be finite")
 
         owned = np.array(matrix, dtype=np.float32, copy=True)
+        if not np.isfinite(owned).all():
+            raise ValueError("color matrix must remain finite in float32 storage")
         owned.setflags(write=False)
         object.__setattr__(self, "_matrix", owned)
 
