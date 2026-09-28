@@ -43,6 +43,7 @@ from .render_graph import RenderGraph, RenderNode
 from .render_mask import RenderMask
 from .selective_region import SelectiveRegionEffect
 from .temporal_effects import TemporalFadeEffect
+from .temporal_compositor import composite_motion_layers
 from .temporal_stack import TemporalEffect, TemporalEffectStack
 from .temporal_transitions import TemporalCrossfadeEffect
 from .timeline import AnimationTimeline, FrameTiming
@@ -90,6 +91,7 @@ __all__ = [
     "TemporalEffect",
     "TemporalEffectStack",
     "TemporalCrossfadeEffect",
+    "composite_motion_layers",
     "ExposureEffect",
     "GammaEffect",
     "RGBGainEffect",
