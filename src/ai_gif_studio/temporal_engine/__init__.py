@@ -7,7 +7,7 @@ from .camera import CameraModel, CameraState, project_points
 from .color import encode_srgb, linearize_srgb
 from .color_effects import ColorMatrixEffect, ExposureEffect, GammaEffect, RGBGainEffect
 from .color_export import ExportColorSpec, linear_rgba_to_srgb_rgb, tone_map_reinhard
-from .compositor import composite_layers, composite_over
+from .compositor import BlendLayer, composite_blend_layers, composite_layers, composite_over
 from .curves import (
     InterpolatorType,
     Keyframe,
@@ -68,8 +68,10 @@ __all__ = [
     "ToneCurveEffect",
     "BlendMode",
     "BlendModeEffect",
+    "BlendLayer",
     "composite_over",
     "composite_layers",
+    "composite_blend_layers",
     # Manuscript (Phase 1 + 2)
     "CameraState",
     "CameraModel",
