@@ -37,4 +37,4 @@ def render_pbr_depth_field(
         light_intensity=light_intensity,
     )
     alpha = (np.asarray(depth_field.distance_px) > 0.0).astype(np.float64)
-    return np.concatenate([rgb, alpha[..., None]], axis=-1)
+    return np.concatenate([rgb, alpha[..., None]], axis=-1).astype(np.float32)
