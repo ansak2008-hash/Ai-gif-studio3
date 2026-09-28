@@ -316,3 +316,40 @@ def test_shade_pbr_conserves_integrated_direct_light_energy(metallic):
     integrated = np.sum(reflected * weights_2d[..., None], axis=(0, 1))
     assert np.all(integrated <= 1.0 + 2e-4)
     assert np.all(integrated >= 0.0)
+
+
+
+def test_pbr_material_and_direct_light_contracts_are_immutable_and_validated():
+    from ai_gif_studio.temporal_engine.material_pbr import DirectLight, PBRMaterial
+
+    material = PBRMaterial((0.8, 0.3, 0.1), roughness=0.35, metallic=0.2)
+    light = DirectLight((0.0, 0.0, 1.0), (1.0, 0.9, 0.8), 2.0)
+    assert material.albedo == (0.8, 0.3, 0.1)
+    assert light.direction == (0.0, 0.0, 1.0)
+    with pytest.raises(ValueError):
+        PBRMaterial((1.1, 0.0, 0.0), 0.5)
+    with pytest.raises(ValueError):
+        DirectLight((0.0, 0.0, 0.0))
+
+
+def test_shade_pbr_lights_accumulates_in_explicit_order():
+    from ai_gif_studio.temporal_engine.material_pbr import DirectLight, PBRMaterial, shade_pbr_lights
+
+    normal = view = np.array([0.0, 0.0, 1.0])
+    material = PBRMaterial((0.7, 0.4, 0.2), roughness=0.35, metallic=0.1)
+    lights = (
+        DirectLight((0.0, 0.0, 1.0), (1.0, 0.8, 0.6), 1.0),
+        DirectLight((0.2, 0.1, 1.0), (0.5, 0.7, 1.0), 0.5),
+    )
+    first = shade_pbr_lights(normal, view, lights, material)
+    second = shade_pbr_lights(normal, view, lights, material)
+    np.testing.assert_array_equal(first, second)
+    np.testing.assert_allclose(
+        first,
+        shade_pbr(normal, view, np.asarray(lights[0].direction), material.albedo, material.roughness,
+                   metallic=material.metallic, light_color=lights[0].color, light_intensity=lights[0].intensity)
+        + shade_pbr(normal, view, np.asarray(lights[1].direction), material.albedo, material.roughness,
+                    metallic=material.metallic, light_color=lights[1].color, light_intensity=lights[1].intensity),
+        rtol=0.0,
+        atol=1e-14,
+    )
