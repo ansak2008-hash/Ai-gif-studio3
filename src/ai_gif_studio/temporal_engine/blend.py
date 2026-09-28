@@ -44,8 +44,8 @@ class BlendModeEffect:
             raise TypeError("BlendModeEffect inputs must be RenderBuffer values")
         if destination.shape != source.shape:
             raise ValueError("source and destination RenderBuffer shapes must match")
-        if self.mask is not None and self.mask.shape != destination.shape:
-            raise ValueError("mask shape must match RenderBuffer shape")
+        if self.mask is not None and self.mask.shape != destination.shape[:2]:
+            raise ValueError("mask shape must match RenderBuffer spatial shape")
 
         dst = np.asarray(destination.data, dtype=np.float64)
         src = np.asarray(source.data, dtype=np.float64)
