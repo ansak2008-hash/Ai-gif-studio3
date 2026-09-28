@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from threading import Lock
 from typing import Final
 
 import numpy as np
-from threading import Lock
 
 
 DEFAULT_RENDER_INTERMEDIATE_BUFFERS: Final[int] = 8
