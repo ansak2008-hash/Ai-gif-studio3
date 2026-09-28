@@ -5,6 +5,7 @@ import numpy as np
 
 from .camera import CameraModel, CameraState
 from .depth_field import DepthField
+from .material_pbr import DirectLight, PBRMaterial
 from .pbr_surface import shade_depth_field_from_camera
 
 
@@ -18,6 +19,9 @@ def render_pbr_depth_field(
     light: np.ndarray | tuple[float, float, float] = (0.0, 0.0, 1.0),
     light_color: np.ndarray | list[float] | float = 1.0,
     light_intensity: float = 1.0,
+    *,
+    material: PBRMaterial | None = None,
+    lights: tuple[DirectLight, ...] | list[DirectLight] | None = None,
 ) -> np.ndarray:
     """Render a canonical DepthField to deterministic linear RGBA.
 
@@ -35,6 +39,8 @@ def render_pbr_depth_field(
         light=light,
         light_color=light_color,
         light_intensity=light_intensity,
+        material=material,
+        lights=lights,
     )
     alpha = (np.asarray(depth_field.distance_px) > 0.0).astype(np.float64)
     return np.concatenate([rgb, alpha[..., None]], axis=-1).astype(np.float32)
