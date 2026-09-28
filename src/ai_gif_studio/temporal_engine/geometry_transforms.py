@@ -28,7 +28,7 @@ class AffineTransformSpec:
             raise ValueError("affine matrix must contain finite values")
         if np.linalg.matrix_rank(matrix[:, :2]) < 2:
             raise ValueError("affine transform must have a non-degenerate linear component")
-        object.__setattr__(self, "matrix", np.array(matrix, dtype=np.float64, copy=True))
+        owned = np.array(matrix, dtype=np.float64, copy=True)\n        owned.setflags(write=False)\n        object.__setattr__(self, "matrix", owned)
 
     def _validate_dimensions(self) -> None:
         if isinstance(self.width, bool) or not isinstance(self.width, (int, np.integer)):
