@@ -39,7 +39,7 @@ def encode_linear_gif(
     frames_rgba_linear: list[np.ndarray],
     delays_cs: tuple[int, ...],
     output: Path | str,
-    color_spec: ExportColorSpec = ExportColorSpec(),
+    color_spec: ExportColorSpec | None = None,
 ) -> str:
     """Convert linear RGBA frames through the explicit color boundary and encode GIF."""
     if not frames_rgba_linear:
