@@ -51,6 +51,14 @@ def test_gamma_does_not_mutate_source_and_is_deterministic() -> None:
     np.testing.assert_array_equal(first.data, second.data)
 
 
+def test_gamma_rejects_nonfinite_output() -> None:
+    source = RenderBuffer.from_linear_rgba(
+        np.asarray([[[1.0e30, 1.0, 1.0, 1.0]]], dtype=np.float32)
+    )
+    with pytest.raises(ValueError, match="finite"):
+        GammaEffect(10.0)((source,))
+
+
 def test_rgb_gain_scales_each_channel_and_preserves_alpha() -> None:
     result = RGBGainEffect(2.0, 0.5, 3.0)((_buffer(),))
     expected = np.asarray([[[0.5, 0.25, 3.0, 0.35]]], dtype=np.float32)
@@ -96,3 +104,11 @@ def test_rgb_gain_does_not_mutate_source_and_is_deterministic() -> None:
     second = RGBGainEffect(1.5, 0.75, 2.0)((source,))
     np.testing.assert_array_equal(source.data, before)
     np.testing.assert_array_equal(first.data, second.data)
+
+
+def test_rgb_gain_rejects_nonfinite_output() -> None:
+    source = RenderBuffer.from_linear_rgba(
+        np.asarray([[[1.0e30, 1.0, 1.0, 1.0]]], dtype=np.float32)
+    )
+    with pytest.raises(ValueError, match="finite"):
+        RGBGainEffect(1.0e10, 1.0, 1.0)((source,))
