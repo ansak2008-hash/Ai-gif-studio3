@@ -7,7 +7,6 @@ import numpy as np
 
 from .color import linearize_srgb
 
-
 _CONSTRUCTION_TOKEN = object()
 
 
