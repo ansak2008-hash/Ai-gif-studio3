@@ -17,11 +17,12 @@ class ManuscriptAsset:
     name: str = "manuscript"
 
     def __post_init__(self) -> None:
-        a = np.array(self.rgba_linear, dtype=np.float32, copy=True)
-        if a.ndim != 3 or a.shape[2] != 4:
+        raw = np.asarray(self.rgba_linear)
+        if raw.ndim != 3 or raw.shape[2] != 4:
             raise ValueError("manuscript must be RGBA")
-        if not np.issubdtype(a.dtype, np.floating):
+        if not np.issubdtype(raw.dtype, np.floating):
             raise TypeError("manuscript RGBA must use floating point linear-light values")
+        a = np.array(raw, dtype=np.float32, copy=True)
         if a.shape[0] < 1 or a.shape[1] < 1:
             raise ValueError("manuscript dimensions must be positive")
         if not np.isfinite(a).all():
