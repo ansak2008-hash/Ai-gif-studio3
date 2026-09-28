@@ -26,7 +26,7 @@ def _add(value: float):
 
 
 def test_stack_applies_effects_in_declaration_order() -> None:
-    result = EffectStack((_add(1.0), _add(2.0)))(_buffer())
+    result = EffectStack((_add(1.0), _add(2.0)))((_buffer(),))
     np.testing.assert_array_equal(
         result.data,
         np.asarray([[[4.0, 5.0, 6.0, 1.0]]], dtype=np.float32),
@@ -97,4 +97,4 @@ def test_stack_rejects_invalid_effect_output() -> None:
         return object()
 
     with pytest.raises(TypeError, match="RenderBuffer"):
-        EffectStack((invalid,))(_buffer())
+        EffectStack((invalid,))((_buffer(),))
