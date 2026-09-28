@@ -207,3 +207,76 @@ def test_pbr_primitives_are_deterministic():
     a = cook_torrance_specular(*args)
     b = cook_torrance_specular(*args)
     np.testing.assert_array_equal(a, b)
+
+
+def test_shade_pbr_returns_linear_rgb_for_direct_light():
+    normal = np.array([0.0, 0.0, 1.0])
+    view = np.array([0.0, 0.0, 1.0])
+    light = np.array([0.0, 0.0, 1.0])
+    result = __import__(
+        "ai_gif_studio.temporal_engine.material_pbr",
+        fromlist=["shade_pbr"],
+    ).shade_pbr(
+        normal, view, light, np.array([0.8, 0.2, 0.1]), 0.4
+    )
+    assert result.shape == (3,)
+    assert result.dtype == np.float64
+    assert np.isfinite(result).all()
+    assert np.all(result >= 0.0)
+
+
+def test_shade_pbr_metallic_removes_diffuse_component():
+    from ai_gif_studio.temporal_engine.material_pbr import shade_pbr
+
+    normal = view = light = np.array([0.0, 0.0, 1.0])
+    albedo = np.array([0.8, 0.3, 0.1])
+    dielectric = shade_pbr(normal, view, light, albedo, 0.5, metallic=0.0)
+    metallic = shade_pbr(normal, view, light, albedo, 0.5, metallic=1.0)
+    assert np.all(metallic >= 0.0)
+    assert np.all(dielectric >= metallic)
+
+
+def test_shade_pbr_rejects_invalid_material():
+    from ai_gif_studio.temporal_engine.material_pbr import shade_pbr
+
+    vectors = np.array([0.0, 0.0, 1.0])
+    with pytest.raises(ValueError):
+        shade_pbr(vectors, vectors, vectors, [1.1, 0.0, 0.0], 0.5)
+    with pytest.raises(ValueError):
+        shade_pbr(vectors, vectors, vectors, [1.0, 0.0, 0.0], 0.5, metallic=1.1)
+
+
+def test_shade_pbr_is_black_when_light_is_behind_surface():
+    from ai_gif_studio.temporal_engine.material_pbr import shade_pbr
+
+    normal = view = np.array([0.0, 0.0, 1.0])
+    light = np.array([0.0, 0.0, -1.0])
+    result = shade_pbr(normal, view, light, [0.8, 0.4, 0.2], 0.5)
+    np.testing.assert_array_equal(result, np.zeros(3, dtype=np.float64))
+
+
+def test_shade_pbr_supports_batch_geometry():
+    from ai_gif_studio.temporal_engine.material_pbr import shade_pbr
+
+    normal = np.array([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0]])
+    view = normal.copy()
+    light = normal.copy()
+    result = shade_pbr(
+        normal,
+        view,
+        light,
+        np.array([[0.8, 0.2, 0.1], [0.1, 0.5, 0.9]]),
+        0.35,
+    )
+    assert result.shape == (2, 3)
+    assert np.isfinite(result).all()
+
+
+def test_shade_pbr_is_deterministic():
+    from ai_gif_studio.temporal_engine.material_pbr import shade_pbr
+
+    n = v = l = np.array([0.1, 0.2, 0.97])
+    args = (n, v, l, [0.7, 0.4, 0.2], 0.32, 0.35, [1.0, 0.9, 0.8], 2.0)
+    first = shade_pbr(*args)
+    second = shade_pbr(*args)
+    np.testing.assert_array_equal(first, second)
