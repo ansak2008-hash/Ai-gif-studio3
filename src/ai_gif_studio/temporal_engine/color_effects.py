@@ -8,6 +8,17 @@ import numpy as np
 from .render_buffer import RenderBuffer
 
 
+def _single_input(
+    inputs: tuple[RenderBuffer, ...], effect_name: str
+) -> RenderBuffer:
+    if len(inputs) != 1:
+        raise ValueError(f"{effect_name} requires exactly one RenderBuffer input")
+    source = inputs[0]
+    if not isinstance(source, RenderBuffer):
+        raise TypeError(f"{effect_name} input must be a RenderBuffer")
+    return source
+
+
 @dataclass(frozen=True, slots=True)
 class ExposureEffect:
     """Deterministic linear-RGB exposure adjustment."""
@@ -19,13 +30,50 @@ class ExposureEffect:
             raise ValueError("exposure_stops must be finite")
 
     def __call__(self, inputs: tuple[RenderBuffer, ...]) -> RenderBuffer:
-        if len(inputs) != 1:
-            raise ValueError("ExposureEffect requires exactly one RenderBuffer input")
-        source = inputs[0]
-        if not isinstance(source, RenderBuffer):
-            raise TypeError("ExposureEffect input must be a RenderBuffer")
+        source = _single_input(inputs, "ExposureEffect")
 
         scale = 2.0 ** self.exposure_stops
         data = source.data.copy()
         data[..., :3] *= scale
+        return RenderBuffer.from_linear_rgba(data)
+
+
+@dataclass(frozen=True, slots=True)
+class GammaEffect:
+    """Deterministic power-law transform in canonical linear RGB."""
+
+    gamma: float
+
+    def __post_init__(self) -> None:
+        if not np.isfinite(self.gamma) or self.gamma <= 0.0:
+            raise ValueError("gamma must be finite and greater than zero")
+
+    def __call__(self, inputs: tuple[RenderBuffer, ...]) -> RenderBuffer:
+        source = _single_input(inputs, "GammaEffect")
+
+        data = source.data.copy()
+        data[..., :3] = np.power(data[..., :3], self.gamma)
+        return RenderBuffer.from_linear_rgba(data)
+
+
+@dataclass(frozen=True, slots=True)
+class RGBGainEffect:
+    """Deterministic per-channel gain in canonical linear RGB."""
+
+    red: float
+    green: float
+    blue: float
+
+    def __post_init__(self) -> None:
+        gains = (self.red, self.green, self.blue)
+        if not all(np.isfinite(gain) and gain >= 0.0 for gain in gains):
+            raise ValueError("RGB gains must be finite and nonnegative")
+
+    def __call__(self, inputs: tuple[RenderBuffer, ...]) -> RenderBuffer:
+        source = _single_input(inputs, "RGBGainEffect")
+
+        data = source.data.copy()
+        data[..., 0] *= self.red
+        data[..., 1] *= self.green
+        data[..., 2] *= self.blue
         return RenderBuffer.from_linear_rgba(data)
