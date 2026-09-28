@@ -122,7 +122,7 @@ def shade_pbr(
 
     n = _normalize_vectors(normal, "normal")
     v = _normalize_vectors(view, "view")
-    l = _normalize_vectors(light, "light")
+    light_vector = _normalize_vectors(light, "light")
     base_color = np.asarray(albedo, dtype=np.float64)
     if base_color.shape[-1] != 3:
         raise ValueError("albedo must have a final dimension of 3")
@@ -134,10 +134,10 @@ def shade_pbr(
         raise ValueError("light_color must be finite and non-negative")
 
     ndotv = np.sum(n * v, axis=-1)
-    ndotl = np.sum(n * l, axis=-1)
+    ndotl = np.sum(n * light_vector, axis=-1)
     visible = (ndotv > 0.0) & (ndotl > 0.0)
 
-    half_raw = v + l
+    half_raw = v + light_vector
     half_length = np.linalg.norm(half_raw, axis=-1, keepdims=True)
     safe_half_length = np.maximum(half_length, _EPS_DENOM)
     half = half_raw / safe_half_length
