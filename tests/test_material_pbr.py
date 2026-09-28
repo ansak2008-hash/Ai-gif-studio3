@@ -4,6 +4,7 @@ import pytest
 from ai_gif_studio.temporal_engine.material_pbr import (
     cook_torrance_specular,
     fresnel_schlick,
+    shade_pbr,
     ggx_distribution,
     smith_geometry,
 )
@@ -213,10 +214,7 @@ def test_shade_pbr_returns_linear_rgb_for_direct_light():
     normal = np.array([0.0, 0.0, 1.0])
     view = np.array([0.0, 0.0, 1.0])
     light = np.array([0.0, 0.0, 1.0])
-    result = __import__(
-        "ai_gif_studio.temporal_engine.material_pbr",
-        fromlist=["shade_pbr"],
-    ).shade_pbr(
+    result = shade_pbr(
         normal, view, light, np.array([0.8, 0.2, 0.1]), 0.4
     )
     assert result.shape == (3,)
@@ -226,8 +224,6 @@ def test_shade_pbr_returns_linear_rgb_for_direct_light():
 
 
 def test_shade_pbr_metallic_removes_diffuse_component():
-    from ai_gif_studio.temporal_engine.material_pbr import shade_pbr
-
     normal = view = light = np.array([0.0, 0.0, 1.0])
     albedo = np.array([0.8, 0.3, 0.1])
     dielectric = shade_pbr(normal, view, light, albedo, 0.5, metallic=0.0)
@@ -237,8 +233,6 @@ def test_shade_pbr_metallic_removes_diffuse_component():
 
 
 def test_shade_pbr_rejects_invalid_material():
-    from ai_gif_studio.temporal_engine.material_pbr import shade_pbr
-
     vectors = np.array([0.0, 0.0, 1.0])
     with pytest.raises(ValueError):
         shade_pbr(vectors, vectors, vectors, [1.1, 0.0, 0.0], 0.5)
@@ -247,8 +241,6 @@ def test_shade_pbr_rejects_invalid_material():
 
 
 def test_shade_pbr_is_black_when_light_is_behind_surface():
-    from ai_gif_studio.temporal_engine.material_pbr import shade_pbr
-
     normal = view = np.array([0.0, 0.0, 1.0])
     light = np.array([0.0, 0.0, -1.0])
     result = shade_pbr(normal, view, light, [0.8, 0.4, 0.2], 0.5)
@@ -256,8 +248,6 @@ def test_shade_pbr_is_black_when_light_is_behind_surface():
 
 
 def test_shade_pbr_supports_batch_geometry():
-    from ai_gif_studio.temporal_engine.material_pbr import shade_pbr
-
     normal = np.array([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0]])
     view = normal.copy()
     light = normal.copy()
@@ -273,10 +263,40 @@ def test_shade_pbr_supports_batch_geometry():
 
 
 def test_shade_pbr_is_deterministic():
-    from ai_gif_studio.temporal_engine.material_pbr import shade_pbr
-
     n = v = l = np.array([0.1, 0.2, 0.97])
     args = (n, v, l, [0.7, 0.4, 0.2], 0.32, 0.35, [1.0, 0.9, 0.8], 2.0)
     first = shade_pbr(*args)
     second = shade_pbr(*args)
     np.testing.assert_array_equal(first, second)
+
+
+@pytest.mark.parametrize("metallic", [0.0, 1.0])
+def test_shade_pbr_conserves_integrated_direct_light_energy(metallic):
+    """The single-light BRDF must not reflect more than incident energy."""
+    nodes, weights = np.polynomial.legendre.leggauss(64)
+    cos_theta = 0.5 * (nodes + 1.0)
+    theta_weights = 0.5 * weights
+    phi = np.linspace(0.0, 2.0 * np.pi, 128, endpoint=False, dtype=np.float64)
+    theta, azimuth = np.meshgrid(cos_theta, phi, indexing="ij")
+    light = np.stack(
+        [
+            np.sqrt(1.0 - theta * theta) * np.cos(azimuth),
+            np.sqrt(1.0 - theta * theta) * np.sin(azimuth),
+            theta,
+        ],
+        axis=-1,
+    )
+    normal = np.array([0.0, 0.0, 1.0])
+    view = np.array([0.0, 0.0, 1.0])
+    reflected = shade_pbr(
+        normal,
+        view,
+        light,
+        np.array([0.8, 0.35, 0.12]),
+        0.35,
+        metallic=metallic,
+    )
+    weights_2d = theta_weights[:, None] * (2.0 * np.pi / phi.size)
+    integrated = np.sum(reflected * weights_2d[..., None], axis=(0, 1))
+    assert np.all(integrated <= 1.0 + 2e-4)
+    assert np.all(integrated >= 0.0)
