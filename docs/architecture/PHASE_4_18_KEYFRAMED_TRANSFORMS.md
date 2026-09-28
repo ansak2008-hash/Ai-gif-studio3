@@ -2,20 +2,21 @@
 ## Objective
 Add immutable, deterministic keyframed affine-transform parameter sampling without creating a second timeline system.
 ## Interface
-- `AffineTransformKeyframe(time, matrix)` stores one finite 2x3 affine matrix at a strictly ordered time.
-- `AffineTransformTrack(keyframes)` owns an immutable ordered tuple of keyframes.
+- `AffineTransformKeyframe(time, matrix)` stores one finite 2x3 affine matrix.
+- `AffineTransformTrack(width, height, keyframes)` owns an immutable ordered tuple of keyframes and fixed target geometry.
 - `track.sample(time)` returns a new `AffineTransformSpec` at the sampled time.
 - Sampling linearly interpolates each affine matrix parameter between adjacent keyframes.
 - Sampling outside the keyframe range clamps to the first or last keyframe.
 ## Canonical call
 `track.sample(0.5)`
 ## Preconditions
+- Track dimensions are positive integers.
 - At least two keyframes.
 - Times are finite and strictly increasing.
 - Matrices are finite numeric 2x3 affine matrices with non-degenerate linear components.
 - Sample time is finite.
 ## Postconditions
-- Returned value is a validated `AffineTransformSpec`.
+- Returned value is a validated `AffineTransformSpec` with the track target dimensions.
 - Returned matrix is owned and read-only through the existing spec contract.
 - Keyframe inputs and track configuration are not mutated.
 - Sampling is deterministic.
