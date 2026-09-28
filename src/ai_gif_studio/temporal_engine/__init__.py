@@ -15,8 +15,8 @@ from .curves import (
 from .depth_field import DepthField
 from .glint import GlintParameters, gaussian_glint
 from .manuscript_pipeline import ManuscriptPipeline
-from .material_pbr import DirectLight, PBRMaterial, shade_pbr_lights
 from .manuscript_plane import ManuscriptPlane, homography_from_corners, warp_manuscript
+from .material_pbr import DirectLight, PBRMaterial, shade_pbr_lights
 from .motion import CameraMotionTrack, MotionKeyframe, smoothstep01
 from .palette import build_global_palette, quantize_frames_global
 from .particles import ParticleField, render_particles
