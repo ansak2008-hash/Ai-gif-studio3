@@ -46,6 +46,15 @@ def test_stack_is_reusable_without_mutating_source() -> None:
     assert first is not source
 
 
+def test_stack_normalizes_mutable_effect_collections() -> None:
+    effects = [_add(1.0)]
+    stack = EffectStack(effects)
+    effects.append(_add(2.0))
+
+    assert len(stack.effects) == 1
+    assert isinstance(stack.effects, tuple)
+
+
 def test_append_and_extend_return_immutable_new_stacks() -> None:
     first = EffectStack((_add(1.0),))
     second = first.append(_add(2.0))
