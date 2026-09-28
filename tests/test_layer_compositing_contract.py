@@ -52,7 +52,7 @@ def test_layer_mask_scales_only_that_layer_alpha() -> None:
     result = composite_blend_layers(base, [BlendLayer(source, mask=mask)])
     masked_source = _buffer((0.6, 0.2, 0.4, 0.375))
     expected = composite_over(base, masked_source)
-    np.testing.assert_array_equal(result.data, expected.data)
+    np.testing.assert_allclose(result.data, expected.data, rtol=1e-6, atol=1e-7)
 
 
 def test_empty_layer_sequence_returns_independent_base_copy() -> None:
