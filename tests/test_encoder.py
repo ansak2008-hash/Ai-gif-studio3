@@ -4,7 +4,7 @@ from PIL import Image
 
 from ai_gif_studio.temporal_engine.encoder import encode_linear_gif
 
-pytestmark = pytest.mark.unit
+pytestmark = pytest.mark.integration
 
 
 def test_encode_linear_gif_converts_linear_rgba_and_writes_valid_gif(tmp_path):
