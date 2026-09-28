@@ -12,11 +12,11 @@
 | Phase | Status | Scope |
 |---|---|---|
 | 1 | Implemented | Perspective Camera + Manuscript Plane |
-| 2 | Verification in progress | Canonical SDF + Bevel + Normals |
-| 3 | Not started | PBR Material + Environment |
-| 4 | Not started | Motion separation |
-| 5 | Not started | Color / export expansion |
-| 6 | Not started | Final integration |
+| 2 | Implemented / frozen | Canonical SDF + Bevel + Normals |
+| 3 | Implemented / CI-verified | PBR Material + deterministic renderer integration |
+| 4 | Implemented / CI-verified | Deterministic motion separation |
+| 5 | Implemented / CI-verified | Linear-light color and GIF export expansion |
+| 6 | Implemented / CI-verified | End-to-end manuscript pipeline |
 
 ## Batch 11 Status
 - Phase 1 (Perspective Camera): implemented — `camera.py`, `manuscript_plane.py`.
@@ -64,4 +64,4 @@
 - Never use destructive Git commands or push without explicit approval.
 
 ## Current Focus
-Phase 2 verification / Phase 3 preparation only. Inspect and harden the existing Camera + Depth foundation before implementing Material/Environment.
+Phase 6 final integration is implemented and CI-verified. Preserve Phase 2 contracts and keep legacy cinematic rendering isolated until an explicit migration.
