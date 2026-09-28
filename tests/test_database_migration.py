@@ -1,10 +1,13 @@
 from pathlib import Path
 
-from alembic import command
+import pytest
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect
 
+from alembic import command
 
+
+@pytest.mark.integration
 def test_alembic_foundation_migration_creates_runtime_tables(tmp_path: Path) -> None:
     database = tmp_path / "migration.db"
     config = Config("alembic.ini")

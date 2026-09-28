@@ -3,8 +3,8 @@ from uuid import uuid4
 
 import pytest
 
-from ai_gif_studio.database.session import Database
 from ai_gif_studio.database.repositories import ArtifactRepository
+from ai_gif_studio.database.session import Database
 
 
 @pytest.mark.unit

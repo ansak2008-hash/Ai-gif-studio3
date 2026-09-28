@@ -3,10 +3,9 @@ from __future__ import annotations
 import json
 import logging
 import time
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 from uuid import UUID
-
 
 logger = logging.getLogger("ai_gif_studio.observability")
 
@@ -25,7 +24,18 @@ async def stage(job_id: UUID | str, name: str) -> AsyncIterator[None]:
     try:
         yield
     except Exception as exc:
-        _emit("stage_failed", job_id=job_id, stage=name, duration_ms=round((time.perf_counter() - started) * 1000), error=type(exc).__name__)
+        _emit(
+            "stage_failed",
+            job_id=job_id,
+            stage=name,
+            duration_ms=round((time.perf_counter() - started) * 1000),
+            error=type(exc).__name__,
+        )
         raise
     else:
-        _emit("stage_completed", job_id=job_id, stage=name, duration_ms=round((time.perf_counter() - started) * 1000))
+        _emit(
+            "stage_completed",
+            job_id=job_id,
+            stage=name,
+            duration_ms=round((time.perf_counter() - started) * 1000),
+        )

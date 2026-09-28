@@ -9,7 +9,11 @@ from arq.connections import RedisSettings
 
 from ai_gif_studio.configuration import AppSettings
 from ai_gif_studio.database import Database
-from ai_gif_studio.database.repositories import ArtifactRepository, JobStepRepository, SqlAlchemyJobRepository
+from ai_gif_studio.database.repositories import (
+    ArtifactRepository,
+    JobStepRepository,
+    SqlAlchemyJobRepository,
+)
 from ai_gif_studio.domain.specs import ProcessingSettings
 from ai_gif_studio.engines.crop import CropOnlyEngine
 from ai_gif_studio.engines.design import DesignGifEngine

@@ -1,6 +1,11 @@
 import pytest
 
-from ai_gif_studio.resources import GpuManager, GpuMemorySnapshot, ResourceLimitError, ResourceManager
+from ai_gif_studio.resources import (
+    GpuManager,
+    GpuMemorySnapshot,
+    ResourceLimitError,
+    ResourceManager,
+)
 
 
 @pytest.mark.unit

@@ -12,8 +12,21 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
-from ai_gif_studio.models import JobStatus, ProcessingJob, ProcessingMode, VideoSubmission, can_transition
-from .tables import ArtifactRecord, DesignSpecRecord, JobStepRecord, ProcessingJobRecord, ProcessingSettingsRecord
+from ai_gif_studio.models import (
+    JobStatus,
+    ProcessingJob,
+    ProcessingMode,
+    VideoSubmission,
+    can_transition,
+)
+
+from .tables import (
+    ArtifactRecord,
+    DesignSpecRecord,
+    JobStepRecord,
+    ProcessingJobRecord,
+    ProcessingSettingsRecord,
+)
 
 
 class JobRepository(Protocol):

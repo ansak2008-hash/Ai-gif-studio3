@@ -9,9 +9,56 @@ Precision contract:
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 
 _EPS_DENOM = np.finfo(np.float64).eps
+
+@dataclass(frozen=True, slots=True)
+class PBRMaterial:
+    """Immutable PBR material contract shared by renderer integrations."""
+
+    albedo: tuple[float, float, float]
+    roughness: float
+    metallic: float = 0.0
+
+    def __post_init__(self) -> None:
+        color = np.asarray(self.albedo, dtype=np.float64)
+        if (
+            color.shape != (3,)
+            or not np.isfinite(color).all()
+            or np.any((color < 0.0) | (color > 1.0))
+        ):
+            raise ValueError("albedo must contain three finite values in [0, 1]")
+        if not np.isfinite(self.roughness) or not 0.0 < self.roughness <= 1.0:
+            raise ValueError("roughness must be finite and in (0, 1]")
+        if not np.isfinite(self.metallic) or not 0.0 <= self.metallic <= 1.0:
+            raise ValueError("metallic must be finite and in [0, 1]")
+
+
+@dataclass(frozen=True, slots=True)
+class DirectLight:
+    """Immutable direct-light contract; ordering defines deterministic accumulation."""
+
+    direction: tuple[float, float, float]
+    color: tuple[float, float, float] = (1.0, 1.0, 1.0)
+    intensity: float = 1.0
+
+    def __post_init__(self) -> None:
+        direction = np.asarray(self.direction, dtype=np.float64)
+        color = np.asarray(self.color, dtype=np.float64)
+        if (
+            direction.shape != (3,)
+            or not np.isfinite(direction).all()
+            or np.linalg.norm(direction) <= _EPS_DENOM
+        ):
+            raise ValueError("direction must be a finite non-zero 3-vector")
+        if color.shape != (3,) or not np.isfinite(color).all() or np.any(color < 0.0):
+            raise ValueError("color must contain three finite non-negative values")
+        if not np.isfinite(self.intensity) or self.intensity < 0.0:
+            raise ValueError("intensity must be finite and non-negative")
+
 
 
 def _clamp01(value: np.ndarray | float) -> np.ndarray:
@@ -122,7 +169,7 @@ def shade_pbr(
 
     n = _normalize_vectors(normal, "normal")
     v = _normalize_vectors(view, "view")
-    l = _normalize_vectors(light, "light")
+    light_vector = _normalize_vectors(light, "light")
     base_color = np.asarray(albedo, dtype=np.float64)
     if base_color.shape[-1] != 3:
         raise ValueError("albedo must have a final dimension of 3")
@@ -134,10 +181,10 @@ def shade_pbr(
         raise ValueError("light_color must be finite and non-negative")
 
     ndotv = np.sum(n * v, axis=-1)
-    ndotl = np.sum(n * l, axis=-1)
+    ndotl = np.sum(n * light_vector, axis=-1)
     visible = (ndotv > 0.0) & (ndotl > 0.0)
 
-    half_raw = v + l
+    half_raw = v + light_vector
     half_length = np.linalg.norm(half_raw, axis=-1, keepdims=True)
     safe_half_length = np.maximum(half_length, _EPS_DENOM)
     half = half_raw / safe_half_length
@@ -159,3 +206,34 @@ def shade_pbr(
     brdf = diffuse + specular
     result = brdf * ndotl[..., None] * radiance * light_intensity
     return np.where(visible[..., None], result, 0.0)
+
+
+def shade_pbr_lights(
+    normal: np.ndarray,
+    view: np.ndarray,
+    lights: tuple[DirectLight, ...] | list[DirectLight],
+    material: PBRMaterial,
+) -> np.ndarray:
+    """Accumulate an ordered direct-light set using the existing PBR kernel."""
+    if not isinstance(material, PBRMaterial):
+        raise TypeError("material must be a PBRMaterial")
+    if not lights:
+        raise ValueError("lights must contain at least one DirectLight")
+    output_shape = np.broadcast_shapes(
+        np.asarray(normal).shape[:-1], np.asarray(view).shape[:-1]
+    ) + (3,)
+    result = np.zeros(output_shape, dtype=np.float64)
+    for light in lights:
+        if not isinstance(light, DirectLight):
+            raise TypeError("lights must contain DirectLight values")
+        result += shade_pbr(
+            normal,
+            view,
+            np.asarray(light.direction, dtype=np.float64),
+            np.asarray(material.albedo, dtype=np.float64),
+            material.roughness,
+            metallic=material.metallic,
+            light_color=np.asarray(light.color, dtype=np.float64),
+            light_intensity=light.intensity,
+        )
+    return result

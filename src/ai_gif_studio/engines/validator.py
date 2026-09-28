@@ -1,7 +1,10 @@
 from __future__ import annotations
+
 import hashlib
 from pathlib import Path
+
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
+
 
 class OutputValidator:
     def __init__(self, ffmpeg: FFmpegService | None = None) -> None:
@@ -15,10 +18,19 @@ class OutputValidator:
         except OSError:
             return False
 
-    async def validate_gif(self, path: Path, max_bytes: int, width: int = 320, height: int = 320,
-                           ffmpeg: FFmpegService | None = None, min_frames: int = 1,
-                           max_frames: int | None = None, expected_fps: int | None = None,
-                           expected_duration: float | None = None, duration_tolerance: float = 0.25) -> bool:
+    async def validate_gif(
+        self,
+        path: Path,
+        max_bytes: int,
+        width: int = 320,
+        height: int = 320,
+        ffmpeg: FFmpegService | None = None,
+        min_frames: int = 1,
+        max_frames: int | None = None,
+        expected_fps: int | None = None,
+        expected_duration: float | None = None,
+        duration_tolerance: float = 0.25,
+    ) -> bool:
         if not self.validate_basic_gif(path, max_bytes):
             return False
         service = ffmpeg or self._ffmpeg
@@ -44,7 +56,9 @@ class OutputValidator:
                 return False
         if expected_duration is not None:
             try:
-                actual_duration = float(probe.get("format", {}).get("duration") or stream.get("duration") or 0)
+                actual_duration = float(
+                    probe.get("format", {}).get("duration") or stream.get("duration") or 0
+                )
             except (TypeError, ValueError):
                 return False
             if abs(actual_duration - expected_duration) > duration_tolerance:

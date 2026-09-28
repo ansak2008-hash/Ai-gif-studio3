@@ -4,24 +4,71 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Keep numerical/rendering behavior stable across runners.
+# Verification trigger: runtime evidence is required before Phase 2 closeout.
+env:
+  PYTHONHASHSEED: "0"
+  OMP_NUM_THREADS: "1"
+  OPENBLAS_NUM_THREADS: "1"
+  MKL_NUM_THREADS: "1"
+
 jobs:
+  ruff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install -U pip
+      - run: pip install -e ".[dev]"
+      - run: python -m pip check
+      - run: python -c "import cv2, numpy; print('numpy', numpy.__version__); print('opencv', cv2.__version__)"
+      - run: ruff check .
+
   unit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: "3.11"}
+        with:
+          python-version: "3.11"
+          cache: pip
       - run: python -m pip install -U pip
       - run: pip install -e ".[dev]"
-      - run: ruff check .
-      - run: pytest -q -m "unit and not integration and not slow"
+      - run: python -m pip check
+      - name: Import temporal engine
+        run: |
+          python -c "import ai_gif_studio.temporal_engine; print('temporal_engine import: OK')"
+      - name: Collect unit tests
+        run: pytest --collect-only -m "unit and not integration and not slow" -q
+      - name: Unit tests
+        run: pytest -q -m "unit and not integration and not slow" --tb=short
+
+  determinism:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install -U pip
+      - run: pip install -e ".[dev]"
+      - run: python -m pip check
+      - run: python -c "import cv2, numpy; print('numpy', numpy.__version__); print('opencv', cv2.__version__)"
+      - name: Render twice, compare
+        run: pytest -q tests/test_determinism.py --tb=short
 
   integration:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: "3.11"}
+        with:
+          python-version: "3.11"
+          cache: pip
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Verify FFmpeg drawtext shaping support
         run: ffmpeg -hide_banner -h filter=drawtext 2>&1 | grep -q "text_shaping"
@@ -35,7 +82,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: "3.11"}
+        with:
+          python-version: "3.11"
+          cache: pip
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: python -m pip install -U pip
       - run: pip install -e ".[dev]"
