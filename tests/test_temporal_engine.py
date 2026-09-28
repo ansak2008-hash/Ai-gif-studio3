@@ -181,6 +181,7 @@ def test_global_palette_is_shared():
     pal = build_global_palette(frames, 2)
     out = quantize_frames_global(frames, pal)
     assert out[0].palette.palette == out[1].palette.palette
+    assert out[0].getpixel((0, 0)) != out[1].getpixel((0, 0))
 
 
 def test_palette_is_deterministic():
