@@ -115,7 +115,7 @@ def test_shade_depth_field_from_camera_matches_explicit_view_vectors():
     expected = shade_depth_field(
         field,
         explicit_view,
-        np.array([0.0, 0.0, 1.0]),
+        np.array([0.0, 1.0, 0.0]),
         [0.8, 0.3, 0.1],
         0.4,
     )
@@ -160,7 +160,7 @@ def test_camera_path_transforms_image_normal_into_world_space():
     field = DepthField(
         distance_px=np.ones((1, 1), dtype=np.float32),
         height=np.ones((1, 1), dtype=np.float32),
-        normals=np.array([[[0.0, 0.0, 1.0]]], dtype=np.float32),
+        normals=np.array([[[1.0, 0.0, 0.0]]], dtype=np.float32),
     )
     camera = CameraState(
         position=(0.0, 0.0, 4.0),
