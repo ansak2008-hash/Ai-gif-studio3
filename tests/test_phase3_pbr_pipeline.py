@@ -5,8 +5,8 @@ import pytest
 from PIL import Image
 
 from ai_gif_studio.temporal_engine.manuscript import ManuscriptAsset
-from ai_gif_studio.temporal_engine.manuscript_plane import ManuscriptPlane
 from ai_gif_studio.temporal_engine.manuscript_pipeline import ManuscriptPipeline
+from ai_gif_studio.temporal_engine.manuscript_plane import ManuscriptPlane
 from ai_gif_studio.temporal_engine.material_pbr import DirectLight, PBRMaterial
 from ai_gif_studio.temporal_engine.motion import CameraMotionTrack, MotionKeyframe
 from ai_gif_studio.temporal_engine.timeline import AnimationTimeline
