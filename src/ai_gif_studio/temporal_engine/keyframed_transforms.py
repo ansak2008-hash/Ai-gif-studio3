@@ -38,9 +38,17 @@ class AffineTransformKeyframe:
 class AffineTransformTrack:
     """Immutable ordered affine-transform parameter track."""
 
+    width: int
+    height: int
     keyframes: tuple[AffineTransformKeyframe, ...]
 
     def __post_init__(self) -> None:
+        if isinstance(self.width, bool) or not isinstance(self.width, (int, np.integer)):
+            raise TypeError("track width must be an integer")
+        if isinstance(self.height, bool) or not isinstance(self.height, (int, np.integer)):
+            raise TypeError("track height must be an integer")
+        if int(self.width) < 1 or int(self.height) < 1:
+            raise ValueError("track dimensions must be positive")
         keyframes = tuple(self.keyframes)
         if len(keyframes) < 2:
             raise ValueError("at least two affine transform keyframes are required")
@@ -57,24 +65,20 @@ class AffineTransformTrack:
             raise ValueError("sample time must be finite")
         t = float(time)
         if t <= self.keyframes[0].time:
-            return _spec_from_keyframe(self.keyframes[0])
-        if t >= self.keyframes[-1].time:
-            return _spec_from_keyframe(self.keyframes[-1])
-
-        index = next(
-            i
-            for i in range(len(self.keyframes) - 1)
-            if self.keyframes[i].time <= t <= self.keyframes[i + 1].time
-        )
-        first, second = self.keyframes[index : index + 2]
-        factor = (t - first.time) / (second.time - first.time)
-        matrix = first.matrix + factor * (second.matrix - first.matrix)
+            matrix = self.keyframes[0].matrix
+        elif t >= self.keyframes[-1].time:
+            matrix = self.keyframes[-1].matrix
+        else:
+            index = next(
+                i
+                for i in range(len(self.keyframes) - 1)
+                if self.keyframes[i].time <= t <= self.keyframes[i + 1].time
+            )
+            first, second = self.keyframes[index : index + 2]
+            factor = (t - first.time) / (second.time - first.time)
+            matrix = first.matrix + factor * (second.matrix - first.matrix)
         return AffineTransformSpec(
-            width=1,
-            height=1,
+            width=int(self.width),
+            height=int(self.height),
             matrix=matrix,
         )
-
-
-def _spec_from_keyframe(keyframe: AffineTransformKeyframe) -> AffineTransformSpec:
-    return AffineTransformSpec(width=1, height=1, matrix=keyframe.matrix)
