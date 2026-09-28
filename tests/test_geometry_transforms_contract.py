@@ -87,6 +87,8 @@ def test_specs_copy_mutable_arrays_and_effects_are_deterministic() -> None:
     spec = AffineTransformSpec(3, 2, matrix)
     matrix[0, 0] = 7.0
     assert spec.matrix[0, 0] == 1.0
+    with pytest.raises(ValueError):
+        spec.matrix[0, 0] = 7.0
 
     source = _buffer()
     before = source.data.copy()
