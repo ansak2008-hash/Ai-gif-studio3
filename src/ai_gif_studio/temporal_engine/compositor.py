@@ -1,11 +1,31 @@
-""""Deterministic straight-alpha compositor for canonical RenderBuffer layers."""
+"""Deterministic straight-alpha compositor for canonical RenderBuffer layers."""
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 
 import numpy as np
 
+from .blend import BlendMode, BlendModeEffect
 from .render_buffer import RenderBuffer
+from .render_mask import RenderMask
+
+
+@dataclass(frozen=True, slots=True)
+class BlendLayer:
+    """Typed source layer with a blend mode and optional canonical mask."""
+
+    source: RenderBuffer
+    mode: BlendMode = BlendMode.NORMAL
+    mask: RenderMask | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.source, RenderBuffer):
+            raise TypeError("source must be a RenderBuffer")
+        if not isinstance(self.mode, BlendMode):
+            raise TypeError("mode must be a BlendMode")
+        if self.mask is not None and not isinstance(self.mask, RenderMask):
+            raise TypeError("mask must be a RenderMask")
 
 
 def composite_over(destination: RenderBuffer, source: RenderBuffer) -> RenderBuffer:
@@ -52,6 +72,24 @@ def composite_layers(layers: Iterable[RenderBuffer]) -> RenderBuffer:
 
     for layer in iterator:
         result = composite_over(result, layer)
+    return result
+
+
+def composite_blend_layers(
+    base: RenderBuffer,
+    layers: Iterable[BlendLayer],
+) -> RenderBuffer:
+    """Composite typed blend layers over an independent copy of the base."""
+    if not isinstance(base, RenderBuffer):
+        raise TypeError("base must be a RenderBuffer")
+
+    result = base.copy()
+    for layer in layers:
+        if not isinstance(layer, BlendLayer):
+            raise TypeError("layers must contain BlendLayer values")
+        result = BlendModeEffect(layer.mode, mask=layer.mask)(
+            (result, layer.source)
+        )
     return result
 
 
