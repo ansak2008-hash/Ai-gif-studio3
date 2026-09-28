@@ -65,6 +65,15 @@ def test_tone_curve_owns_control_points_and_exposes_immutable_storage() -> None:
     np.testing.assert_array_equal(curve.points, np.asarray([[0.0, 0.0], [1.0, 1.0]]))
 
 
+def test_tone_curve_and_effect_are_structurally_immutable() -> None:
+    curve = ToneCurve.from_points(((0.0, 0.0), (1.0, 1.0)))
+    effect = ToneCurveEffect(curve)
+    with pytest.raises((AttributeError, TypeError)):
+        curve.points = np.ones((2, 2))  # type: ignore[misc]
+    with pytest.raises((AttributeError, TypeError)):
+        effect.red = curve  # type: ignore[misc]
+
+
 def test_tone_curve_effect_rejects_wrong_input_count_and_type() -> None:
     effect = ToneCurveEffect(ToneCurve.from_points(((0.0, 0.0), (1.0, 1.0))))
     with pytest.raises(ValueError, match="exactly one"):
