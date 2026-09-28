@@ -25,6 +25,7 @@ from .pbr_motion import PBRMotionRenderer
 from .pbr_renderer import render_pbr_depth_field
 from .pbr_surface import shade_depth_field, shade_depth_field_from_camera
 from .quality import validate_temporal_sequence
+from .render_buffer import RenderBuffer
 from .timeline import AnimationTimeline, FrameTiming
 
 __all__ = [
@@ -49,6 +50,7 @@ __all__ = [
     "ParticleField",
     "render_particles",
     "validate_temporal_sequence",
+    "RenderBuffer",
     # Manuscript (Phase 1 + 2)
     "CameraState",
     "CameraModel",
