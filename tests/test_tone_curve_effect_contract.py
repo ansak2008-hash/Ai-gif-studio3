@@ -31,11 +31,11 @@ def test_tone_curve_interpolates_and_extrapolates_without_clamping() -> None:
 
 def test_tone_curve_supports_independent_channels_and_preserves_alpha() -> None:
     red = ToneCurve.from_points(((0.0, 0.0), (1.0, 2.0)))
-    green = ToneCurve.from_points(((0.0, 1.0), (1.0, 0.0)))
+    green = ToneCurve.from_points(((0.0, 0.0), (1.0, 0.5)))
     blue = ToneCurve.from_points(((0.0, 0.5), (1.0, 1.5)))
     result = ToneCurveEffect(red, green, blue)((_buffer(),))
     expected = np.asarray(
-        [[[0.0, 0.75, 0.5, 0.4], [4.0, -3.0, 12.5, 0.7]]],
+        [[[0.0, 0.125, 0.5, 0.4], [4.0, 2.0, 12.5, 0.7]]],
         dtype=np.float32,
     )
     np.testing.assert_allclose(result.data, expected, rtol=0.0, atol=1e-6)
