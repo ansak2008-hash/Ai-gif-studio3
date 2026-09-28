@@ -16,10 +16,12 @@ class EffectStack:
     effects: tuple[RenderEffect, ...] = ()
 
     def __post_init__(self) -> None:
-        if len(self.effects) > 32:
+        effects = tuple(self.effects)
+        if len(effects) > 32:
             raise ValueError("an EffectStack may contain at most 32 effects")
-        if any(not callable(effect) for effect in self.effects):
+        if any(not callable(effect) for effect in effects):
             raise TypeError("EffectStack effects must be callable")
+        object.__setattr__(self, "effects", effects)
 
     def __call__(self, inputs: tuple[RenderBuffer, ...]) -> RenderBuffer:
         source = _single_input(inputs)
