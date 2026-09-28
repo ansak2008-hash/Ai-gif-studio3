@@ -6,6 +6,7 @@
 - Manuscript rendering uses the canonical camera, plane, SDF/bevel/depth, PBR, RenderBuffer, and compositor contracts.
 - Do not introduce Gemini/DeepSeek runtime integrations. External engineering reports are input for human-reviewed changes only.
 - The mandatory engineering process is defined in `docs/ENGINEERING_WORK_PROTOCOL.md`. Read and follow it for every substantial architectural change.
+- Python formatting/import policy is defined in `docs/development/conventions.md`; Ruff is the source of truth.
 
 ## Current Engineering Direction
 
@@ -50,6 +51,7 @@ Historical phases below describe the earlier project foundation. They do not ove
 10. Do not modify the Video→GIF pipeline while implementing Manuscript/PBR rendering features unless the change is explicitly required and isolated.
 11. Do not bypass the Contract → Tests → Implementation → CI → Adversarial Review → Merge sequence for substantial changes.
 12. Treat green CI and architectural fitness as separate gates.
+13. Do not invent manual Ruff/isort spacing rules. Follow Ruff diagnostics and the repository convention document.
 
 ## File Ownership
 
