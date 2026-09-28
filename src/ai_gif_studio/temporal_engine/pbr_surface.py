@@ -97,6 +97,8 @@ def shade_depth_field_from_camera(
     state = camera.state if isinstance(camera, CameraModel) else camera
     world_normals = _image_normals_to_world(depth_field.normals, state)
     view = camera_position - points
+    # The camera path uses the canonical world-space surface points and the
+    # camera position only; no depth-derived normal reconstruction occurs here.
     shaded = shade_pbr(
         world_normals,
         view,
