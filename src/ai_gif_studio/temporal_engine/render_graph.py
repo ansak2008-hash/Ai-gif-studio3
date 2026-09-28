@@ -115,6 +115,8 @@ class RenderGraph:
             result = node.process(inputs)
             if not isinstance(result, RenderBuffer):
                 raise TypeError(f"render node {name!r} must return a RenderBuffer")
+            if any(result is input_buffer for input_buffer in inputs):
+                raise ValueError(f"render node {name!r} must return a new RenderBuffer")
             if result.shape != initial.shape:
                 raise ValueError(f"render node {name!r} changed render dimensions")
             outputs[name] = result
