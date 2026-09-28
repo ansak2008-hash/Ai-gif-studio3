@@ -59,8 +59,8 @@ class PBRDirectLightNode:
         if source.shape[:2] != self.normals.shape[:2]:
             raise ValueError("PBR geometry dimensions must match RenderBuffer dimensions")
 
-        albedo = np.asarray(source.data[..., :3], dtype=np.float64)
-        result = np.zeros_like(albedo, dtype=np.float64)
+        albedo = np.asarray(self.material.albedo, dtype=np.float64)
+        result = np.zeros(source.data.shape[:2] + (3,), dtype=np.float64)
         for light in self.lights:
             result += shade_pbr(
                 self.normals,
