@@ -42,7 +42,7 @@ Next:
 - color curves and LUT-style grading (Phase 4.11 foundation: deterministic tone curves)
 - blend modes and masks (Phase 4.12 foundation: deterministic binary blending with canonical masks)
 - layer compositing (Phase 4.13 foundation: typed deterministic blend-layer orchestration)
-- selective region transforms
+- selective region transforms (Phase 4.14 foundation: reusable typed masked unary-transform orchestration)
 
 ### Track B — Design and motion
 Existing foundation:

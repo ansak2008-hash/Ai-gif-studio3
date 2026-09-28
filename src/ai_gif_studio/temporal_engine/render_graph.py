@@ -4,10 +4,9 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
-import numpy as np
-
 from .render_buffer import RenderBuffer
 from .render_mask import RenderMask
+from .selective_region import SelectiveRegionEffect
 
 RenderNodeFn = Callable[[tuple[RenderBuffer, ...]], RenderBuffer]
 
@@ -48,19 +47,7 @@ class RenderNode:
     ) -> RenderBuffer:
         if self.mask is None:
             return processed
-
-        self._validate_mask_source(source)
-        mask = self.mask.data
-        if np.all(mask == 0.0):
-            return source.copy()
-        if np.all(mask == 1.0):
-            return processed.copy()
-
-        coverage = mask[..., None]
-        blended = (
-            source.data * (1.0 - coverage) + processed.data * coverage
-        ).astype(np.float32, copy=False)
-        return RenderBuffer.from_linear_rgba(blended)
+        return SelectiveRegionEffect(lambda _: processed, self.mask)((source,))
 
 
 class RenderGraph:

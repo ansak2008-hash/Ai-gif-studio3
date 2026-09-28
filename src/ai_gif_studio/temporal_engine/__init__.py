@@ -31,6 +31,7 @@ from .quality import validate_temporal_sequence
 from .render_buffer import RenderBuffer
 from .render_graph import RenderGraph, RenderNode
 from .render_mask import RenderMask
+from .selective_region import SelectiveRegionEffect
 from .timeline import AnimationTimeline, FrameTiming
 from .tone_curve import ToneCurve, ToneCurveEffect
 
@@ -60,6 +61,7 @@ __all__ = [
     "RenderMask",
     "RenderNode",
     "RenderGraph",
+    "SelectiveRegionEffect",
     "ExposureEffect",
     "GammaEffect",
     "RGBGainEffect",
