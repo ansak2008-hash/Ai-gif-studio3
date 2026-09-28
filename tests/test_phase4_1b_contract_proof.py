@@ -4,16 +4,19 @@ import numpy as np
 import pytest
 
 from ai_gif_studio.temporal_engine.affine import AffineTransform, warp_premultiplied_rgba
+from ai_gif_studio.temporal_engine.camera import CameraState
 from ai_gif_studio.temporal_engine.color_export import (
     ExportColorSpec,
     linear_rgba_to_srgb_rgb,
 )
+from ai_gif_studio.temporal_engine.depth_field import DepthField
 from ai_gif_studio.temporal_engine.manuscript import ManuscriptAsset
 from ai_gif_studio.temporal_engine.material_pbr import (
     DirectLight,
     PBRMaterial,
     shade_pbr_lights,
 )
+from ai_gif_studio.temporal_engine.pbr_renderer import render_pbr_depth_field
 
 pytestmark = pytest.mark.unit
 
@@ -65,10 +68,6 @@ def test_warp_public_contract_is_straight_alpha_and_internal_premultiplication_i
 
 def test_renderer_boundary_precision_is_explicitly_float32_after_float64_pbr() -> None:
     """The current float64 PBR -> float32 render-buffer boundary is intentional."""
-    from ai_gif_studio.temporal_engine.depth_field import DepthField
-    from ai_gif_studio.temporal_engine.camera import CameraState
-    from ai_gif_studio.temporal_engine.pbr_renderer import render_pbr_depth_field
-
     distance = np.ones((1, 1), dtype=np.float64)
     normals = np.array([[[0.0, 0.0, 1.0]]], dtype=np.float64)
     field = DepthField(distance_px=distance, height=np.zeros_like(distance), normals=normals)
