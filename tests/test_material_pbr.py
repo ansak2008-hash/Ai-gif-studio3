@@ -25,7 +25,7 @@ def test_fresnel_schlick_reaches_one_at_grazing():
 def test_fresnel_schlick_boundary_f0_is_exact(f0):
     cosines = np.linspace(0.0, 1.0, 101, dtype=np.float64)
     result = fresnel_schlick(cosines, f0)
-    expected = np.ones_like(cosines) if f0 == 1.0 else np.zeros_like(cosines)
+    expected = (1.0 - cosines) ** 5 if f0 == 0.0 else np.ones_like(cosines)
     np.testing.assert_allclose(result, expected, rtol=0, atol=1e-14)
 
 
