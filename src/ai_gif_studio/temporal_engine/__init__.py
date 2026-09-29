@@ -104,6 +104,7 @@ __all__ = [
     "composite_over",
     "composite_layers",
     "composite_blend_layers",
+    "apply_transform_state",
     # Manuscript (Phase 1 + 2)
     "CameraState",
     "CameraModel",
