@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
@@ -21,7 +22,7 @@ from ai_gif_studio.infrastructure.persistence import (
 def _document(marker: str = "root") -> str:
     root = Revision.create(
         ProjectState(
-            __import__("uuid").uuid4(),
+            uuid4(),
             0,
             DesignSpec(),
             ProcessingSettings(),
@@ -86,7 +87,10 @@ def test_temporary_write_failure_is_cleaned(
         def write(self, value: str) -> int:
             raise OSError("write failed")
 
-    monkeypatch.setattr("ai_gif_studio.infrastructure.persistence.open", lambda *args, **kwargs: FailingFile())
+    monkeypatch.setattr(
+        "ai_gif_studio.infrastructure.persistence.tempfile.NamedTemporaryFile",
+        lambda *args, **kwargs: FailingFile(),
+    )
     with pytest.raises(PersistenceStorageError):
         adapter.save(document)
     assert not list(tmp_path.glob("project.json.tmp-*"))
@@ -114,7 +118,10 @@ def test_flush_failure_does_not_report_success(
         def fileno(self) -> int:
             return 1
 
-    monkeypatch.setattr("ai_gif_studio.infrastructure.persistence.open", lambda *args, **kwargs: FlushFail())
+    monkeypatch.setattr(
+        "ai_gif_studio.infrastructure.persistence.tempfile.NamedTemporaryFile",
+        lambda *args, **kwargs: FlushFail(),
+    )
     with pytest.raises(PersistenceStorageError):
         adapter.save(document)
 
