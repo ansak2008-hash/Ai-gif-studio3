@@ -27,6 +27,15 @@ def _canvas() -> RenderBuffer:
     return RenderBuffer.from_linear_rgba(data)
 
 
+def test_legacy_transform_constructor_positional_shape_remains_compatible() -> None:
+    state = TransformState(8.0, -3.0, 1.5, (10, 20, 200, 180))
+    assert state.x == 8.0
+    assert state.y == -3.0
+    assert state.scale == 1.5
+    assert state.crop == (10, 20, 200, 180)
+    assert state.rotation == 0.0
+
+
 def test_rotation_state_is_immutable_and_bounded() -> None:
     state = TransformState(rotation=45.0)
     assert state.rotation == 45.0
