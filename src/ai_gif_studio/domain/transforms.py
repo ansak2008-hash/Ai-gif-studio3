@@ -94,7 +94,8 @@ class CropCommand:
         return _command_json(self.operation, self.metadata)
 
     def apply(self, state: Any) -> Any:
-        transform = TransformState(state.x, state.y, state.scale, (self.x, self.y, self.width, self.height))
+        current = _current_transform(state)
+        transform = TransformState(current.x, current.y, current.scale, (self.x, self.y, self.width, self.height))
         return _apply(self, state, transform)
 
 
@@ -115,7 +116,8 @@ class ScaleCommand:
         return _command_json(self.operation, self.metadata)
 
     def apply(self, state: Any) -> Any:
-        transform = TransformState(state.x, state.y, self.scale, state.crop)
+        current = _current_transform(state)
+        transform = TransformState(current.x, current.y, self.scale, current.crop)
         return _apply(self, state, transform)
 
 
@@ -146,6 +148,16 @@ class TranslateCommand:
             state.transform.scale,
             state.transform.crop,
         ))
+
+
+def _current_transform(state: Any) -> TransformState:
+    if isinstance(state, TransformState):
+        return state
+    from .project import ProjectState
+
+    if not isinstance(state, ProjectState):
+        raise TypeError("state must be a TransformState or ProjectState")
+    return state.transform
 
 
 def _apply(command: Any, state: Any, transform: TransformState) -> Any:
