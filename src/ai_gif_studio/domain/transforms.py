@@ -54,6 +54,8 @@ class TransformState:
     x: float = 0.0
     y: float = 0.0
     scale: float = 1.0
+    # Positive rotation is counter-clockwise in image/display coordinates.
+    # Rotation is applied around the center of the current crop rectangle.
     rotation: float = 0.0
     crop: tuple[int, int, int, int] = (0, 0, 320, 320)
 
