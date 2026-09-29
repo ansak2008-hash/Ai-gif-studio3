@@ -6,6 +6,7 @@ from typing import Any
 from uuid import UUID
 
 from .specs import DesignSpec, ProcessingSettings
+from .transforms import TransformState
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -72,6 +73,7 @@ class ProjectState:
         design: DesignSpec,
         processing: ProcessingSettings,
         metadata: dict[str, Any],
+        transform: TransformState | None = None,
     ) -> None:
         if not isinstance(project_id, UUID):
             raise TypeError("project_id must be a UUID")
@@ -85,6 +87,8 @@ class ProjectState:
             raise TypeError("processing must be a ProcessingSettings")
         if not isinstance(metadata, dict):
             raise TypeError("metadata must be a dictionary")
+        if transform is not None and not isinstance(transform, TransformState):
+            raise TypeError("transform must be a TransformState or None")
 
         payload = {
             "project_id": str(project_id),
@@ -93,6 +97,8 @@ class ProjectState:
             "processing": processing.model_dump(mode="json"),
             "metadata": metadata,
         }
+        if transform is not None and transform != TransformState():
+            payload["transform"] = {"x": transform.x, "y": transform.y, "scale": transform.scale, "crop": list(transform.crop)}
         try:
             canonical = json.dumps(
                 payload,
@@ -123,9 +129,11 @@ class ProjectState:
             design = DesignSpec.model_validate(payload["design"])
             processing = ProcessingSettings.model_validate(payload["processing"])
             metadata = payload["metadata"]
+            raw_transform = payload.get("transform")
+            transform = None if raw_transform is None else TransformState(x=raw_transform["x"], y=raw_transform["y"], scale=raw_transform["scale"], crop=tuple(raw_transform["crop"]))
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError("invalid canonical project state payload") from exc
-        state = cls(project_id, revision, design, processing, metadata)
+        state = cls(project_id, revision, design, processing, metadata, transform=transform)
         if state.canonical_json != value:
             raise ValueError("canonical project state is not normalized")
         return state
@@ -155,3 +163,11 @@ class ProjectState:
     @property
     def metadata(self) -> dict[str, Any]:
         return _load_canonical_json(self._canonical_json)["metadata"]
+
+    @property
+    def transform(self) -> TransformState:
+        payload = _load_canonical_json(self._canonical_json)
+        raw = payload.get("transform")
+        if raw is None:
+            return TransformState()
+        return TransformState(x=raw["x"], y=raw["y"], scale=raw["scale"], crop=tuple(raw["crop"]))
