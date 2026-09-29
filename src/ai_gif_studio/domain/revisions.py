@@ -5,7 +5,6 @@ import json
 from dataclasses import dataclass
 from threading import RLock
 from typing import Any, Mapping
-from uuid import UUID
 
 from .project import ProjectState
 
@@ -90,8 +89,9 @@ class Revision:
             _validate_revision_id(self.parent_id)
         if not isinstance(self.state, ProjectState):
             raise TypeError("state must be a ProjectState")
-        _canonical_metadata(json.loads(self.command_metadata))
-        expected = Revision.create(self.state, self.parent_id, json.loads(self.command_metadata))
+        metadata = json.loads(self.command_metadata)
+        _canonical_metadata(metadata)
+        expected = Revision.create(self.state, self.parent_id, metadata)
         if expected.revision_id != self.revision_id:
             raise RevisionValidationError("revision identity does not match revision content")
 
@@ -117,7 +117,7 @@ class Revision:
         try:
             payload = json.loads(value)
             if not isinstance(payload, dict):
-                raise ValueError
+                raise ValueError("revision payload must be an object")
             state = ProjectState.from_canonical_json(payload["state"])
             metadata = payload["command_metadata"]
             revision = cls.create(state, payload["parent_id"], metadata)
@@ -126,9 +126,9 @@ class Revision:
             if revision.canonical_json != value:
                 raise RevisionValidationError("revision JSON is not normalized")
             return revision
+        except RevisionGraphError:
+            raise
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-            if isinstance(exc, RevisionValidationError):
-                raise
             raise RevisionValidationError("invalid canonical revision JSON") from exc
 
 
@@ -206,31 +206,34 @@ class RevisionGraph:
             return False
 
     def ancestry(self, revision_id: str) -> tuple[str, ...]:
-        revision = self.get(revision_id)
+        current = self.get(revision_id)
         with self._lock:
             result: list[str] = []
-            current = revision
             while True:
                 result.append(current.revision_id)
                 if current.parent_id is None:
                     break
-                current = self._nodes.get(current.parent_id)  # type: ignore[assignment]
-                if current is None:
+                parent = self._nodes.get(current.parent_id)
+                if parent is None:
                     raise RevisionValidationError("graph contains an orphaned parent")
+                current = parent
             return tuple(result)
 
     def validate(self) -> None:
         with self._lock:
             if len(self._nodes) > self._max_nodes:
                 raise RevisionLimitError("revision graph node limit exceeded")
+            if self._current_id not in self._nodes:
+                raise RevisionValidationError("current revision is missing")
             for revision_id, revision in self._nodes.items():
                 if revision_id != revision.revision_id:
                     raise RevisionValidationError("revision index key mismatch")
                 if revision.parent_id is not None and revision.parent_id not in self._nodes:
                     raise RevisionValidationError("graph contains an orphaned parent")
-                if Revision.create(
+                expected = Revision.create(
                     revision.state,
                     revision.parent_id,
                     json.loads(revision.command_metadata),
-                ).revision_id != revision.revision_id:
+                )
+                if expected.revision_id != revision.revision_id:
                     raise RevisionValidationError("graph contains corrupted revision identity")
