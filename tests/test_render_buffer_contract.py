@@ -99,6 +99,20 @@ def test_render_buffer_rejects_storage_replacement() -> None:
         buffer._rgba_linear = np.zeros((1, 1, 4), dtype=np.float32)
 
 
+def test_reflective_attribute_replacement_cannot_swap_canonical_storage() -> None:
+    buffer = RenderBuffer.allocate(1, 1)
+    before = buffer.data.copy()
+
+    object.__setattr__(buffer, "_identity", object())
+    object.__setattr__(
+        buffer,
+        "_rgba_linear",
+        np.full((1, 1, 4), 1.0, dtype=np.float32),
+    )
+
+    np.testing.assert_array_equal(buffer.data, before)
+
+
 def test_raw_ndarray_construction_requires_explicit_color_space_boundary() -> None:
     rgba = np.zeros((1, 1, 4), dtype=np.float32)
     with pytest.raises(TypeError, match="created through"):
@@ -109,7 +123,10 @@ def test_from_srgb_u8_converts_rgb_and_alpha_explicitly() -> None:
     srgb = np.array([[[128, 64, 255, 128]]], dtype=np.uint8)
     buffer = RenderBuffer.from_srgb_u8(srgb)
     expected_rgb = np.array([[[0.2158605, 0.05126946, 1.0]]], dtype=np.float32)
-    expected = np.concatenate([expected_rgb, np.array([[[128 / 255.0]]], dtype=np.float32)], axis=-1)
+    expected = np.concatenate(
+        [expected_rgb, np.array([[[128 / 255.0]]], dtype=np.float32)],
+        axis=-1,
+    )
     np.testing.assert_allclose(buffer.data, expected, rtol=0.0, atol=2e-6)
 
 
