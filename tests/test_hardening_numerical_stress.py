@@ -65,3 +65,30 @@ def test_nonfinite_internal_blend_result_is_rejected(monkeypatch, bad_value: flo
         BlendModeEffect(BlendMode.NORMAL)((source, overlay))
 
     np.testing.assert_array_equal(source.data, before)
+
+
+@pytest.mark.parametrize(
+    ("rgb_value", "alpha"),
+    [
+        (0.0, 0.0),
+        (np.finfo(np.float32).tiny, 1.0),
+        (1.0e6, 1.0),
+        (4.0, 0.0),
+        (4.0, 1.0),
+    ],
+)
+def test_extreme_finite_hdr_values_and_alpha_endpoints_remain_canonical(
+    rgb_value: float,
+    alpha: float,
+) -> None:
+    source = _buffer(rgb_value, alpha)
+    identity = AffineTransformSpec(
+        4,
+        4,
+        np.asarray([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64),
+    )
+    result = AffineTransformEffect(identity)((source,))
+
+    assert result.dtype == np.dtype(np.float32)
+    assert np.isfinite(result.data).all()
+    np.testing.assert_array_equal(result.data, source.data)
