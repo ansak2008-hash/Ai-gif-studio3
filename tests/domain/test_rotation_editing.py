@@ -109,8 +109,8 @@ def _alpha_centroid(buffer: RenderBuffer) -> tuple[float, float]:
 
 def _asymmetric_marker() -> RenderBuffer:
     data = np.zeros((320, 320, 4), dtype=np.float32)
-    data[139:142, 169:172, :3] = 1.0
-    data[139:142, 169:172, 3] = 1.0
+    data[159:162, 189:192, :3] = 1.0
+    data[159:162, 189:192, 3] = 1.0
     return RenderBuffer.from_linear_rgba(data)
 
 
