@@ -13,6 +13,8 @@ from ai_gif_studio.domain.transforms import RotateCommand, TransformState
 from ai_gif_studio.temporal_engine import apply_transform_state
 from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
 
+pytestmark = pytest.mark.unit
+
 
 def _state() -> ProjectState:
     return ProjectState(uuid4(), 0, DesignSpec(), ProcessingSettings(), {})
@@ -139,6 +141,20 @@ def test_rotation_composes_scale_around_crop_center_before_translation() -> None
     result = apply_transform_state(source, state)
     x, y = _alpha_centroid(result)
     np.testing.assert_allclose((x, y), (30.0, 10.0), atol=1e-6)
+
+
+def test_rotation_applies_translation_after_centered_rotation_and_scale() -> None:
+    source = _asymmetric_marker()
+    state = TransformState(
+        crop=(120, 120, 100, 100),
+        rotation=90.0,
+        scale=2.0,
+        x=5.0,
+        y=-7.0,
+    )
+    result = apply_transform_state(source, state)
+    x, y = _alpha_centroid(result)
+    np.testing.assert_allclose((x, y), (35.0, 3.0), atol=1e-6)
 
 
 def test_rotation_does_not_mutate_source() -> None:
