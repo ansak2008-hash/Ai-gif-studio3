@@ -37,7 +37,7 @@ def test_project_state_is_an_immutable_snapshot() -> None:
     detached["tags"].append("detached")
     assert state.metadata == {"title": "demo", "tags": ["a", "b"]}
 
-    with pytest.raises(Exception):
+    with pytest.raises((AttributeError, TypeError)):
         state.revision = 1  # type: ignore[misc]
 
 
