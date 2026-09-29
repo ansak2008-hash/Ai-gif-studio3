@@ -39,9 +39,10 @@ def _crop(value: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
     ):
         raise TypeError("crop must be a four-integer tuple")
     x, y, width, height = value
-    if not 0 <= x <= 320 or not 0 <= y <= 320:
+    canvas_size = int(MAX_COORDINATE)
+    if not 0 <= x <= canvas_size or not 0 <= y <= canvas_size:
         raise ValueError("crop origin must be within the 320x320 canvas")
-    if width < 1 or height < 1 or x + width > 320 or y + height > 320:
+    if width < 1 or height < 1 or x + width > canvas_size or y + height > canvas_size:
         raise ValueError("crop rectangle must fit within the 320x320 canvas")
     return value
 
