@@ -57,6 +57,7 @@ class ReplaceProcessingSettingsCommand:
             self.processing,
             state.metadata,
             transform=state.transform,
+            layer_stack=state.layer_stack,
         )
 
 

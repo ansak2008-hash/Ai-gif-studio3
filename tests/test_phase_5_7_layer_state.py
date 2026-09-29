@@ -182,3 +182,19 @@ def test_transform_commands_preserve_layer_stack() -> None:
     )
     transformed = TranslateCommand(4.0, 2.0).apply(initial)
     assert transformed.layer_stack == stack
+
+
+def test_processing_command_preserves_layer_stack() -> None:
+    from ai_gif_studio.domain.commands import ReplaceProcessingSettingsCommand
+
+    stack = LayerStack().add(_layer())
+    initial = ProjectState(
+        _project_state().project_id,
+        0,
+        DesignSpec(),
+        ProcessingSettings(),
+        {},
+        layer_stack=stack,
+    )
+    updated = ReplaceProcessingSettingsCommand(ProcessingSettings()).apply(initial)
+    assert updated.layer_stack == stack
