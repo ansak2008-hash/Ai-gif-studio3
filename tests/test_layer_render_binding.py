@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from ai_gif_studio.domain.layer_state import LayerStack, LayerState
-from ai_gif_studio.temporal_engine.compositor import BlendLayer
+from ai_gif_studio.temporal_engine.compositor import BlendLayer, composite_blend_layers
 from ai_gif_studio.temporal_engine.layer_binding import bind_layer_stack
 from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
 from ai_gif_studio.temporal_engine.render_mask import RenderMask
@@ -133,3 +133,22 @@ def test_equivalent_inputs_produce_deterministic_binding() -> None:
         (item.source.data.tobytes(), item.mask.data.tobytes() if item.mask else None)
         for item in right
     ]
+
+
+def test_binding_feeds_existing_compositor_with_layer_opacity() -> None:
+    layer = _layer(opacity=0.25)
+    source = _buffer(1.0)
+    base = _buffer(0.0)
+
+    bound = bind_layer_stack(
+        LayerStack().add(layer),
+        {layer.source_asset_id: source},
+    )
+    result = composite_blend_layers(base, bound)
+
+    np.testing.assert_allclose(
+        result.data,
+        np.array([[[0.25, 0.25, 0.25, 1.0]]], dtype=np.float32),
+        rtol=0,
+        atol=1e-6,
+    )
