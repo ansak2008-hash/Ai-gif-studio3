@@ -8,6 +8,19 @@ from uuid import UUID
 from .specs import DesignSpec, ProcessingSettings
 
 
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON object key: {key!r}")
+        result[key] = value
+    return result
+
+
+def _load_canonical_json(value: str) -> Any:
+    return json.loads(value, object_pairs_hook=_reject_duplicate_keys)
+
+
 @dataclass(frozen=True, slots=True, init=False)
 class ProjectState:
     """Immutable, detached project snapshot for the Phase 5 composition track."""
@@ -59,8 +72,8 @@ class ProjectState:
         if not isinstance(value, str):
             raise TypeError("canonical project state must be a string")
         try:
-            payload = json.loads(value)
-        except json.JSONDecodeError as exc:
+            payload = _load_canonical_json(value)
+        except (json.JSONDecodeError, ValueError) as exc:
             raise ValueError("invalid canonical project state JSON") from exc
         if not isinstance(payload, dict):
             raise ValueError("canonical project state must be a JSON object")
@@ -83,20 +96,22 @@ class ProjectState:
 
     @property
     def project_id(self) -> UUID:
-        return UUID(json.loads(self._canonical_json)["project_id"])
+        return UUID(_load_canonical_json(self._canonical_json)["project_id"])
 
     @property
     def revision(self) -> int:
-        return int(json.loads(self._canonical_json)["revision"])
+        return int(_load_canonical_json(self._canonical_json)["revision"])
 
     @property
     def design(self) -> DesignSpec:
-        return DesignSpec.model_validate(json.loads(self._canonical_json)["design"])
+        return DesignSpec.model_validate(_load_canonical_json(self._canonical_json)["design"])
 
     @property
     def processing(self) -> ProcessingSettings:
-        return ProcessingSettings.model_validate(json.loads(self._canonical_json)["processing"])
+        return ProcessingSettings.model_validate(
+            _load_canonical_json(self._canonical_json)["processing"]
+        )
 
     @property
     def metadata(self) -> dict[str, Any]:
-        return json.loads(self._canonical_json)["metadata"]
+        return _load_canonical_json(self._canonical_json)["metadata"]
