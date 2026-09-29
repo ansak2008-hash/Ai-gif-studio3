@@ -19,6 +19,7 @@ Extend the existing immutable transform boundary with deterministic rotation wit
 11. Invalid rotation values are rejected at the domain boundary before rendering or mutation.
 12. Existing canonical project states without a rotation field remain valid and decode as 0.0.
 13. No filesystem, network, persistence adapter, UI, timeline, GPU, registry, or plugin dependency is introduced.
+14. The historical TransformState positional constructor order (x, y, scale, crop) remains valid; rotation is additive and defaults to 0.0.
 
 ## Numerical policy
 
