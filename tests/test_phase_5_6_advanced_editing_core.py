@@ -18,6 +18,8 @@ from ai_gif_studio.domain.transforms import (
     TranslateCommand,
 )
 
+pytestmark = pytest.mark.unit
+
 
 def _state() -> ProjectState:
     from uuid import uuid4
@@ -36,7 +38,13 @@ def test_transform_state_is_immutable_and_detached() -> None:
     with pytest.raises((AttributeError, TypeError)):
         state.x = 1.0
     assert state == TransformState()
-    assert state.metadata == {"x": 0.0, "y": 0.0, "scale": 1.0, "crop": (0, 0, 320, 320)}
+    assert state.metadata == {
+        "x": 0.0,
+        "y": 0.0,
+        "scale": 1.0,
+        "rotation": 0.0,
+        "crop": (0, 0, 320, 320),
+    }
 
 
 def test_transform_state_rejects_non_finite_and_out_of_bounds_values() -> None:
@@ -59,10 +67,10 @@ def test_transform_state_rejects_non_finite_and_out_of_bounds_values() -> None:
         (lambda: CropCommand(-1, 0, 10, 10), "crop"),
         (lambda: CropCommand(0, 0, 321, 10), "crop"),
         (lambda: CropCommand(0, 0, 10, 321), "crop"),
-        (lambda: CropCommand(10, 10, 5, 10), "crop"),
+        (lambda: CropCommand(318, 10, 5, 10), "crop"),
         (lambda: ScaleCommand(0.0), "scale"),
         (lambda: ScaleCommand(64.000001), "scale"),
-        (lambda: TranslateCommand(320.000001, 0.0), "translate"),
+        (lambda: TranslateCommand(320.000001, 0.0), "dx"),
     ],
 )
 def test_commands_reject_invalid_geometry_before_application(factory, message: str) -> None:

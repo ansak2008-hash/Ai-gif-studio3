@@ -9,6 +9,8 @@ from typing import Any
 MAX_COORDINATE = 320.0
 MIN_SCALE = 0.01
 MAX_SCALE = 64.0
+MIN_ROTATION = -360.0
+MAX_ROTATION = 360.0
 
 
 def _finite(value: float, name: str) -> float:
@@ -52,21 +54,26 @@ class TransformState:
     x: float = 0.0
     y: float = 0.0
     scale: float = 1.0
+    # Crop stays in the historical fourth positional slot for constructor compatibility.
     crop: tuple[int, int, int, int] = (0, 0, 320, 320)
+    # Positive rotation is counter-clockwise in image/display coordinates.
+    # Rotation is applied around the center of the current crop rectangle.
+    rotation: float = 0.0
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "x", _coordinate(self.x, "x"))
         object.__setattr__(self, "y", _coordinate(self.y, "y"))
         object.__setattr__(self, "scale", _bounded(self.scale, MIN_SCALE, MAX_SCALE, "scale"))
+        object.__setattr__(self, "rotation", _bounded(self.rotation, MIN_ROTATION, MAX_ROTATION, "rotation"))
         object.__setattr__(self, "crop", _crop(self.crop))
 
     @property
     def metadata(self) -> MappingProxyType:
-        return MappingProxyType({"x": self.x, "y": self.y, "scale": self.scale, "crop": self.crop})
+        return MappingProxyType({"x": self.x, "y": self.y, "scale": self.scale, "rotation": self.rotation, "crop": self.crop})
 
     @property
     def canonical_json(self) -> str:
-        return json.dumps({"crop": list(self.crop), "scale": self.scale, "x": self.x, "y": self.y}, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":"))
+        return json.dumps({"crop": list(self.crop), "rotation": self.rotation, "scale": self.scale, "x": self.x, "y": self.y}, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,7 +99,13 @@ class CropCommand:
 
     def apply(self, state: Any) -> Any:
         current = _current_transform(state)
-        transform = TransformState(current.x, current.y, current.scale, (self.x, self.y, self.width, self.height))
+        transform = TransformState(
+            x=current.x,
+            y=current.y,
+            scale=current.scale,
+            crop=(self.x, self.y, self.width, self.height),
+            rotation=current.rotation,
+        )
         return _apply(self, state, transform)
 
 
@@ -116,7 +129,44 @@ class ScaleCommand:
 
     def apply(self, state: Any) -> Any:
         current = _current_transform(state)
-        transform = TransformState(current.x, current.y, self.scale, current.crop)
+        transform = TransformState(
+            x=current.x,
+            y=current.y,
+            scale=self.scale,
+            crop=current.crop,
+            rotation=current.rotation,
+        )
+        return _apply(self, state, transform)
+
+
+@dataclass(frozen=True, slots=True)
+class RotateCommand:
+    degrees: float
+    operation: str = "rotate"
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "degrees", _bounded(self.degrees, MIN_ROTATION, MAX_ROTATION, "degrees"))
+        if self.operation != "rotate":
+            raise ValueError("operation must be 'rotate'")
+
+    @property
+    def metadata(self) -> MappingProxyType:
+        return MappingProxyType({"degrees": self.degrees})
+
+    @property
+    def canonical_json(self) -> str:
+        return _command_json(self.operation, self.metadata)
+
+    def apply(self, state: Any) -> Any:
+        current = _current_transform(state)
+        rotation = _bounded(current.rotation + self.degrees, MIN_ROTATION, MAX_ROTATION, "rotation")
+        transform = TransformState(
+            x=current.x,
+            y=current.y,
+            scale=current.scale,
+            crop=current.crop,
+            rotation=rotation,
+        )
         return _apply(self, state, transform)
 
 
@@ -142,7 +192,13 @@ class TranslateCommand:
 
     def apply(self, state: Any) -> Any:
         current = _current_transform(state)
-        transform = TransformState(current.x + self.dx, current.y + self.dy, current.scale, current.crop)
+        transform = TransformState(
+            x=current.x + self.dx,
+            y=current.y + self.dy,
+            scale=current.scale,
+            crop=current.crop,
+            rotation=current.rotation,
+        )
         return _apply(self, state, transform)
 
 

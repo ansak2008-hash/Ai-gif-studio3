@@ -103,6 +103,8 @@ class ProjectState:
         }
         if transform is not None and transform != TransformState():
             payload["transform"] = {"x": transform.x, "y": transform.y, "scale": transform.scale, "crop": list(transform.crop)}
+            if transform.rotation != 0.0:
+                payload["transform"]["rotation"] = transform.rotation
         if layer_stack is not None and layer_stack != LayerStack():
             payload["layer_stack"] = json.loads(layer_stack.canonical_json)
         try:
@@ -136,7 +138,7 @@ class ProjectState:
             processing = ProcessingSettings.model_validate(payload["processing"])
             metadata = payload["metadata"]
             raw_transform = payload.get("transform")
-            transform = None if raw_transform is None else TransformState(x=raw_transform["x"], y=raw_transform["y"], scale=raw_transform["scale"], crop=tuple(raw_transform["crop"]))
+            transform = None if raw_transform is None else TransformState(x=raw_transform["x"], y=raw_transform["y"], rotation=raw_transform.get("rotation", 0.0), scale=raw_transform["scale"], crop=tuple(raw_transform["crop"]))
             raw_layer_stack = payload.get("layer_stack")
             layer_stack = None if raw_layer_stack is None else LayerStack.from_canonical_json(json.dumps(raw_layer_stack, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":")))
         except (KeyError, TypeError, ValueError) as exc:
@@ -188,4 +190,4 @@ class ProjectState:
         raw = payload.get("transform")
         if raw is None:
             return TransformState()
-        return TransformState(x=raw["x"], y=raw["y"], scale=raw["scale"], crop=tuple(raw["crop"]))
+        return TransformState(x=raw["x"], y=raw["y"], rotation=raw.get("rotation", 0.0), scale=raw["scale"], crop=tuple(raw["crop"]))
