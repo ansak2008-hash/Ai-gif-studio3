@@ -5,7 +5,10 @@ import os
 import tempfile
 from pathlib import Path
 
-from ai_gif_studio.domain.persistence import RevisionGraphPersistence, PersistenceValidationError
+from ai_gif_studio.domain.persistence import (
+    PersistenceValidationError,
+    RevisionGraphPersistence,
+)
 
 
 class PersistenceStorageError(RuntimeError):
@@ -38,10 +41,7 @@ class FilesystemPersistence:
     def save(self, document: str) -> None:
         if not isinstance(document, str):
             raise TypeError("document must be a string")
-        try:
-            RevisionGraphPersistence.decode(document)
-        except PersistenceValidationError:
-            raise
+        RevisionGraphPersistence.decode(document)
 
         temporary_path: Path | None = None
         try:
@@ -76,8 +76,8 @@ class FilesystemPersistence:
             primary = self._read_valid(self.primary_path)
         except FileNotFoundError:
             primary = None
-        except PersistenceStorageError:
-            raise
+        except PersistenceValidationError:
+            primary = None
 
         if primary is not None:
             return primary
@@ -86,6 +86,10 @@ class FilesystemPersistence:
             recovery = self._read_valid(self.recovery_path)
         except FileNotFoundError as exc:
             raise PersistenceStorageError("no valid persisted document is available") from exc
+        except PersistenceValidationError as exc:
+            raise PersistenceStorageError(
+                "recovery document failed integrity validation"
+            ) from exc
 
         try:
             self.save(recovery)
@@ -97,13 +101,10 @@ class FilesystemPersistence:
     def _read_valid(path: Path) -> str:
         try:
             document = path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            raise
         except OSError as exc:
-            if isinstance(exc, FileNotFoundError):
-                raise
             raise PersistenceStorageError("persisted document could not be read") from exc
 
-        try:
-            RevisionGraphPersistence.decode(document)
-        except PersistenceValidationError as exc:
-            raise PersistenceStorageError("persisted document failed integrity validation") from exc
+        RevisionGraphPersistence.decode(document)
         return document
