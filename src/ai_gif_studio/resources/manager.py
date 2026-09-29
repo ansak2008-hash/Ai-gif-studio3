@@ -19,6 +19,8 @@ class ResourceRequest:
     model: str | None = None
 
     def __post_init__(self) -> None:
+        if isinstance(self.memory_bytes, bool) or not isinstance(self.memory_bytes, (int, np.integer)):
+            raise TypeError("memory_bytes must be an integer")
         if self.memory_bytes <= 0:
             raise ValueError("memory_bytes must be positive")
 
@@ -40,6 +42,8 @@ class ResourceManager:
     """
 
     def __init__(self, memory_limit_bytes: int) -> None:
+        if isinstance(memory_limit_bytes, bool) or not isinstance(memory_limit_bytes, (int, np.integer)):
+            raise TypeError("memory_limit_bytes must be an integer")
         if memory_limit_bytes <= 0:
             raise ValueError("memory_limit_bytes must be positive")
         self._limit = memory_limit_bytes
