@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from uuid import UUID
 
 from ai_gif_studio.domain.layer_state import LayerStack
+from ai_gif_studio.temporal_engine.blend import BlendMode
 from ai_gif_studio.temporal_engine.compositor import BlendLayer
 from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
 from ai_gif_studio.temporal_engine.render_mask import RenderMask
@@ -42,5 +43,5 @@ def bind_layer_stack(
             if layer.opacity == 1.0
             else RenderMask.allocate(source.width, source.height, value=layer.opacity)
         )
-        bindings.append(BlendLayer(source=source, mask=mask))
+        bindings.append(BlendLayer(source=source, mode=BlendMode(layer.blend_mode.value), mask=mask))
     return tuple(bindings)
