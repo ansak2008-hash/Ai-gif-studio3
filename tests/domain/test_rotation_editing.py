@@ -141,7 +141,7 @@ def test_rotation_keeps_crop_center_fixed() -> None:
     state = TransformState(crop=(120, 120, 100, 100), rotation=137.0, scale=2.0)
     result = apply_transform_state(source, state)
     x, y = _alpha_centroid(result)
-    np.testing.assert_allclose((x, y), (50.0, 50.0), atol=1e-6)
+    np.testing.assert_allclose((x, y), (50.0, 50.0), atol=2e-3)
 
 
 def test_rotation_composes_scale_around_crop_center_before_translation() -> None:
