@@ -48,10 +48,13 @@ def test_revision_identity_is_deterministic() -> None:
     assert first.canonical_json == second.canonical_json
 
 
-def test_revision_is_immutable() -> None:
-    revision = _root()
+def test_revision_is_immutable_and_detached_from_metadata_input() -> None:
+    metadata = {"command": "root", "nested": {"value": 1}}
+    revision = Revision.create(_state(), None, metadata)
+    metadata["nested"]["value"] = 999
     with pytest.raises((AttributeError, TypeError)):
         revision.parent_id = "x"  # type: ignore[misc]
+    assert '"value":1' in revision.command_metadata
 
 
 def test_root_and_parent_contract() -> None:
@@ -119,6 +122,18 @@ def test_max_nodes_is_bounded() -> None:
     graph.add(_child(root))
     with pytest.raises(RevisionLimitError):
         graph.add(_child(root, marker="third"))
+
+
+def test_corrupted_graph_is_detected() -> None:
+    root = _root()
+    graph = RevisionGraph(root)
+    child = _child(root)
+    graph.add(child)
+    graph._nodes[child.revision_id] = Revision.create(  # type: ignore[attr-defined]
+        _state(1), root.revision_id, {"command": "tampered"}
+    )
+    with pytest.raises(RevisionValidationError):
+        graph.validate()
 
 
 def test_serialization_round_trip_and_corruption_detection() -> None:
