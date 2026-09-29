@@ -31,6 +31,21 @@ def _coordinate(value: float, name: str) -> float:
     return _bounded(value, -MAX_COORDINATE, MAX_COORDINATE, name)
 
 
+def _crop(value: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
+    if (
+        not isinstance(value, tuple)
+        or len(value) != 4
+        or any(isinstance(item, bool) or not isinstance(item, int) for item in value)
+    ):
+        raise TypeError("crop must be a four-integer tuple")
+    x, y, width, height = value
+    if not 0 <= x <= 320 or not 0 <= y <= 320:
+        raise ValueError("crop origin must be within the 320x320 canvas")
+    if width < 1 or height < 1 or x + width > 320 or y + height > 320:
+        raise ValueError("crop rectangle must fit within the 320x320 canvas")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class TransformState:
     x: float = 0.0
@@ -42,23 +57,11 @@ class TransformState:
         object.__setattr__(self, "x", _coordinate(self.x, "x"))
         object.__setattr__(self, "y", _coordinate(self.y, "y"))
         object.__setattr__(self, "scale", _bounded(self.scale, MIN_SCALE, MAX_SCALE, "scale"))
-        if (
-            not isinstance(self.crop, tuple)
-            or len(self.crop) != 4
-            or any(isinstance(value, bool) or not isinstance(value, int) for value in self.crop)
-        ):
-            raise TypeError("crop must be a four-integer tuple")
-        x, y, width, height = self.crop
-        if not 0 <= x <= 320 or not 0 <= y <= 320:
-            raise ValueError("crop origin must be within the 320x320 canvas")
-        if width < 1 or height < 1 or x + width > 320 or y + height > 320:
-            raise ValueError("crop rectangle must fit within the 320x320 canvas")
+        object.__setattr__(self, "crop", _crop(self.crop))
 
     @property
     def metadata(self) -> MappingProxyType:
-        return MappingProxyType(
-            {"x": self.x, "y": self.y, "scale": self.scale, "crop": self.crop}
-        )
+        return MappingProxyType({"x": self.x, "y": self.y, "scale": self.scale, "crop": self.crop})
 
     @property
     def canonical_json(self) -> str:
@@ -71,57 +74,64 @@ class TransformState:
         )
 
 
+@dataclass(frozen=True, slots=True)
 class CropCommand:
-    operation = "crop"
+    x: int
+    y: int
+    width: int
+    height: int
+    operation: str = "crop"
 
-    def __init__(self, x: int, y: int, width: int, height: int) -> None:
-        self._state = TransformState(crop=(x, y, width, height))
+    def __post_init__(self) -> None:
+        _crop((self.x, self.y, self.width, self.height))
 
     @property
     def metadata(self) -> MappingProxyType:
-        x, y, width, height = self._state.crop
-        return MappingProxyType({"x": x, "y": y, "width": width, "height": height})
+        return MappingProxyType({"x": self.x, "y": self.y, "width": self.width, "height": self.height})
 
     @property
     def canonical_json(self) -> str:
         return _command_json(self.operation, self.metadata)
 
     def apply(self, state: Any) -> Any:
-        if isinstance(state, TransformState):
-            return TransformState(state.x, state.y, state.scale, self._state.crop)
-        return _apply_project_state(self, state, TransformState(state.x, state.y, state.scale, self._state.crop))
+        transform = TransformState(state.x, state.y, state.scale, (self.x, self.y, self.width, self.height))
+        return _apply(self, state, transform)
 
 
+@dataclass(frozen=True, slots=True)
 class ScaleCommand:
-    operation = "scale"
+    scale: float
+    operation: str = "scale"
 
-    def __init__(self, scale: float) -> None:
-        self._scale = _bounded(scale, MIN_SCALE, MAX_SCALE, "scale")
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "scale", _bounded(self.scale, MIN_SCALE, MAX_SCALE, "scale"))
 
     @property
     def metadata(self) -> MappingProxyType:
-        return MappingProxyType({"scale": self._scale})
+        return MappingProxyType({"scale": self.scale})
 
     @property
     def canonical_json(self) -> str:
         return _command_json(self.operation, self.metadata)
 
     def apply(self, state: Any) -> Any:
-        if isinstance(state, TransformState):
-            return TransformState(state.x, state.y, self._scale, state.crop)
-        return _apply_project_state(self, state, TransformState(state.x, state.y, self._scale, state.crop))
+        transform = TransformState(state.x, state.y, self.scale, state.crop)
+        return _apply(self, state, transform)
 
 
+@dataclass(frozen=True, slots=True)
 class TranslateCommand:
-    operation = "translate"
+    dx: float
+    dy: float
+    operation: str = "translate"
 
-    def __init__(self, dx: float, dy: float) -> None:
-        self._dx = _coordinate(dx, "dx")
-        self._dy = _coordinate(dy, "dy")
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "dx", _coordinate(self.dx, "dx"))
+        object.__setattr__(self, "dy", _coordinate(self.dy, "dy"))
 
     @property
     def metadata(self) -> MappingProxyType:
-        return MappingProxyType({"dx": self._dx, "dy": self._dy})
+        return MappingProxyType({"dx": self.dx, "dy": self.dy})
 
     @property
     def canonical_json(self) -> str:
@@ -129,35 +139,18 @@ class TranslateCommand:
 
     def apply(self, state: Any) -> Any:
         if isinstance(state, TransformState):
-            return TransformState(
-                state.x + self._dx,
-                state.y + self._dy,
-                state.scale,
-                state.crop,
-            )
-        return _apply_project_state(
-            self,
-            state,
-            TransformState(
-                state.transform.x + self._dx,
-                state.transform.y + self._dy,
-                state.transform.scale,
-                state.transform.crop,
-            ),
-        )
+            return TransformState(state.x + self.dx, state.y + self.dy, state.scale, state.crop)
+        return _apply(self, state, TransformState(
+            state.transform.x + self.dx,
+            state.transform.y + self.dy,
+            state.transform.scale,
+            state.transform.crop,
+        ))
 
 
-def _command_json(operation: str, metadata: MappingProxyType) -> str:
-    return json.dumps(
-        {**dict(metadata), "operation": operation},
-        ensure_ascii=False,
-        allow_nan=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-
-
-def _apply_project_state(command: Any, state: Any, transform: TransformState) -> Any:
+def _apply(command: Any, state: Any, transform: TransformState) -> Any:
+    if isinstance(state, TransformState):
+        return transform
     from .project import ProjectState
 
     if not isinstance(state, ProjectState):
@@ -169,4 +162,14 @@ def _apply_project_state(command: Any, state: Any, transform: TransformState) ->
         state.processing,
         state.metadata,
         transform=transform,
+    )
+
+
+def _command_json(operation: str, metadata: MappingProxyType) -> str:
+    return json.dumps(
+        {**dict(metadata), "operation": operation},
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
     )
