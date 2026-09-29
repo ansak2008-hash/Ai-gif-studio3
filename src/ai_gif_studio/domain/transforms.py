@@ -54,10 +54,11 @@ class TransformState:
     x: float = 0.0
     y: float = 0.0
     scale: float = 1.0
+    # Crop stays in the historical fourth positional slot for constructor compatibility.
+    crop: tuple[int, int, int, int] = (0, 0, 320, 320)
     # Positive rotation is counter-clockwise in image/display coordinates.
     # Rotation is applied around the center of the current crop rectangle.
     rotation: float = 0.0
-    crop: tuple[int, int, int, int] = (0, 0, 320, 320)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "x", _coordinate(self.x, "x"))
@@ -98,7 +99,13 @@ class CropCommand:
 
     def apply(self, state: Any) -> Any:
         current = _current_transform(state)
-        transform = TransformState(current.x, current.y, current.scale, current.rotation, (self.x, self.y, self.width, self.height))
+        transform = TransformState(
+            x=current.x,
+            y=current.y,
+            scale=current.scale,
+            crop=(self.x, self.y, self.width, self.height),
+            rotation=current.rotation,
+        )
         return _apply(self, state, transform)
 
 
@@ -122,7 +129,13 @@ class ScaleCommand:
 
     def apply(self, state: Any) -> Any:
         current = _current_transform(state)
-        transform = TransformState(current.x, current.y, self.scale, current.rotation, current.crop)
+        transform = TransformState(
+            x=current.x,
+            y=current.y,
+            scale=self.scale,
+            crop=current.crop,
+            rotation=current.rotation,
+        )
         return _apply(self, state, transform)
 
 
@@ -147,7 +160,13 @@ class RotateCommand:
     def apply(self, state: Any) -> Any:
         current = _current_transform(state)
         rotation = _bounded(current.rotation + self.degrees, MIN_ROTATION, MAX_ROTATION, "rotation")
-        transform = TransformState(current.x, current.y, current.scale, rotation, current.crop)
+        transform = TransformState(
+            x=current.x,
+            y=current.y,
+            scale=current.scale,
+            crop=current.crop,
+            rotation=rotation,
+        )
         return _apply(self, state, transform)
 
 
@@ -173,7 +192,13 @@ class TranslateCommand:
 
     def apply(self, state: Any) -> Any:
         current = _current_transform(state)
-        transform = TransformState(current.x + self.dx, current.y + self.dy, current.scale, current.rotation, current.crop)
+        transform = TransformState(
+            x=current.x + self.dx,
+            y=current.y + self.dy,
+            scale=current.scale,
+            crop=current.crop,
+            rotation=current.rotation,
+        )
         return _apply(self, state, transform)
 
 
