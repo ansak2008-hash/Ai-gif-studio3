@@ -18,6 +18,8 @@ from ai_gif_studio.domain.transforms import (
     TranslateCommand,
 )
 
+pytestmark = pytest.mark.unit
+
 
 def _state() -> ProjectState:
     from uuid import uuid4
@@ -36,7 +38,13 @@ def test_transform_state_is_immutable_and_detached() -> None:
     with pytest.raises((AttributeError, TypeError)):
         state.x = 1.0
     assert state == TransformState()
-    assert state.metadata == {"x": 0.0, "y": 0.0, "scale": 1.0, "crop": (0, 0, 320, 320)}
+    assert state.metadata == {
+        "x": 0.0,
+        "y": 0.0,
+        "scale": 1.0,
+        "rotation": 0.0,
+        "crop": (0, 0, 320, 320),
+    }
 
 
 def test_transform_state_rejects_non_finite_and_out_of_bounds_values() -> None:
