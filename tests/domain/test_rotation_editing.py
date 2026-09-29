@@ -99,6 +99,48 @@ def test_rotation_render_binding_preserves_crop_geometry_and_is_deterministic() 
     assert first.data.flags.writeable is False
 
 
+def _alpha_centroid(buffer: RenderBuffer) -> tuple[float, float]:
+    alpha = buffer.data[:, :, 3]
+    y, x = np.indices(alpha.shape, dtype=np.float64)
+    weight = float(alpha.sum())
+    assert weight > 0.0
+    return float((x * alpha).sum() / weight), float((y * alpha).sum() / weight)
+
+
+def _asymmetric_marker() -> RenderBuffer:
+    data = np.zeros((320, 320, 4), dtype=np.float32)
+    data[139:142, 169:172, :3] = 1.0
+    data[139:142, 169:172, 3] = 1.0
+    return RenderBuffer.from_linear_rgba(data)
+
+
+def test_rotation_positive_is_counter_clockwise_around_crop_center() -> None:
+    source = _asymmetric_marker()
+    state = TransformState(crop=(120, 120, 100, 100), rotation=90.0)
+    result = apply_transform_state(source, state)
+    x, y = _alpha_centroid(result)
+    np.testing.assert_allclose((x, y), (40.0, 30.0), atol=1e-6)
+
+
+def test_rotation_keeps_crop_center_fixed() -> None:
+    data = np.zeros((320, 320, 4), dtype=np.float32)
+    data[169:172, 169:172, :3] = 1.0
+    data[169:172, 169:172, 3] = 1.0
+    source = RenderBuffer.from_linear_rgba(data)
+    state = TransformState(crop=(120, 120, 100, 100), rotation=137.0, scale=2.0)
+    result = apply_transform_state(source, state)
+    x, y = _alpha_centroid(result)
+    np.testing.assert_allclose((x, y), (50.0, 50.0), atol=1e-6)
+
+
+def test_rotation_composes_scale_around_crop_center_before_translation() -> None:
+    source = _asymmetric_marker()
+    state = TransformState(crop=(120, 120, 100, 100), rotation=90.0, scale=2.0)
+    result = apply_transform_state(source, state)
+    x, y = _alpha_centroid(result)
+    np.testing.assert_allclose((x, y), (30.0, 10.0), atol=1e-6)
+
+
 def test_rotation_does_not_mutate_source() -> None:
     source = _canvas()
     before = source.data.copy()
