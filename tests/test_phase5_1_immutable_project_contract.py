@@ -65,32 +65,45 @@ def test_canonical_bytes_are_bit_identical() -> None:
     assert hashlib.sha256(first).digest() == hashlib.sha256(second).digest()
 
 
-def test_round_trip_is_canonical_and_immutable() -> None:
+def test_round_trip_is_canonical_and_detached() -> None:
     state = _state({"unicode": "é", "control": "\u0000"})
     restored = ProjectState.from_canonical_json(state.canonical_json)
 
     assert restored.canonical_json.encode("utf-8") == state.canonical_json.encode("utf-8")
-    with pytest.raises((AttributeError, TypeError)):
-        restored.metadata["x"] = 1
+
+    view = restored.metadata
+    view["x"] = 1
+    assert "x" not in restored.metadata
 
 
-@pytest.mark.parametrize("payload", [
-    {"project_id": "not-a-uuid", "revision": 0},
-    {"project_id": str(uuid4()), "revision": -1},
-    {"project_id": str(uuid4()), "revision": True},
-    {"project_id": str(uuid4()), "revision": 0, "metadata": {"bad": float("nan")}},
-])
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"project_id": "not-a-uuid", "revision": 0},
+        {"project_id": str(uuid4()), "revision": -1},
+        {"project_id": str(uuid4()), "revision": True},
+        {"project_id": str(uuid4()), "revision": 0, "metadata": {"bad": float("nan")}},
+    ],
+)
 def test_malformed_canonical_payload_is_rejected(payload: dict) -> None:
     base = json.loads(_state().canonical_json)
     base.update(payload)
     with pytest.raises((TypeError, ValueError)):
-        ProjectState.from_canonical_json(json.dumps(base, sort_keys=True, separators=(",", ":")))
+        ProjectState.from_canonical_json(
+            json.dumps(base, sort_keys=True, separators=(",", ":"))
+        )
 
 
 def test_noncanonical_json_is_rejected() -> None:
     state = _state({"a": 1, "b": 2})
     payload = json.loads(state.canonical_json)
-    noncanonical_payload = {"metadata": payload["metadata"], "project_id": payload["project_id"], "revision": payload["revision"], "design": payload["design"], "processing": payload["processing"]}
+    noncanonical_payload = {
+        "metadata": payload["metadata"],
+        "project_id": payload["project_id"],
+        "revision": payload["revision"],
+        "design": payload["design"],
+        "processing": payload["processing"],
+    }
     noncanonical = json.dumps(noncanonical_payload, ensure_ascii=False, separators=(",", ":"))
     assert noncanonical != state.canonical_json
     with pytest.raises(ValueError):
