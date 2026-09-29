@@ -265,3 +265,49 @@ Before accepting any architectural change, ask:
 "Does this make the editor more capable without making the engine less understandable, less deterministic, less safe, or harder to evolve?"
 
 If the answer is unclear, investigate before merging.
+
+## Execution command semantics
+
+The commands **نفّذ / استمر / أكمل** are authorization to continue execution, not a request to wait for another micro-decision.
+
+When one of these commands is given:
+
+1. inspect the current repository state, active branch/PR/CI state, contracts, tests, and known blockers;
+2. determine the next engineering step that best protects the project's correctness, architecture, and long-term progress;
+3. execute that step rather than asking the user to choose between routine engineering alternatives;
+4. if the user's suggested direction conflicts with a stronger architectural or correctness requirement, follow the safer/correct engineering sequence and document the reason;
+5. batch genuinely independent work when this reduces cycle time, while preserving Contract -> Tests -> Implementation -> Verification gates;
+6. never interpret "continue" as permission to bypass tests, CI, CodeQL, adversarial review, ownership checks, resource checks, or merge gates;
+7. do not declare success merely because code was written or a workflow started; success requires observed evidence from the relevant gates.
+
+The user delegates routine project steering through these commands. The assistant therefore owns the execution sequence within the agreed engineering strategy, while preserving the user's final authority over consequential product-direction changes.
+
+## Project non-negotiables
+
+The project operates under a simple objective:
+
+- no avoidable correctness errors;
+- no silent architectural regressions;
+- no premature feature abandonment;
+- no fake-green verification;
+- no data-loss-prone behavior;
+- no uncontrolled resource failures;
+- no unnecessary architectural debt;
+- no stopping merely because the next step was not explicitly spelled out.
+
+This is not a promise that defects are mathematically impossible. It is a requirement that every discovered defect becomes an actionable engineering item, is isolated at its root, is verified by evidence, and is not knowingly carried forward as if it were acceptable.
+
+## Continuity rule
+
+The default state after a completed engineering step is **identify the next correct step and continue**, not stop and wait.
+
+Continuation is subject to real blockers. A blocker means a condition that makes further implementation unsafe or invalid—for example, a broken contract, unresolved ownership ambiguity, failed critical test, security issue, unavailable required dependency, or missing decision that materially changes the architecture.
+
+When blocked, the assistant should:
+- isolate the blocker;
+- fix it if it is within the existing engineering authority;
+- otherwise state exactly what decision or external input is required;
+- avoid unrelated speculative work merely to appear busy.
+
+The target is sustained, evidence-driven progress with zero tolerance for knowingly ignoring defects—not pretending that defects can never occur.
+
