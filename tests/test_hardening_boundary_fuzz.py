@@ -48,7 +48,7 @@ def test_affine_boundary_properties(width: int, height: int, values: list[float]
     assert spec.matrix.flags.writeable is False
 
 @settings(max_examples=64, derandomize=True, deadline=None)
-@given(st.lists(st.floats(min_value=0.0, max_value=16.0, allow_nan=False, allow_infinity=False, width=32), min_size=16, max_size=16))
+@given(st.lists(st.floats(min_value=0.0, max_value=16.0, allow_nan=False, allow_infinity=False, width=32), min_size=8, max_size=8))
 def test_perspective_boundary_properties(values: list[float]) -> None:
     points = np.asarray(values, dtype=np.float64).reshape(4, 2)
     try:
