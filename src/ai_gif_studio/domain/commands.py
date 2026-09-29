@@ -33,6 +33,7 @@ class ReplaceDesignSpecCommand:
             self.design,
             state.processing,
             state.metadata,
+            transform=state.transform,
         )
 
 
