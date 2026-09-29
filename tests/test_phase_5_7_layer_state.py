@@ -6,14 +6,14 @@ from uuid import uuid4
 import pytest
 
 from ai_gif_studio.domain.commands import CommandHistory, ReplaceLayerStackCommand
-from ai_gif_studio.domain.layer_state import LayerStack, LayerState
+from ai_gif_studio.domain.layer_state import LayerBlendMode, LayerStack, LayerState
 from ai_gif_studio.domain.project import ProjectState
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
 from ai_gif_studio.domain.transforms import TranslateCommand
 
 
-def _layer(*, opacity: float = 1.0, visible: bool = True) -> LayerState:
-    return LayerState(uuid4(), uuid4(), opacity=opacity, visible=visible)
+def _layer(*, opacity: float = 1.0, visible: bool = True, blend_mode: LayerBlendMode = LayerBlendMode.NORMAL) -> LayerState:
+    return LayerState(uuid4(), uuid4(), opacity=opacity, visible=visible, blend_mode=blend_mode)
 
 
 def test_layer_state_is_immutable_and_metadata_is_detached() -> None:
@@ -46,6 +46,37 @@ def test_layer_state_accepts_opacity_boundaries() -> None:
     assert LayerState(uuid4(), uuid4(), opacity=0.0).opacity == 0.0
     assert LayerState(uuid4(), uuid4(), opacity=1.0).opacity == 1.0
 
+
+
+def test_layer_blend_mode_is_closed_immutable_and_validated() -> None:
+    layer = _layer(blend_mode=LayerBlendMode.MULTIPLY)
+    assert layer.blend_mode is LayerBlendMode.MULTIPLY
+    assert layer.metadata["blend_mode"] == "multiply"
+    with pytest.raises(TypeError):
+        LayerState(uuid4(), uuid4(), blend_mode="multiply")
+
+
+def test_set_blend_mode_returns_new_snapshot_and_preserves_other_state() -> None:
+    layer = _layer(opacity=0.25, visible=False)
+    stack = LayerStack().add(layer)
+    changed = stack.set_blend_mode(layer.layer_id, LayerBlendMode.SCREEN)
+    assert changed is not stack
+    assert changed.layers[0].blend_mode is LayerBlendMode.SCREEN
+    assert changed.layers[0].opacity == 0.25
+    assert changed.layers[0].visible is False
+    assert stack.layers[0].blend_mode is LayerBlendMode.NORMAL
+
+
+def test_blend_mode_round_trips_canonically_and_invalid_values_fail_closed() -> None:
+    stack = LayerStack().add(_layer(blend_mode=LayerBlendMode.OVERLAY))
+    canonical = stack.canonical_json
+    assert LayerStack.from_canonical_json(canonical) == stack
+    legacy = canonical.replace(',"blend_mode":"overlay"', "", 1)
+    with pytest.raises(ValueError):
+        LayerStack.from_canonical_json(legacy)
+    invalid = canonical.replace('"overlay"', '"unknown"', 1)
+    with pytest.raises(ValueError):
+        LayerStack.from_canonical_json(invalid)
 
 def test_layer_stack_is_immutable_and_ordered_back_to_front() -> None:
     first = _layer()
