@@ -1,4 +1,4 @@
-from __future__
+from __future__ import annotations
 
 import json
 import math
@@ -65,13 +65,7 @@ class TransformState:
 
     @property
     def canonical_json(self) -> str:
-        return json.dumps(
-            {"crop": list(self.crop), "scale": self.scale, "x": self.x, "y": self.y},
-            ensure_ascii=False,
-            allow_nan=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        )
+        return json.dumps({"crop": list(self.crop), "scale": self.scale, "x": self.x, "y": self.y}, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,21 +156,8 @@ def _apply(command: Any, state: Any, transform: TransformState) -> Any:
 
     if not isinstance(state, ProjectState):
         raise TypeError("state must be a TransformState or ProjectState")
-    return ProjectState(
-        state.project_id,
-        state.revision + 1,
-        state.design,
-        state.processing,
-        state.metadata,
-        transform=transform,
-    )
+    return ProjectState(state.project_id, state.revision + 1, state.design, state.processing, state.metadata, transform=transform)
 
 
 def _command_json(operation: str, metadata: MappingProxyType) -> str:
-    return json.dumps(
-        {**dict(metadata), "operation": operation},
-        ensure_ascii=False,
-        allow_nan=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    )
+    return json.dumps({**dict(metadata), "operation": operation}, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":"))
