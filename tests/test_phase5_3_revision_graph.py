@@ -6,8 +6,8 @@ from uuid import uuid4
 import pytest
 
 from ai_gif_studio.domain.commands import (
-    ReplaceDesignSpecCommand,
     CommandHistory,
+    ReplaceDesignSpecCommand,
 )
 from ai_gif_studio.domain.project import ProjectState
 from ai_gif_studio.domain.revisions import (
