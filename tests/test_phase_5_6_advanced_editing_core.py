@@ -67,10 +67,10 @@ def test_transform_state_rejects_non_finite_and_out_of_bounds_values() -> None:
         (lambda: CropCommand(-1, 0, 10, 10), "crop"),
         (lambda: CropCommand(0, 0, 321, 10), "crop"),
         (lambda: CropCommand(0, 0, 10, 321), "crop"),
-        (lambda: CropCommand(10, 10, 5, 10), "crop"),
+        (lambda: CropCommand(318, 10, 5, 10), "crop"),
         (lambda: ScaleCommand(0.0), "scale"),
         (lambda: ScaleCommand(64.000001), "scale"),
-        (lambda: TranslateCommand(320.000001, 0.0), "translate"),
+        (lambda: TranslateCommand(320.000001, 0.0), "dx"),
     ],
 )
 def test_commands_reject_invalid_geometry_before_application(factory, message: str) -> None:
