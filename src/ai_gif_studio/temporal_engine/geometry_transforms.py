@@ -80,7 +80,9 @@ class PerspectiveTransformSpec:
             raise TypeError(f"{name} points must contain numeric values")
         if not np.isfinite(raw).all():
             raise ValueError(f"{name} points must contain finite values")
-        return np.array(raw, dtype=np.float64, copy=True)
+        owned = np.array(raw, dtype=np.float64, copy=True)
+        owned.setflags(write=False)
+        return owned
 
 
 @dataclass(frozen=True, slots=True)
