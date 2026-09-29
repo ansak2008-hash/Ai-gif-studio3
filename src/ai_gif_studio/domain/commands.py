@@ -54,6 +54,7 @@ class ReplaceProcessingSettingsCommand:
             state.design,
             self.processing,
             state.metadata,
+            transform=state.transform,
         )
 
 
