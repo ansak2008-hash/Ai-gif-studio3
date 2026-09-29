@@ -3,13 +3,14 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass
+from enum import StrEnum
 from types import MappingProxyType
 from typing import Any
 from uuid import UUID
 
 DEFAULT_MAX_LAYERS = 256
 _TOP_LEVEL_KEYS = frozenset({"layers", "max_layers"})
-_LAYER_KEYS = frozenset({"layer_id", "source_asset_id", "opacity", "visible"})
+_LAYER_KEYS = frozenset({"layer_id", "source_asset_id", "opacity", "visible", "blend_mode"})
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -30,6 +31,13 @@ def _opacity(value: float) -> float:
     return normalized
 
 
+class LayerBlendMode(StrEnum):
+    NORMAL = "normal"
+    MULTIPLY = "multiply"
+    SCREEN = "screen"
+    OVERLAY = "overlay"
+
+
 def _max_layers(value: int) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise ValueError("max_layers must be a positive integer")
@@ -42,6 +50,7 @@ class LayerState:
     source_asset_id: UUID
     opacity: float = 1.0
     visible: bool = True
+    blend_mode: LayerBlendMode = LayerBlendMode.NORMAL
 
     def __post_init__(self) -> None:
         if not isinstance(self.layer_id, UUID):
@@ -51,6 +60,8 @@ class LayerState:
         object.__setattr__(self, "opacity", _opacity(self.opacity))
         if not isinstance(self.visible, bool):
             raise TypeError("visible must be a boolean")
+        if not isinstance(self.blend_mode, LayerBlendMode):
+            raise TypeError("blend_mode must be a LayerBlendMode")
 
     @property
     def metadata(self) -> MappingProxyType:
@@ -59,7 +70,23 @@ class LayerState:
             "source_asset_id": str(self.source_asset_id),
             "opacity": self.opacity,
             "visible": self.visible,
+            "blend_mode": self.blend_mode.value,
         })
+
+    def set_blend_mode(self, layer_id: UUID, blend_mode: LayerBlendMode) -> LayerStack:
+        if not isinstance(blend_mode, LayerBlendMode):
+            raise TypeError("blend_mode must be a LayerBlendMode")
+        index = self._index(layer_id)
+        values = list(self.layers)
+        layer = values[index]
+        values[index] = LayerState(
+            layer.layer_id,
+            layer.source_asset_id,
+            layer.opacity,
+            layer.visible,
+            blend_mode,
+        )
+        return LayerStack(tuple(values), max_layers=self.max_layers)
 
     @property
     def canonical_json(self) -> str:
@@ -122,14 +149,14 @@ class LayerStack:
         index = self._index(layer_id)
         values = list(self.layers)
         layer = values[index]
-        values[index] = LayerState(layer.layer_id, layer.source_asset_id, layer.opacity, visible)
+        values[index] = LayerState(layer.layer_id, layer.source_asset_id, layer.opacity, visible, layer.blend_mode)
         return LayerStack(tuple(values), max_layers=self.max_layers)
 
     def set_opacity(self, layer_id: UUID, opacity: float) -> LayerStack:
         index = self._index(layer_id)
         values = list(self.layers)
         layer = values[index]
-        values[index] = LayerState(layer.layer_id, layer.source_asset_id, opacity, layer.visible)
+        values[index] = LayerState(layer.layer_id, layer.source_asset_id, opacity, layer.visible, layer.blend_mode)
         return LayerStack(tuple(values), max_layers=self.max_layers)
 
     @property
@@ -177,6 +204,7 @@ class LayerStack:
             UUID(value["source_asset_id"]),
             opacity=value["opacity"],
             visible=value["visible"],
+            blend_mode=LayerBlendMode(value["blend_mode"]),
         )
 
     def _index(self, layer_id: UUID) -> int:
