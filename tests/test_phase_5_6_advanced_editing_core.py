@@ -155,3 +155,24 @@ def test_commands_reject_wrong_state_type() -> None:
     ):
         with pytest.raises(TypeError):
             command.apply(object())
+
+
+def test_transform_command_operation_identity_is_fixed() -> None:
+    for factory, operation in (
+        (lambda: CropCommand(0, 0, 10, 10, operation="other"), "crop"),
+        (lambda: ScaleCommand(2.0, operation="other"), "scale"),
+        (lambda: TranslateCommand(1.0, 1.0, operation="other"), "translate"),
+    ):
+        with pytest.raises(ValueError, match=operation):
+            factory()
+
+
+def test_legacy_project_commands_preserve_transform_state() -> None:
+    initial = TranslateCommand(8.0, -3.0).apply(_state())
+    history = CommandHistory(initial)
+    from ai_gif_studio.domain.commands import ReplaceDesignSpecCommand, ReplaceProcessingSettingsCommand
+
+    history.execute(ReplaceDesignSpecCommand(DesignSpec()))
+    assert history.current.transform == initial.transform
+    history.execute(ReplaceProcessingSettingsCommand(ProcessingSettings()))
+    assert history.current.transform == initial.transform
