@@ -5,7 +5,11 @@ from uuid import uuid4
 
 import pytest
 
+from ai_gif_studio.domain.commands import CommandHistory, ReplaceLayerStackCommand
 from ai_gif_studio.domain.layer_state import LayerStack, LayerState
+from ai_gif_studio.domain.project import ProjectState
+from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
+from ai_gif_studio.domain.transforms import TranslateCommand
 
 
 def _layer(*, opacity: float = 1.0, visible: bool = True) -> LayerState:
@@ -131,3 +135,50 @@ def test_uuid_identity_is_stable_and_source_asset_reference_is_not_owned() -> No
     assert layer.layer_id == layer_id
     assert layer.source_asset_id == asset_id
     assert layer.metadata["source_asset_id"] == str(asset_id)
+
+
+def _project_state() -> ProjectState:
+    from uuid import uuid4
+
+    return ProjectState(uuid4(), 0, DesignSpec(), ProcessingSettings(), {})
+
+
+def test_layer_stack_integrates_with_project_state_and_round_trips() -> None:
+    layer = _layer(opacity=0.4, visible=False)
+    stack = LayerStack().add(layer)
+    state = ProjectState(
+        _project_state().project_id,
+        0,
+        DesignSpec(),
+        ProcessingSettings(),
+        {},
+        layer_stack=stack,
+    )
+    restored = ProjectState.from_canonical_json(state.canonical_json)
+    assert restored.layer_stack == stack
+    assert restored.canonical_json == state.canonical_json
+
+
+def test_layer_stack_command_composes_with_history_and_preserves_transforms() -> None:
+    initial = TranslateCommand(8.0, -3.0).apply(_project_state())
+    stack = LayerStack().add(_layer())
+    history = CommandHistory(initial)
+    current = history.execute(ReplaceLayerStackCommand(stack))
+    assert current.layer_stack == stack
+    assert current.transform == initial.transform
+    assert history.undo().layer_stack == LayerStack()
+    assert history.redo().layer_stack == stack
+
+
+def test_transform_commands_preserve_layer_stack() -> None:
+    stack = LayerStack().add(_layer())
+    initial = ProjectState(
+        _project_state().project_id,
+        0,
+        DesignSpec(),
+        ProcessingSettings(),
+        {},
+        layer_stack=stack,
+    )
+    transformed = TranslateCommand(4.0, 2.0).apply(initial)
+    assert transformed.layer_stack == stack
