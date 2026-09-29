@@ -1,4 +1,4 @@
-from __future__ import annotations
+from __future__
 
 import json
 import math
@@ -140,14 +140,9 @@ class TranslateCommand:
         return _command_json(self.operation, self.metadata)
 
     def apply(self, state: Any) -> Any:
-        if isinstance(state, TransformState):
-            return TransformState(state.x + self.dx, state.y + self.dy, state.scale, state.crop)
-        return _apply(self, state, TransformState(
-            state.transform.x + self.dx,
-            state.transform.y + self.dy,
-            state.transform.scale,
-            state.transform.crop,
-        ))
+        current = _current_transform(state)
+        transform = TransformState(current.x + self.dx, current.y + self.dy, current.scale, current.crop)
+        return _apply(self, state, transform)
 
 
 def _current_transform(state: Any) -> TransformState:
