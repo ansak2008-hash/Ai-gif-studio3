@@ -10,13 +10,31 @@ RevisionGraph -> RevisionGraphPersistence.encode() -> CrashSafePersistence adapt
 
 The Phase 5.4 serializer remains pure and storage-agnostic. Phase 5.5 owns atomic replacement, recovery detection, and failure policy.
 
-## Contract
+## Public adapter contract
 
-### Canonical primary document
+The first concrete adapter is `FilesystemPersistence`:
+
+- constructor: `FilesystemPersistence(primary_path: Path)`;
+- `save(document: str) -> None`;
+- `load() -> str`.
+
+The adapter accepts and returns the canonical document string. It does not own graph serialization; callers must use `RevisionGraphPersistence.encode()` and `decode()` for the Phase 5.4 contract.
+
+`save()` rejects non-string documents before filesystem mutation and writes only the supplied canonical document. Callers are responsible for obtaining it from the Phase 5.4 encoder.
+
+`load()` returns only a document that passes Phase 5.4 canonical validation. It must therefore call the Phase 5.4 decoder before returning. A successful recovery returns the recovered canonical document and promotes it to the primary path atomically.
+
+Typed adapter failures use `PersistenceStorageError`, preserving the underlying cause through exception chaining.
+
+## Objective
+
+Add crash-safe persistence orchestration above the pure Phase 5.4 persistence boundary. A process interruption must not leave the canonical persisted document partially replaced or silently corrupt.
+
+## Canonical primary document
 
 The primary persisted document is exactly the canonical UTF-8 document produced by `RevisionGraphPersistence.encode()`.
 
-### Atomic replacement
+## Atomic replacement
 
 A successful save must make the new canonical document visible as one complete version. The implementation must never truncate the primary file and then write the replacement in place.
 
@@ -33,7 +51,7 @@ The required write sequence is:
 
 The temporary file must be cleaned up on every failure path when cleanup is possible.
 
-### Recovery
+## Recovery
 
 On load:
 
@@ -43,25 +61,27 @@ On load:
 - never silently accept a non-canonical document;
 - never silently discard a valid primary in favor of an invalid recovery candidate.
 
-### Integrity
+The recovery candidate is the deterministic sibling path `<primary_name>.recovery`. Save uses a temporary sibling path and does not treat arbitrary directory files as recovery candidates.
+
+## Integrity
 
 Every loaded document must pass the complete Phase 5.4 decode contract before becoming application state.
 
 A recovery candidate is not trusted merely because it exists; it must pass the same canonical decode and integrity validation.
 
-### Failure containment
+## Failure containment
 
 Expected storage failures must be converted into typed persistence errors with the original cause preserved.
 
 Do not use blanket `except Exception` around the complete persistence operation. Cleanup errors must not hide the primary failure; if both occur, the primary operation failure remains the reported cause and cleanup status is retained only when the API contract exposes it.
 
-### Ownership
+## Ownership
 
 The persistence adapter owns files it creates and temporary resources it allocates. It must not delete or mutate unrelated paths.
 
 Temporary names must be derived from the target path and must not permit path traversal outside the target directory.
 
-### Durability
+## Durability
 
 The contract distinguishes:
 
@@ -71,7 +91,7 @@ The contract distinguishes:
 
 The adapter must document platform limitations instead of claiming stronger guarantees than the operating system provides.
 
-### Resource bounds
+## Resource bounds
 
 Phase 5.4 byte and revision limits remain mandatory. The adapter must not bypass them during recovery.
 
