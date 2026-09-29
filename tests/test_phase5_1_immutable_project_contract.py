@@ -90,7 +90,8 @@ def test_malformed_canonical_payload_is_rejected(payload: dict) -> None:
 def test_noncanonical_json_is_rejected() -> None:
     state = _state({"a": 1, "b": 2})
     payload = json.loads(state.canonical_json)
-    noncanonical = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-    if noncanonical != state.canonical_json:
-        with pytest.raises(ValueError):
-            ProjectState.from_canonical_json(noncanonical)
+    noncanonical_payload = {"metadata": payload["metadata"], "project_id": payload["project_id"], "revision": payload["revision"], "design": payload["design"], "processing": payload["processing"]}
+    noncanonical = json.dumps(noncanonical_payload, ensure_ascii=False, separators=(",", ":"))
+    assert noncanonical != state.canonical_json
+    with pytest.raises(ValueError):
+        ProjectState.from_canonical_json(noncanonical)
