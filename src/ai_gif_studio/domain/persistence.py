@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from .revisions import Revision, RevisionGraph, RevisionGraphError, RevisionValidationError
+from .revisions import Revision, RevisionGraph, RevisionGraphError
 
 SCHEMA_VERSION = 1
 DEFAULT_MAX_DOCUMENT_BYTES = 16 * 1024 * 1024
