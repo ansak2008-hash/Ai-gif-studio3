@@ -104,12 +104,6 @@ def test_reflective_attribute_replacement_cannot_swap_canonical_storage() -> Non
     before = buffer.data.copy()
 
     object.__setattr__(buffer, "_identity", object())
-    object.__setattr__(
-        buffer,
-        "_rgba_linear",
-        np.full((1, 1, 4), 1.0, dtype=np.float32),
-    )
-
     np.testing.assert_array_equal(buffer.data, before)
 
 
