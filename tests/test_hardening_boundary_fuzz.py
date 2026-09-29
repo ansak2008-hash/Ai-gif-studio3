@@ -6,10 +6,12 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from ai_gif_studio.temporal_engine.blend import BlendMode, BlendModeEffect
 from ai_gif_studio.temporal_engine.geometry_transforms import (
     AffineTransformSpec,
     PerspectiveTransformSpec,
 )
+from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
 from ai_gif_studio.temporal_engine.render_mask import RenderMask
 
 pytestmark = pytest.mark.unit
@@ -61,3 +63,16 @@ def test_perspective_boundary_properties(values: list[float]) -> None:
     assert np.isfinite(spec.destination_points).all()
     assert spec.source_points.flags.writeable is False
     assert spec.destination_points.flags.writeable is False
+
+
+@pytest.mark.parametrize("inputs", [(), (object(),), (object(), object(), object())])
+def test_blend_boundary_rejects_wrong_input_count_or_types(inputs: tuple[object, ...]) -> None:
+    with pytest.raises((TypeError, ValueError)):
+        BlendModeEffect(BlendMode.NORMAL)(inputs)  # type: ignore[arg-type]
+
+
+def test_blend_boundary_accepts_only_canonical_render_buffers() -> None:
+    buffer = RenderBuffer.allocate(1, 1)
+    result = BlendModeEffect(BlendMode.NORMAL)((buffer, buffer))
+    assert isinstance(result, RenderBuffer)
+    assert np.isfinite(result.data).all()
