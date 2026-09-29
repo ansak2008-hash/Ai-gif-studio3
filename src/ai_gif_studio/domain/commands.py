@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
+from .layer_state import LayerStack
 from .project import ProjectState
 from .specs import DesignSpec, ProcessingSettings
 
@@ -34,6 +35,7 @@ class ReplaceDesignSpecCommand:
             state.processing,
             state.metadata,
             transform=state.transform,
+            layer_stack=state.layer_stack,
         )
 
 
@@ -55,6 +57,28 @@ class ReplaceProcessingSettingsCommand:
             self.processing,
             state.metadata,
             transform=state.transform,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ReplaceLayerStackCommand:
+    layer_stack: LayerStack
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.layer_stack, LayerStack):
+            raise TypeError("layer_stack must be a LayerStack")
+
+    def apply(self, state: ProjectState) -> ProjectState:
+        if not isinstance(state, ProjectState):
+            raise TypeError("state must be a ProjectState")
+        return ProjectState(
+            state.project_id,
+            state.revision + 1,
+            state.design,
+            state.processing,
+            state.metadata,
+            transform=state.transform,
+            layer_stack=self.layer_stack,
         )
 
 

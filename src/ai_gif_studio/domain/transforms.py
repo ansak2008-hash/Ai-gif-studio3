@@ -162,7 +162,7 @@ def _apply(command: Any, state: Any, transform: TransformState) -> Any:
 
     if not isinstance(state, ProjectState):
         raise TypeError("state must be a TransformState or ProjectState")
-    return ProjectState(state.project_id, state.revision + 1, state.design, state.processing, state.metadata, transform=transform)
+    return ProjectState(state.project_id, state.revision + 1, state.design, state.processing, state.metadata, transform=transform, layer_stack=state.layer_stack)
 
 
 def _command_json(operation: str, metadata: MappingProxyType) -> str:
