@@ -102,7 +102,9 @@ class ProjectState:
             "metadata": metadata,
         }
         if transform is not None and transform != TransformState():
-            payload["transform"] = {"x": transform.x, "y": transform.y, "rotation": transform.rotation, "scale": transform.scale, "crop": list(transform.crop)}
+            payload["transform"] = {"x": transform.x, "y": transform.y, "scale": transform.scale, "crop": list(transform.crop)}
+            if transform.rotation != 0.0:
+                payload["transform"]["rotation"] = transform.rotation
         if layer_stack is not None and layer_stack != LayerStack():
             payload["layer_stack"] = json.loads(layer_stack.canonical_json)
         try:
