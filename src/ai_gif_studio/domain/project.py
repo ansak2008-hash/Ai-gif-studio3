@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
+from .layer_state import LayerStack
 from .specs import DesignSpec, ProcessingSettings
 from .transforms import TransformState
 
@@ -74,6 +75,7 @@ class ProjectState:
         processing: ProcessingSettings,
         metadata: dict[str, Any],
         transform: TransformState | None = None,
+        layer_stack: LayerStack | None = None,
     ) -> None:
         if not isinstance(project_id, UUID):
             raise TypeError("project_id must be a UUID")
@@ -89,6 +91,8 @@ class ProjectState:
             raise TypeError("metadata must be a dictionary")
         if transform is not None and not isinstance(transform, TransformState):
             raise TypeError("transform must be a TransformState or None")
+        if layer_stack is not None and not isinstance(layer_stack, LayerStack):
+            raise TypeError("layer_stack must be a LayerStack or None")
 
         payload = {
             "project_id": str(project_id),
@@ -99,6 +103,8 @@ class ProjectState:
         }
         if transform is not None and transform != TransformState():
             payload["transform"] = {"x": transform.x, "y": transform.y, "scale": transform.scale, "crop": list(transform.crop)}
+        if layer_stack is not None and layer_stack != LayerStack():
+            payload["layer_stack"] = json.loads(layer_stack.canonical_json)
         try:
             canonical = json.dumps(
                 payload,
@@ -131,9 +137,11 @@ class ProjectState:
             metadata = payload["metadata"]
             raw_transform = payload.get("transform")
             transform = None if raw_transform is None else TransformState(x=raw_transform["x"], y=raw_transform["y"], scale=raw_transform["scale"], crop=tuple(raw_transform["crop"]))
+            raw_layer_stack = payload.get("layer_stack")
+            layer_stack = None if raw_layer_stack is None else LayerStack.from_canonical_json(json.dumps(raw_layer_stack, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":")))
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError("invalid canonical project state payload") from exc
-        state = cls(project_id, revision, design, processing, metadata, transform=transform)
+        state = cls(project_id, revision, design, processing, metadata, transform=transform, layer_stack=layer_stack)
         if state.canonical_json != value:
             raise ValueError("canonical project state is not normalized")
         return state
@@ -163,6 +171,16 @@ class ProjectState:
     @property
     def metadata(self) -> dict[str, Any]:
         return _load_canonical_json(self._canonical_json)["metadata"]
+
+    @property
+    def layer_stack(self) -> LayerStack:
+        payload = _load_canonical_json(self._canonical_json)
+        raw = payload.get("layer_stack")
+        if raw is None:
+            return LayerStack()
+        return LayerStack.from_canonical_json(
+            json.dumps(raw, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":"))
+        )
 
     @property
     def transform(self) -> TransformState:
