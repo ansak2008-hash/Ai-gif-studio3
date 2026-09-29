@@ -73,21 +73,6 @@ class LayerState:
             "blend_mode": self.blend_mode.value,
         })
 
-    def set_blend_mode(self, layer_id: UUID, blend_mode: LayerBlendMode) -> LayerStack:
-        if not isinstance(blend_mode, LayerBlendMode):
-            raise TypeError("blend_mode must be a LayerBlendMode")
-        index = self._index(layer_id)
-        values = list(self.layers)
-        layer = values[index]
-        values[index] = LayerState(
-            layer.layer_id,
-            layer.source_asset_id,
-            layer.opacity,
-            layer.visible,
-            blend_mode,
-        )
-        return LayerStack(tuple(values), max_layers=self.max_layers)
-
     @property
     def canonical_json(self) -> str:
         return json.dumps(
@@ -157,6 +142,21 @@ class LayerStack:
         values = list(self.layers)
         layer = values[index]
         values[index] = LayerState(layer.layer_id, layer.source_asset_id, opacity, layer.visible, layer.blend_mode)
+        return LayerStack(tuple(values), max_layers=self.max_layers)
+
+    def set_blend_mode(self, layer_id: UUID, blend_mode: LayerBlendMode) -> LayerStack:
+        if not isinstance(blend_mode, LayerBlendMode):
+            raise TypeError("blend_mode must be a LayerBlendMode")
+        index = self._index(layer_id)
+        values = list(self.layers)
+        layer = values[index]
+        values[index] = LayerState(
+            layer.layer_id,
+            layer.source_asset_id,
+            layer.opacity,
+            layer.visible,
+            blend_mode,
+        )
         return LayerStack(tuple(values), max_layers=self.max_layers)
 
     @property
