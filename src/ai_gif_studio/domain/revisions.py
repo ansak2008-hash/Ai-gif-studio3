@@ -4,7 +4,8 @@ import hashlib
 import json
 from dataclasses import dataclass
 from threading import RLock
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from .project import ProjectState
 
