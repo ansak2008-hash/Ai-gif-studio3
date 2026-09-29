@@ -38,6 +38,13 @@ def make_deep_mutable_structure(depth: int = 5, width: int = 3) -> dict:
     }
 
 
+def leaf(structure: dict, depth: int) -> dict:
+    current = structure
+    for _ in range(depth):
+        current = current["layer_0"]
+    return current
+
+
 def assert_json_safe(value: object) -> None:
     encoded = json.dumps(value, ensure_ascii=False, allow_nan=False)
     assert json.loads(encoded) == value
@@ -57,25 +64,27 @@ class TestMutationNuclearStrike:
     def test_deep_nested_source_mutation_cannot_reach_snapshot(self) -> None:
         source = make_deep_mutable_structure()
         snapshot = make_state(source)
-        source["layer_0"]["layer_1"]["layer_2"]["value"] = 999.0
-        source["layer_1"]["layer_1"]["list"].append("attacker")
-        source["layer_2"]["layer_0"]["layer_0"]["nested"]["enabled"] = False
+        source_leaf = leaf(source, 5)
+        source_leaf["value"] = 999.0
+        source_leaf["list"].append("attacker")
+        source_leaf["nested"]["enabled"] = False
 
-        assert snapshot.metadata["layer_0"]["layer_1"]["layer_2"]["value"] != 999.0
-        assert "attacker" not in snapshot.metadata["layer_1"]["layer_1"]["list"]
-        assert snapshot.metadata["layer_2"]["layer_0"]["layer_0"]["nested"]["enabled"] is True
+        snapshot_leaf = leaf(snapshot.metadata, 5)
+        assert snapshot_leaf["value"] != 999.0
+        assert "attacker" not in snapshot_leaf["list"]
+        assert snapshot_leaf["nested"]["enabled"] is True
 
     def test_nested_accessor_mutation_cannot_reach_snapshot(self) -> None:
         snapshot = make_state(make_deep_mutable_structure())
-        view = snapshot.metadata
-        view["layer_0"]["layer_0"]["value"] = 999.0
-        view["layer_1"]["layer_1"]["list"].append("attacker")
-        view["layer_2"]["layer_2"]["nested"]["enabled"] = False
+        view_leaf = leaf(snapshot.metadata, 5)
+        view_leaf["value"] = 999.0
+        view_leaf["list"].append("attacker")
+        view_leaf["nested"]["enabled"] = False
 
-        fresh = snapshot.metadata
-        assert fresh["layer_0"]["layer_0"]["value"] != 999.0
-        assert "attacker" not in fresh["layer_1"]["layer_1"]["list"]
-        assert fresh["layer_2"]["layer_2"]["nested"]["enabled"] is True
+        fresh_leaf = leaf(snapshot.metadata, 5)
+        assert fresh_leaf["value"] != 999.0
+        assert "attacker" not in fresh_leaf["list"]
+        assert fresh_leaf["nested"]["enabled"] is True
 
     def test_design_accessor_is_detached(self) -> None:
         snapshot = make_state()
@@ -119,7 +128,8 @@ class TestSerializationDeterminismStress:
         second = make_state(copy.deepcopy(metadata)).canonical_json.encode("utf-8")
         assert first == second
         assert hashlib.sha256(first).digest() == hashlib.sha256(second).digest()
-        assert all(math.isfinite(make_state(metadata).metadata[key]) for key in metadata)
+        restored = make_state(metadata).metadata
+        assert all(math.isfinite(restored[key]) for key in metadata)
 
     def test_non_finite_numeric_payload_is_rejected(self) -> None:
         for value in (float("nan"), float("inf"), float("-inf")):
@@ -247,8 +257,9 @@ class TestEdgeCaseResilience:
 
     def test_duplicate_json_key_attack_is_rejected(self) -> None:
         snapshot = make_state({"safe": True})
-        payload = snapshot.canonical_json[:-1]
-        attack = payload.replace('"revision":7,', '"revision":7,"revision":7,', 1) + "}"
+        attack = snapshot.canonical_json.replace(
+            '"revision":7,', '"revision":7,"revision":7,', 1
+        )
         with pytest.raises(ValueError):
             ProjectState.from_canonical_json(attack)
 
@@ -269,6 +280,7 @@ def test_phase5_1_final_gatekeeper_integrity() -> None:
     assert restored.canonical_json == snapshot.canonical_json
 
     detached = restored.metadata
-    detached["nested"]["layer_0"]["layer_0"]["value"] = 123456
-    assert restored.metadata["nested"]["layer_0"]["layer_0"]["value"] != 123456
+    detached_leaf = leaf(detached["nested"], 3)
+    detached_leaf["value"] = 123456
+    assert leaf(restored.metadata["nested"], 3)["value"] != 123456
     assert_json_safe(restored.metadata)
