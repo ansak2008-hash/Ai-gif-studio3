@@ -102,6 +102,8 @@ class ScaleCommand:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "scale", _bounded(self.scale, MIN_SCALE, MAX_SCALE, "scale"))
+        if self.operation != "scale":
+            raise ValueError("operation must be 'scale'" )
 
     @property
     def metadata(self) -> MappingProxyType:
