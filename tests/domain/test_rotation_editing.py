@@ -171,3 +171,30 @@ def test_rotation_does_not_mutate_source() -> None:
     before = source.data.copy()
     apply_transform_state(source, TransformState(rotation=37.5))
     np.testing.assert_array_equal(source.data, before)
+
+def test_rotation_boundary_endpoints_are_valid_and_cumulative_overflow_is_rejected() -> None:
+    assert TransformState(rotation=-360.0).rotation == -360.0
+    assert TransformState(rotation=360.0).rotation == 360.0
+    assert RotateCommand(360.0).apply(TransformState()).rotation == 360.0
+    assert RotateCommand(-360.0).apply(TransformState()).rotation == -360.0
+    with pytest.raises(ValueError, match="rotation"):
+        RotateCommand(0.001).apply(TransformState(rotation=360.0))
+    with pytest.raises(ValueError, match="rotation"):
+        RotateCommand(-0.001).apply(TransformState(rotation=-360.0))
+
+
+def test_rotation_input_type_boundary_rejects_boolean_and_string_values() -> None:
+    with pytest.raises(TypeError, match="rotation"):
+        TransformState(rotation=True)
+    with pytest.raises(TypeError, match="degrees"):
+        RotateCommand("90")  # type: ignore[arg-type]
+
+
+def test_rotation_zero_is_an_exact_render_identity_for_non_identity_state() -> None:
+    source = _canvas()
+    state_without_rotation = TransformState(scale=1.25, x=7.0, y=-11.0)
+    state_with_zero_rotation = TransformState(scale=1.25, x=7.0, y=-11.0, rotation=0.0)
+    first = apply_transform_state(source, state_without_rotation)
+    second = apply_transform_state(source, state_with_zero_rotation)
+    np.testing.assert_array_equal(first.data, second.data)
+
