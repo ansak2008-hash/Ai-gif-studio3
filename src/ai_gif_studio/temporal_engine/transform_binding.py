@@ -11,7 +11,12 @@ from .render_buffer import RenderBuffer
 
 
 def apply_transform_state(source: RenderBuffer, state: TransformState) -> RenderBuffer:
-    """Apply a validated project transform to a canonical 320x320 RenderBuffer."""
+    """Apply a validated project transform to a canonical 320x320 RenderBuffer.
+
+    Rotation uses OpenCV image coordinates: positive degrees rotate
+    counter-clockwise around the center of the current crop rectangle. Scale
+    and rotation are composed around that same center before translation.
+    """
     if not isinstance(source, RenderBuffer):
         raise TypeError("source must be a RenderBuffer")
     if not isinstance(state, TransformState):
