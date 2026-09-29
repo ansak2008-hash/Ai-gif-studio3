@@ -9,6 +9,8 @@ from typing import Any
 MAX_COORDINATE = 320.0
 MIN_SCALE = 0.01
 MAX_SCALE = 64.0
+MIN_ROTATION = -360.0
+MAX_ROTATION = 360.0
 
 
 def _finite(value: float, name: str) -> float:
@@ -52,21 +54,23 @@ class TransformState:
     x: float = 0.0
     y: float = 0.0
     scale: float = 1.0
+    rotation: float = 0.0
     crop: tuple[int, int, int, int] = (0, 0, 320, 320)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "x", _coordinate(self.x, "x"))
         object.__setattr__(self, "y", _coordinate(self.y, "y"))
         object.__setattr__(self, "scale", _bounded(self.scale, MIN_SCALE, MAX_SCALE, "scale"))
+        object.__setattr__(self, "rotation", _bounded(self.rotation, MIN_ROTATION, MAX_ROTATION, "rotation"))
         object.__setattr__(self, "crop", _crop(self.crop))
 
     @property
     def metadata(self) -> MappingProxyType:
-        return MappingProxyType({"x": self.x, "y": self.y, "scale": self.scale, "crop": self.crop})
+        return MappingProxyType({"x": self.x, "y": self.y, "scale": self.scale, "rotation": self.rotation, "crop": self.crop})
 
     @property
     def canonical_json(self) -> str:
-        return json.dumps({"crop": list(self.crop), "scale": self.scale, "x": self.x, "y": self.y}, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":"))
+        return json.dumps({"crop": list(self.crop), "rotation": self.rotation, "scale": self.scale, "x": self.x, "y": self.y}, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,7 +96,7 @@ class CropCommand:
 
     def apply(self, state: Any) -> Any:
         current = _current_transform(state)
-        transform = TransformState(current.x, current.y, current.scale, (self.x, self.y, self.width, self.height))
+        transform = TransformState(current.x, current.y, current.scale, current.rotation, (self.x, self.y, self.width, self.height))
         return _apply(self, state, transform)
 
 
@@ -116,11 +120,36 @@ class ScaleCommand:
 
     def apply(self, state: Any) -> Any:
         current = _current_transform(state)
-        transform = TransformState(current.x, current.y, self.scale, current.crop)
+        transform = TransformState(current.x, current.y, self.scale, current.rotation, current.crop)
         return _apply(self, state, transform)
 
 
 @dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True)
+class RotateCommand:
+    degrees: float
+    operation: str = "rotate"
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "degrees", _bounded(self.degrees, MIN_ROTATION, MAX_ROTATION, "degrees"))
+        if self.operation != "rotate":
+            raise ValueError("operation must be 'rotate'")
+
+    @property
+    def metadata(self) -> MappingProxyType:
+        return MappingProxyType({"degrees": self.degrees})
+
+    @property
+    def canonical_json(self) -> str:
+        return _command_json(self.operation, self.metadata)
+
+    def apply(self, state: Any) -> Any:
+        current = _current_transform(state)
+        rotation = _bounded(current.rotation + self.degrees, MIN_ROTATION, MAX_ROTATION, "rotation")
+        transform = TransformState(current.x, current.y, current.scale, rotation, current.crop)
+        return _apply(self, state, transform)
+
+
 class TranslateCommand:
     dx: float
     dy: float
@@ -142,7 +171,7 @@ class TranslateCommand:
 
     def apply(self, state: Any) -> Any:
         current = _current_transform(state)
-        transform = TransformState(current.x + self.dx, current.y + self.dy, current.scale, current.crop)
+        transform = TransformState(current.x + self.dx, current.y + self.dy, current.scale, current.rotation, current.crop)
         return _apply(self, state, transform)
 
 
