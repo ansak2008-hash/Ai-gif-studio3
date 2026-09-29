@@ -1,6 +1,7 @@
 """Explicit adapter from immutable project transform state to RenderBuffer."""
 from __future__ import annotations
 
+import cv2
 import numpy as np
 
 from ai_gif_studio.domain.transforms import MAX_COORDINATE, TransformState
@@ -22,18 +23,18 @@ def apply_transform_state(source: RenderBuffer, state: TransformState) -> Render
     cropped = source.data[y : y + height, x : x + width]
     cropped_buffer = RenderBuffer.from_linear_rgba(cropped)
 
-    if state.scale == 1.0 and state.x == 0.0 and state.y == 0.0:
+    if state.scale == 1.0 and state.rotation == 0.0 and state.x == 0.0 and state.y == 0.0:
         return cropped_buffer
 
     center_x = width / 2.0
     center_y = height / 2.0
-    matrix = np.array(
-        [
-            [state.scale, 0.0, (1.0 - state.scale) * center_x + state.x],
-            [0.0, state.scale, (1.0 - state.scale) * center_y + state.y],
-        ],
-        dtype=np.float64,
-    )
+    matrix = cv2.getRotationMatrix2D(
+        (center_x, center_y),
+        state.rotation,
+        state.scale,
+    ).astype(np.float64, copy=False)
+    matrix[0, 2] += state.x
+    matrix[1, 2] += state.y
     effect = AffineTransformEffect(
         AffineTransformSpec(width, height, matrix)
     )
