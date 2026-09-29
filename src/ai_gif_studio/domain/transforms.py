@@ -125,7 +125,6 @@ class ScaleCommand:
 
 
 @dataclass(frozen=True, slots=True)
-@dataclass(frozen=True, slots=True)
 class RotateCommand:
     degrees: float
     operation: str = "rotate"
@@ -150,6 +149,7 @@ class RotateCommand:
         return _apply(self, state, transform)
 
 
+@dataclass(frozen=True, slots=True)
 class TranslateCommand:
     dx: float
     dy: float
