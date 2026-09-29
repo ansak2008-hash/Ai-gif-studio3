@@ -4,7 +4,11 @@ import math
 
 import pytest
 
-from ai_gif_studio.domain.commands import CommandHistory
+from ai_gif_studio.domain.commands import (
+    CommandHistory,
+    ReplaceDesignSpecCommand,
+    ReplaceProcessingSettingsCommand,
+)
 from ai_gif_studio.domain.project import ProjectState
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
 from ai_gif_studio.domain.transforms import (
@@ -170,8 +174,6 @@ def test_transform_command_operation_identity_is_fixed() -> None:
 def test_legacy_project_commands_preserve_transform_state() -> None:
     initial = TranslateCommand(8.0, -3.0).apply(_state())
     history = CommandHistory(initial)
-    from ai_gif_studio.domain.commands import ReplaceDesignSpecCommand, ReplaceProcessingSettingsCommand
-
     history.execute(ReplaceDesignSpecCommand(DesignSpec()))
     assert history.current.transform == initial.transform
     history.execute(ReplaceProcessingSettingsCommand(ProcessingSettings()))
