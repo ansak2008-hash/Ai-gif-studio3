@@ -23,7 +23,7 @@ def apply_transform_state(source: RenderBuffer, state: TransformState) -> Render
     cropped_buffer = RenderBuffer.from_linear_rgba(cropped)
 
     if state.scale == 1.0 and state.x == 0.0 and state.y == 0.0:
-        return cropped_buffer.copy()
+        return cropped_buffer
 
     center_x = width / 2.0
     center_y = height / 2.0
