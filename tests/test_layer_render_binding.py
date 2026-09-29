@@ -5,7 +5,7 @@ from uuid import uuid4
 import numpy as np
 import pytest
 
-from ai_gif_studio.domain.layer_state import LayerStack, LayerState
+from ai_gif_studio.domain.layer_state import LayerBlendMode, LayerStack, LayerState
 from ai_gif_studio.temporal_engine.compositor import BlendLayer, composite_blend_layers
 from ai_gif_studio.temporal_engine.layer_binding import bind_layer_stack
 from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
@@ -20,8 +20,8 @@ def _buffer(value: float) -> RenderBuffer:
     )
 
 
-def _layer(*, opacity: float = 1.0, visible: bool = True) -> LayerState:
-    return LayerState(uuid4(), uuid4(), opacity=opacity, visible=visible)
+def _layer(*, opacity: float = 1.0, visible: bool = True, blend_mode: LayerBlendMode = LayerBlendMode.NORMAL) -> LayerState:
+    return LayerState(uuid4(), uuid4(), opacity=opacity, visible=visible, blend_mode=blend_mode)
 
 
 def test_binding_preserves_back_to_front_order_and_source_identity() -> None:
@@ -40,6 +40,15 @@ def test_binding_preserves_back_to_front_order_and_source_identity() -> None:
     assert all(item.mode.value == "normal" for item in result)
     assert all(item.mask is None for item in result)
 
+
+def test_binding_maps_all_supported_domain_blend_modes_to_temporal_modes() -> None:
+    for mode in LayerBlendMode:
+        layer = _layer(blend_mode=mode)
+        result = bind_layer_stack(
+            LayerStack().add(layer),
+            {layer.source_asset_id: _buffer(0.7)},
+        )
+        assert result[0].mode.value == mode.value
 
 def test_invisible_layers_are_skipped_without_reordering_visible_layers() -> None:
     back = _layer()
