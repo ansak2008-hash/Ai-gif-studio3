@@ -17,8 +17,46 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+_MAX_CANONICAL_JSON_BYTES = 8 * 1024 * 1024
+_MAX_CANONICAL_JSON_DEPTH = 128
+
+
+def _validate_json_payload_bounds(value: str) -> None:
+    if len(value.encode("utf-8")) > _MAX_CANONICAL_JSON_BYTES:
+        raise ValueError("canonical project state exceeds the maximum JSON payload size")
+
+    depth = 0
+    in_string = False
+    escaped = False
+    for char in value:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char in "[{":
+            depth += 1
+            if depth > _MAX_CANONICAL_JSON_DEPTH:
+                raise ValueError(
+                    "canonical project state exceeds the maximum JSON nesting depth"
+                )
+        elif char in "]}":
+            depth -= 1
+            if depth < 0:
+                raise ValueError("invalid canonical project state JSON")
+
+
 def _load_canonical_json(value: str) -> Any:
-    return json.loads(value, object_pairs_hook=_reject_duplicate_keys)
+    _validate_json_payload_bounds(value)
+    try:
+        return json.loads(value, object_pairs_hook=_reject_duplicate_keys)
+    except RecursionError as exc:
+        raise ValueError("canonical project state exceeds the maximum JSON nesting depth") from exc
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -65,6 +103,8 @@ class ProjectState:
             )
         except (TypeError, ValueError) as exc:
             raise TypeError("metadata must be JSON-compatible") from exc
+        if len(canonical.encode("utf-8")) > _MAX_CANONICAL_JSON_BYTES:
+            raise ValueError("canonical project state exceeds the maximum JSON payload size")
         object.__setattr__(self, "_canonical_json", canonical)
 
     @classmethod
