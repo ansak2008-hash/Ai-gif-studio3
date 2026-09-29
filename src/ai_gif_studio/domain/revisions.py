@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from threading import RLock
 from typing import Any
-from collections.abc import Mapping
 
 from .project import ProjectState
 
