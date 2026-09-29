@@ -104,6 +104,7 @@ __all__ = [
     "composite_over",
     "composite_layers",
     "composite_blend_layers",
+    "apply_transform_state",
     # Manuscript (Phase 1 + 2)
     "CameraState",
     "CameraModel",
@@ -127,3 +128,5 @@ __all__ = [
     "shade_depth_field",
     "shade_depth_field_from_camera",
 ]
+
+from .transform_binding import apply_transform_state
