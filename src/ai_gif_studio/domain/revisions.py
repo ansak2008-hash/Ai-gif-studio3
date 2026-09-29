@@ -154,6 +154,16 @@ class RevisionGraph:
             return self._nodes[self._current_id]
 
     @property
+    def root(self) -> Revision:
+        with self._lock:
+            return next(revision for revision in self._nodes.values() if revision.parent_id is None)
+
+    @property
+    def revisions(self) -> tuple[Revision, ...]:
+        with self._lock:
+            return tuple(self._nodes.values())
+
+    @property
     def size(self) -> int:
         with self._lock:
             return len(self._nodes)
