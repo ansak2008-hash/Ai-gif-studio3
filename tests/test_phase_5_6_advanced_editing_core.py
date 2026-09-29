@@ -124,3 +124,34 @@ def test_transform_command_boundary_values_are_accepted() -> None:
         320,
         320,
     )
+
+
+def test_project_transform_round_trips_canonically() -> None:
+    initial = _state()
+    transformed = TranslateCommand(12.0, -4.0).apply(initial)
+    restored = ProjectState.from_canonical_json(transformed.canonical_json)
+    assert restored == transformed
+    assert restored.transform == transformed.transform
+
+
+def test_project_transform_is_detached_from_returned_metadata() -> None:
+    transformed = TranslateCommand(12.0, -4.0).apply(_state())
+    metadata = transformed.metadata
+    metadata["nested"] = {"mutable": True}
+    assert "nested" not in transformed.metadata
+
+
+def test_equivalent_commands_have_identical_canonical_identity() -> None:
+    assert TranslateCommand(1.5, 2.5).canonical_json == TranslateCommand(1.5, 2.5).canonical_json
+    assert ScaleCommand(2).canonical_json == ScaleCommand(2.0).canonical_json
+    assert CropCommand(0, 0, 320, 320).canonical_json == CropCommand(0, 0, 320, 320).canonical_json
+
+
+def test_commands_reject_wrong_state_type() -> None:
+    for command in (
+        CropCommand(0, 0, 10, 10),
+        ScaleCommand(2.0),
+        TranslateCommand(1.0, 1.0),
+    ):
+        with pytest.raises(TypeError):
+            command.apply(object())
