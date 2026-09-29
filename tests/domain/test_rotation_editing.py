@@ -81,6 +81,14 @@ def test_legacy_project_state_without_rotation_remains_compatible() -> None:
     assert restored.canonical_json == state.canonical_json
 
 
+def test_legacy_project_state_with_existing_transform_encoding_remains_compatible() -> None:
+    state = TransformState(x=12.0, y=-4.0, scale=1.5)
+    project = ProjectState(uuid4(), 3, DesignSpec(), ProcessingSettings(), {}, transform=state)
+    restored = ProjectState.from_canonical_json(project.canonical_json)
+    assert restored == project
+    assert '"rotation"' not in project.canonical_json
+
+
 def test_rotation_render_binding_preserves_crop_geometry_and_is_deterministic() -> None:
     state = TransformState(crop=(20, 30, 180, 140), rotation=90.0)
     source = _canvas()
