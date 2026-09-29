@@ -258,7 +258,7 @@ class TestEdgeCaseResilience:
     def test_duplicate_json_key_attack_is_rejected(self) -> None:
         snapshot = make_state({"safe": True})
         attack = snapshot.canonical_json.replace(
-            '"revision":7,', '"revision":7,"revision":7,', 1
+            '"revision":7}', '"revision":7,"revision":7}', 1
         )
         with pytest.raises(ValueError):
             ProjectState.from_canonical_json(attack)
