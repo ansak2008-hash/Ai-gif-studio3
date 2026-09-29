@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from ai_gif_studio.domain.transforms import TransformState
-from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
 from ai_gif_studio.temporal_engine import apply_transform_state
+from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
 
 
 def _canvas() -> RenderBuffer:
