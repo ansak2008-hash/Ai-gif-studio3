@@ -187,6 +187,8 @@ class LayerStack:
             raise ValueError("layers must be a JSON array")
         try:
             max_layers = _max_layers(payload["max_layers"])
+            if len(raw_layers) > max_layers:
+                raise ValueError("maximum layer count reached")
             layers = tuple(cls._decode_layer(item) for item in raw_layers)
             stack = cls(layers, max_layers=max_layers)
         except (TypeError, ValueError, KeyError) as exc:
