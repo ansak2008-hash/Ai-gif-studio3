@@ -57,8 +57,6 @@ class TransformState:
         object.__setattr__(self, "x", _coordinate(self.x, "x"))
         object.__setattr__(self, "y", _coordinate(self.y, "y"))
         object.__setattr__(self, "scale", _bounded(self.scale, MIN_SCALE, MAX_SCALE, "scale"))
-        if self.operation != "scale":
-            raise ValueError("operation must be 'scale'")
         object.__setattr__(self, "crop", _crop(self.crop))
 
     @property
