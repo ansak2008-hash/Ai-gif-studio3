@@ -22,6 +22,10 @@ def _state() -> ProjectState:
     )
 
 
+def _design(color: str) -> DesignSpec:
+    return DesignSpec(background={"mode": "solid", "color": color})
+
+
 def test_create_starts_at_single_root_revision() -> None:
     editor = ProjectEditor.create(_state())
     assert editor.revision_count == 1
@@ -32,9 +36,9 @@ def test_create_starts_at_single_root_revision() -> None:
 def test_execute_creates_one_child_and_preserves_parent() -> None:
     editor = ProjectEditor.create(_state())
     parent_id = editor.current_revision_id
-    command = ReplaceDesignSpecCommand(DesignSpec(canvas_width=640, canvas_height=360))
+    command = ReplaceDesignSpecCommand(_design("#222222"))
 
-    current = editor.execute(command, {"operation": "resize_canvas"})
+    current = editor.execute(command, {"operation": "change_background"})
 
     assert editor.revision_count == 2
     assert current.revision == 1
@@ -57,8 +61,8 @@ def test_checkout_restores_existing_revision_without_deletion() -> None:
     editor = ProjectEditor.create(_state())
     root_id = editor.current_revision_id
     editor.execute(
-        ReplaceDesignSpecCommand(DesignSpec(canvas_width=640, canvas_height=360)),
-        {"operation": "resize"},
+        ReplaceDesignSpecCommand(_design("#222222")),
+        {"operation": "change_background"},
     )
     child_id = editor.current_revision_id
 
@@ -73,8 +77,8 @@ def test_checkout_restores_existing_revision_without_deletion() -> None:
 def test_canonical_round_trip_preserves_graph_and_current_revision() -> None:
     editor = ProjectEditor.create(_state())
     editor.execute(
-        ReplaceDesignSpecCommand(DesignSpec(canvas_width=640, canvas_height=360)),
-        {"operation": "resize"},
+        ReplaceDesignSpecCommand(_design("#222222")),
+        {"operation": "change_background"},
     )
     document = editor.canonical_json
 
@@ -89,14 +93,14 @@ def test_branching_after_checkout_preserves_both_children() -> None:
     editor = ProjectEditor.create(_state())
     root_id = editor.current_revision_id
     first = editor.execute(
-        ReplaceDesignSpecCommand(DesignSpec(canvas_width=640, canvas_height=360)),
-        {"operation": "wide"},
+        ReplaceDesignSpecCommand(_design("#222222")),
+        {"operation": "dark_background"},
     )
     first_id = editor.current_revision_id
     editor.checkout(root_id)
     second = editor.execute(
-        ReplaceDesignSpecCommand(DesignSpec(canvas_width=360, canvas_height=640)),
-        {"operation": "tall"},
+        ReplaceDesignSpecCommand(_design("#333333")),
+        {"operation": "alternate_background"},
     )
 
     assert second.revision == 1
@@ -113,7 +117,7 @@ def test_invalid_metadata_does_not_mutate_graph() -> None:
 
     with pytest.raises(TypeError):
         editor.execute(
-            ReplaceDesignSpecCommand(DesignSpec(canvas_width=640, canvas_height=360)),
+            ReplaceDesignSpecCommand(_design("#222222")),
             {"operation": object()},
         )
 
