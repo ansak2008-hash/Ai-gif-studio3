@@ -64,8 +64,7 @@ class FakeRepository:
 
             return ClaimResult(self.job, owner_id, self.attempt, lease_expires_at, self.version)
 
-    async def complete_processing(self, job_id: UUID, owner_id: str, version: int, now: datetime) -> bool:
-        async with self._lock:
+    async def complete_processing(\n        self, job_id: UUID, owner_id: str, version: int, now: datetime\n    ) -> bool:\n        async with self._lock:
             if not self._owns(job_id, owner_id, version, now):
                 return False
             self.job = ProcessingJob(
@@ -76,9 +75,8 @@ class FakeRepository:
             self.version += 1
             return True
 
-    async def fail_processing(self, job_id: UUID, owner_id: str, version: int, error: str, now: datetime) -> bool:
-        async with self._lock:
-            if not self._owns(job_id, owner_id, now):
+    async def fail_processing(\n        self, job_id: UUID, owner_id: str, version: int, error: str, now: datetime\n    ) -> bool:\n        async with self._lock:
+            if not self._owns(job_id, owner_id, version, now):
                 return False
             self.job = ProcessingJob(
                 self.job.id, JobStatus.FAILED, self.job.submission, self.job.created_at
