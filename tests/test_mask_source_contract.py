@@ -54,3 +54,9 @@ def test_mask_source_results_are_deterministic_and_detached() -> None:
     second = mask_from_luminance(source)
     np.testing.assert_array_equal(first.data, second.data)
     assert first is not second
+
+
+def test_luminance_clamps_hdr_linear_rgb_to_mask_range() -> None:
+    source = buffer([[(8.0, 0.0, 0.0, 1.0)]])
+    result = mask_from_luminance(source)
+    np.testing.assert_array_equal(result.data, np.array([[1.0]], dtype=np.float32))
