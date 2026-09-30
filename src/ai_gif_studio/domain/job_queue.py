@@ -41,7 +41,7 @@ class AtomicJobQueue:
 
     async def enqueue(self, job: ProcessingJob) -> ProcessingJob | None:
         if self._dispatcher is not None:
-            await self._dispatcher(str(job.id), _job_id=str(job.id))
+            await self._dispatcher(str(job.id))
         changed = await self._repository.set_status(
             job.id,
             JobStatus.QUEUED.value,
