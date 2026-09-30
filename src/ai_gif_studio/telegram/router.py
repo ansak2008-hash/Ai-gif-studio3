@@ -33,14 +33,8 @@ def create_router(intake_service: IntakeService, queue=None) -> Router:
                 await message.answer(f"Job {job.id} created.")
                 return
 
-            await intake_service.mark_queued(job)
-            try:
-                queued = await queue.enqueue_job(str(job.id), _job_id=str(job.id))
-            except Exception:
-                await intake_service.mark_created(job)
-                raise
+            queued = await queue.enqueue(job)
             if queued is None:
-                await intake_service.mark_created(job)
                 await message.answer("This job is already queued or being processed.")
                 return
             await message.answer(f"Job {job.id} queued.")
