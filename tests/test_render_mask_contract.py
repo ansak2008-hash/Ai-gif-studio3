@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from ai_gif_studio.temporal_engine.render_mask import RenderMask
+from ai_gif_studio.temporal_engine.render_mask import RenderMask, _MASK_STORAGE
 
 pytestmark = pytest.mark.unit
 
@@ -96,3 +96,32 @@ def test_render_mask_is_deterministic() -> None:
     first = RenderMask.from_array(source)
     second = RenderMask.from_array(source)
     np.testing.assert_array_equal(first.data, second.data)
+
+
+def test_render_mask_data_base_is_immutable_bytes() -> None:
+    mask = RenderMask.allocate(2, 2, value=0.5)
+    data = mask.data
+    assert isinstance(data.base, bytes)
+    assert data.flags.writeable is False
+    with pytest.raises(ValueError):
+        data.setflags(write=True)
+
+
+def test_render_mask_internal_storage_cannot_be_escalated() -> None:
+    mask = RenderMask.allocate(1, 1)
+    raw_bytes, shape, view = _MASK_STORAGE[mask]
+    assert shape == mask.shape
+    assert isinstance(raw_bytes, bytes)
+    assert view.flags.writeable is False
+    with pytest.raises(ValueError):
+        view.setflags(write=True)
+    with pytest.raises(ValueError):
+        view[0, 0] = 1.0
+
+
+def test_render_mask_has_no_mutable_mask_slot() -> None:
+    mask = RenderMask.allocate(1, 1)
+    with pytest.raises(AttributeError):
+        _ = mask._mask
+    with pytest.raises(AttributeError):
+        object.__setattr__(mask, "_mask", np.zeros((1, 1), dtype=np.float32))
