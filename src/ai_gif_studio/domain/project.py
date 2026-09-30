@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
-from .canonical_validation import validate_mapping
+from .canonical_validation import UTF8ValidationError, validate_mapping
 from .layer_state import LayerStack
 from .specs import DesignSpec, ProcessingSettings
 from .transforms import TransformState
@@ -90,7 +90,10 @@ class ProjectState:
             raise TypeError("processing must be a ProcessingSettings")
         if not isinstance(metadata, dict):
             raise TypeError("metadata must be a dictionary")
-        validate_mapping(metadata, context="ProjectState.metadata")
+        try:
+            validate_mapping(metadata, context="ProjectState.metadata")
+        except UTF8ValidationError as exc:
+            raise TypeError("metadata must be JSON-compatible") from exc
         if transform is not None and not isinstance(transform, TransformState):
             raise TypeError("transform must be a TransformState or None")
         if layer_stack is not None and not isinstance(layer_stack, LayerStack):
@@ -109,7 +112,10 @@ class ProjectState:
                 payload["transform"]["rotation"] = transform.rotation
         if layer_stack is not None and layer_stack != LayerStack():
             payload["layer_stack"] = json.loads(layer_stack.canonical_json)
-        validate_mapping(payload, context="ProjectState")
+        try:
+            validate_mapping(payload, context="ProjectState")
+        except UTF8ValidationError as exc:
+            raise TypeError("metadata must be JSON-compatible") from exc
         try:
             canonical = json.dumps(
                 payload,
