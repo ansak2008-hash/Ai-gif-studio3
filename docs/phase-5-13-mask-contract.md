@@ -31,9 +31,23 @@ Boolean values are rejected wherever numeric values are expected. Non-finite val
 
 A layer without a mask retains the existing canonical JSON shape. Existing positional LayerState construction remains valid because mask is appended as the final optional field.
 
+## Rendering semantics
+
+The persistent state defines the semantic order; it does not prescribe a particular raster kernel.
+
+1. Resolve source pixels to the canonical mask domain [0, 1].
+2. If enabled is false, the effective mask is the identity field (1.0 everywhere); no other mask operation changes it.
+3. Apply feather and blur as the spatial-filter stage.
+4. Apply levels remapping using levels_low and levels_high as the input interval, with output clamped to [0, 1].
+5. If threshold is present, map values below threshold to 0.0 and values at or above it to 1.0.
+6. If inverted is true, replace m with 1.0 - m.
+7. Apply mask opacity as m * opacity.
+
+This ordering is part of the contract so future render implementations cannot silently change editing semantics.
+
 ## Rendering boundary
 
-Persistent mask state does not expose mutable pixel storage. A later render stage resolves source_asset_id and materializes a RenderMask. Mask operations must be deterministic and must not mutate the source asset or the render-time mask.
+Persistent mask state does not expose mutable pixel storage. A later render stage resolves source_asset_id and materializes a RenderMask. Mask operations must be deterministic and must not mutate the source asset or the render-time mask. The source asset is never modified in place.
 
 ## Explicitly deferred
 
