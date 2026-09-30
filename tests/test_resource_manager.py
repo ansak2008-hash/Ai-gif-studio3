@@ -1,6 +1,7 @@
 import pytest
 
 from ai_gif_studio.resources import ResourceLimitError, ResourceManager, ResourceRequest
+from ai_gif_studio.resources.manager import ResourceReservation
 
 
 @pytest.mark.unit
@@ -56,8 +57,6 @@ def test_reservation_cannot_be_released_by_another_manager() -> None:
 def test_forged_reservation_cannot_change_resource_accounting() -> None:
     manager = ResourceManager(1024)
     reservation = manager.reserve(ResourceRequest(256))
-    from ai_gif_studio.resources.manager import ResourceReservation
-
     forged = ResourceReservation(reservation.reservation_id, reservation.memory_bytes)
     with pytest.raises(ValueError, match="reservation does not belong"):
         manager.release(forged)
