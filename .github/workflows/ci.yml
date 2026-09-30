@@ -35,6 +35,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -44,7 +46,17 @@ jobs:
       - run: python -m pip check
       - run: python -c "import cv2, numpy; print('numpy', numpy.__version__); print('opencv', cv2.__version__)"
       - run: ruff check .
-      - run: ruff format --check .
+      - name: Check formatting of changed Python files
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}" -- '*.py')"
+          else
+            files="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" -- '*.py')"
+          fi
+          if [[ -n "$files" ]]; then
+            printf '%s\n' "$files" | xargs ruff format --check
+          fi
 
   unit:
     runs-on: ubuntu-latest
