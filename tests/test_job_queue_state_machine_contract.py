@@ -49,9 +49,7 @@ class FakeRepository:
             self.version += 1
             return True
 
-    async def claim_for_processing(
-        self, job_id: UUID, owner_id: str, lease_expires_at: datetime
-    ):
+    async def claim_for_processing(self, job_id: UUID, owner_id: str, lease_expires_at: datetime):
         async with self._lock:
             if job_id != self.job.id or self.job.status is not JobStatus.QUEUED:
                 return None
@@ -63,6 +61,7 @@ class FakeRepository:
             self.attempt += 1
             self.version += 1
             from ai_gif_studio.domain.job_queue import ClaimResult
+
             return ClaimResult(self.job, owner_id, self.attempt, lease_expires_at, self.version)
 
     async def complete_processing(self, job_id: UUID, owner_id: str, now: datetime) -> bool:
@@ -119,7 +118,9 @@ class FakeRepository:
                     self.job.id, JobStatus.FAILED, self.job.submission, self.job.created_at
                 )
                 return []
-            self.job = ProcessingJob(self.job.id, JobStatus.QUEUED, self.job.submission, self.job.created_at)
+            self.job = ProcessingJob(
+                self.job.id, JobStatus.QUEUED, self.job.submission, self.job.created_at
+            )
             return [self.job.id]
 
     def _owns(self, job_id: UUID, owner_id: str, now: datetime) -> bool:
