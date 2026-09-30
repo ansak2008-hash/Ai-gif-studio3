@@ -6,6 +6,7 @@ import math
 import numpy as np
 
 from ai_gif_studio.domain.mask_state import MaskState
+from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
 from ai_gif_studio.temporal_engine.render_mask import RenderMask
 
 
@@ -68,3 +69,27 @@ def process_mask(source: RenderMask, state: MaskState) -> RenderMask:
         values = 1.0 - values
     values *= state.opacity
     return RenderMask.from_array(values.astype(np.float32))
+
+
+def mask_from_alpha(source: RenderBuffer) -> RenderMask:
+    """Create a canonical mask from the source buffer's linear alpha."""
+    if not isinstance(source, RenderBuffer):
+        raise TypeError("source must be a RenderBuffer")
+    return RenderMask.from_array(source.data[..., 3])
+
+
+def mask_from_luminance(source: RenderBuffer) -> RenderMask:
+    """Create a canonical mask from clamped linear Rec.709 luminance.
+
+    RGB values are interpreted as linear-light values. Alpha is deliberately
+    ignored. HDR luminance above one is clamped to one at this mask boundary.
+    """
+    if not isinstance(source, RenderBuffer):
+        raise TypeError("source must be a RenderBuffer")
+    rgb = np.asarray(source.data[..., :3], dtype=np.float64)
+    luminance = np.clip(
+        0.2126 * rgb[..., 0] + 0.7152 * rgb[..., 1] + 0.0722 * rgb[..., 2],
+        0.0,
+        1.0,
+    )
+    return RenderMask.from_array(luminance.astype(np.float32))
