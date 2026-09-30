@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 from arq import create_pool
 from arq.connections import RedisSettings
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -16,6 +17,57 @@ from ai_gif_studio.database.repositories import SqlAlchemyJobRepository
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
 
 READINESS_TIMEOUT_SECONDS = 2.0
+
+
+class _RequestBodyTooLarge(Exception):
+    pass
+
+
+class RequestBodyLimitMiddleware:
+    """Bound request bodies even when the client omits Content-Length."""
+
+    def __init__(self, app: ASGIApp, max_bytes: int) -> None:
+        self.app = app
+        self.max_bytes = max_bytes
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        total = 0
+        response_sent = False
+
+        async def limited_receive() -> Message:
+            nonlocal total, response_sent
+            message = await receive()
+            if message["type"] != "http.request":
+                return message
+            body = message.get("body", b"")
+            total += len(body)
+            if total > self.max_bytes:
+                if not response_sent:
+                    response_sent = True
+                    await send(
+                        {
+                            "type": "http.response.start",
+                            "status": 413,
+                            "headers": [(b"content-type", b"text/plain; charset=utf-8")],
+                        }
+                    )
+                    await send(
+                        {
+                            "type": "http.response.body",
+                            "body": b"request body too large",
+                        }
+                    )
+                raise _RequestBodyTooLarge
+            return message
+
+        try:
+            await self.app(scope, limited_receive, send)
+        except _RequestBodyTooLarge:
+            return
 
 
 async def _check_database(database_url: str) -> bool:
@@ -75,6 +127,7 @@ async def _readiness_checks(settings: AppSettings) -> dict[str, bool]:
 def create_api(settings: AppSettings | None = None) -> FastAPI:
     settings = settings or get_settings()
     app = FastAPI(title="AI Creative GIF Studio", version="0.3.0")
+    app.add_middleware(RequestBodyLimitMiddleware, max_bytes=settings.max_request_bytes)
 
     async def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
         if not settings.api_key:
