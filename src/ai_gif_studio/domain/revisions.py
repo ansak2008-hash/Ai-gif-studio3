@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from threading import RLock
 from typing import Any
 
-from .canonical_validation import validate_mapping
+from .canonical_validation import UTF8ValidationError, validate_mapping
 from .project import ProjectState
 
 
@@ -30,7 +30,10 @@ class RevisionLimitError(RevisionGraphError):
 def _canonical_metadata(metadata: Mapping[str, Any]) -> str:
     if not isinstance(metadata, Mapping):
         raise TypeError("command_metadata must be a mapping")
-    validate_mapping(metadata, context="Revision.command_metadata")
+    try:
+        validate_mapping(metadata, context="Revision.command_metadata")
+    except UTF8ValidationError as exc:
+        raise TypeError("command_metadata must be JSON-compatible") from exc
     try:
         return json.dumps(
             dict(metadata),
