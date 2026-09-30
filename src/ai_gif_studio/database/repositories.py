@@ -335,49 +335,32 @@ class SqlAlchemyJobRepository:
         cutoff: datetime,
         max_retries: int = 2,
     ) -> int:
+        """Compatibility wrapper; queue authority owns job-state recovery."""
+        from ai_gif_studio.domain.job_queue import AtomicJobQueue, QueueConfig
+
+        recovered_ids = await AtomicJobQueue(
+            self, config=QueueConfig(max_attempts=max_retries)
+        ).recover_expired()
+        if not recovered_ids:
+            return 0
         recovered = 0
         async with self._session_factory() as session:
             rows = (
                 await session.scalars(
-                    select(JobStepRecord)
-                    .join(ProcessingJobRecord, JobStepRecord.job_id == ProcessingJobRecord.id)
-                    .where(
-                        ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                    select(JobStepRecord).where(
+                        JobStepRecord.job_id.in_([str(job_id) for job_id in recovered_ids]),
                         JobStepRecord.status == "running",
                         JobStepRecord.started_at.is_not(None),
                         JobStepRecord.started_at <= cutoff,
                     )
-                    .order_by(JobStepRecord.started_at.asc())
                 )
             ).all()
             for step in rows:
-                if step.retry_count >= max_retries:
-                    await session.execute(
-                        update(ProcessingJobRecord)
-                        .where(
-                            ProcessingJobRecord.id == step.job_id,
-                            ProcessingJobRecord.status == JobStatus.PROCESSING.value,
-                        )
-                        .values(status=JobStatus.FAILED.value)
-                    )
-                    step.status = "failed"
-                    step.completed_at = datetime.now(UTC)
-                    step.error = "worker lease expired; retry limit reached"
-                    continue
-                result = await session.execute(
-                    update(ProcessingJobRecord)
-                    .where(
-                        ProcessingJobRecord.id == step.job_id,
-                        ProcessingJobRecord.status == JobStatus.PROCESSING.value,
-                    )
-                    .values(status=JobStatus.QUEUED.value)
-                )
-                if result.rowcount:
-                    step.status = "failed"
-                    step.completed_at = datetime.now(UTC)
-                    step.retry_count += 1
-                    step.error = "worker lease expired; job requeued"
-                    recovered += 1
+                step.status = "failed"
+                step.completed_at = datetime.now(UTC)
+                step.retry_count += 1
+                step.error = "worker lease expired; job requeued"
+                recovered += 1
             await session.commit()
         return recovered
 
