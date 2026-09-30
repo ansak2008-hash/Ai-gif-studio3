@@ -81,7 +81,10 @@ async def test_stale_job_reaches_failed_after_retry_limit(tmp_path) -> None:
             await session.execute(
                 update(ProcessingJobRecord)
                 .where(ProcessingJobRecord.id == str(job.id))
-                .values(lease_expires_at=datetime.now(UTC) - timedelta(minutes=10))
+                .values(
+                    attempt=2,
+                    lease_expires_at=datetime.now(UTC) - timedelta(minutes=10),
+                )
             )
             await session.commit()
 
