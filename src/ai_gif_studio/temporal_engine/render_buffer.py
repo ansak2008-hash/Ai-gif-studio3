@@ -123,14 +123,14 @@ class RenderBuffer:
         if value.shape != (4,):
             raise ValueError("clear color must contain exactly four values")
         self._validate_color_value(value)
-        current = self._storage_view()
+        current = self.data
         updated = np.broadcast_to(value, current.shape).copy()
         with _STORAGE_LOCK:
             _STORAGE[self] = _build_immutable_storage(updated)
 
     def copy(self) -> RenderBuffer:
         """Return an independent owned copy."""
-        return RenderBuffer(self._storage_view(), _token=_CONSTRUCTION_TOKEN)
+        return RenderBuffer(self.data, _token=_CONSTRUCTION_TOKEN)
 
     def _storage_shape(self) -> tuple[int, int, int]:
         with _STORAGE_LOCK:
