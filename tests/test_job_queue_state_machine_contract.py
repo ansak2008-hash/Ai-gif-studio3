@@ -22,7 +22,9 @@ class FakeRepository:
             return None
         return self.job
 
-    async def set_status(self, job_id: UUID, status: str, expected_status: str | None = None) -> bool:
+    async def set_status(
+        self, job_id: UUID, status: str, expected_status: str | None = None
+    ) -> bool:
         async with self._lock:
             if job_id != self.job.id:
                 return False
@@ -32,16 +34,24 @@ class FakeRepository:
             if current.value == status:
                 return True
             if current is JobStatus.CREATED and status == JobStatus.QUEUED.value:
-                self.job = ProcessingJob(self.job.id, JobStatus.QUEUED, self.job.submission, self.job.created_at)
+                self.job = ProcessingJob(
+                    self.job.id, JobStatus.QUEUED, self.job.submission, self.job.created_at
+                )
                 return True
             if current is JobStatus.QUEUED and status == JobStatus.PROCESSING.value:
-                self.job = ProcessingJob(self.job.id, JobStatus.PROCESSING, self.job.submission, self.job.created_at)
+                self.job = ProcessingJob(
+                    self.job.id, JobStatus.PROCESSING, self.job.submission, self.job.created_at
+                )
                 return True
             if current is JobStatus.PROCESSING and status == JobStatus.COMPLETED.value:
-                self.job = ProcessingJob(self.job.id, JobStatus.COMPLETED, self.job.submission, self.job.created_at)
+                self.job = ProcessingJob(
+                    self.job.id, JobStatus.COMPLETED, self.job.submission, self.job.created_at
+                )
                 return True
             if current is JobStatus.PROCESSING and status == JobStatus.FAILED.value:
-                self.job = ProcessingJob(self.job.id, JobStatus.FAILED, self.job.submission, self.job.created_at)
+                self.job = ProcessingJob(
+                    self.job.id, JobStatus.FAILED, self.job.submission, self.job.created_at
+                )
                 return True
             raise ValueError(f"invalid transition {current.value} -> {status}")
 
@@ -104,7 +114,9 @@ async def test_claim_is_single_winner_under_concurrency() -> None:
     repo = FakeRepository(make_job())
     queue = AtomicJobQueue(repo)
     await queue.enqueue(repo.job)
-    results = await asyncio.gather(*(queue.claim_for_processing(repo.job.id, f"worker-{i}") for i in range(32)))
+    results = await asyncio.gather(
+        *(queue.claim_for_processing(repo.job.id, f"worker-{i}") for i in range(32))
+    )
     assert sum(result is not None for result in results) == 1
     assert repo.job.status is JobStatus.PROCESSING
 
