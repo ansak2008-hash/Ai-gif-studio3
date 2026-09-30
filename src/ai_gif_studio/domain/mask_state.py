@@ -75,6 +75,49 @@ class MaskState:
         if self.threshold is not None:
             object.__setattr__(self, "threshold", _unit_interval(self.threshold, "threshold"))
 
+    @classmethod
+    def from_canonical_json(cls, value: str) -> MaskState:
+        if not isinstance(value, str):
+            raise TypeError("canonical mask state must be a string")
+        try:
+            payload = json.loads(value)
+        except (json.JSONDecodeError, RecursionError) as exc:
+            raise ValueError("invalid canonical mask state JSON") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("canonical mask state must be an object")
+        expected = {
+            "mask_id",
+            "source_asset_id",
+            "enabled",
+            "inverted",
+            "opacity",
+            "feather_radius",
+            "blur_radius",
+            "levels_low",
+            "levels_high",
+            "threshold",
+        }
+        if set(payload) != expected:
+            raise ValueError("invalid mask state keys")
+        try:
+            state = cls(
+                UUID(payload["mask_id"]),
+                UUID(payload["source_asset_id"]),
+                enabled=payload["enabled"],
+                inverted=payload["inverted"],
+                opacity=payload["opacity"],
+                feather_radius=payload["feather_radius"],
+                blur_radius=payload["blur_radius"],
+                levels_low=payload["levels_low"],
+                levels_high=payload["levels_high"],
+                threshold=payload["threshold"],
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("invalid canonical mask state payload") from exc
+        if state.canonical_json != value:
+            raise ValueError("canonical mask state is not normalized")
+        return state
+
     @property
     def metadata(self) -> dict[str, object]:
         return {
