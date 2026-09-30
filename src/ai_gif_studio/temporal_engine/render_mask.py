@@ -2,32 +2,47 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from threading import RLock
+from weakref import WeakKeyDictionary
 
 import numpy as np
 
+_MASK_STORAGE_LOCK = RLock()
+_MASK_STORAGE: WeakKeyDictionary[
+    RenderMask, tuple[bytes, tuple[int, int], np.ndarray]
+] = WeakKeyDictionary()
 
-@dataclass(frozen=True, slots=True)
+
+def _build_mask_storage(
+    owned: np.ndarray,
+) -> tuple[bytes, tuple[int, int], np.ndarray]:
+    raw_bytes = owned.tobytes()
+    shape = tuple(int(value) for value in owned.shape)
+    view = np.ndarray(shape, dtype=np.float32, buffer=raw_bytes)
+    if view.flags.writeable:
+        raise RuntimeError("immutable RenderMask storage unexpectedly writable")
+    return raw_bytes, shape, view
+
+
+@dataclass(frozen=True, eq=False, slots=True, weakref_slot=True, init=False)
 class RenderMask:
     """Owned, read-only float32 coverage/control field."""
 
-    _mask: np.ndarray
-
-    def __post_init__(self) -> None:
-        mask = np.asarray(self._mask)
-        if mask.ndim != 2:
+    def __init__(self, mask: np.ndarray) -> None:
+        raw = np.asarray(mask)
+        if raw.ndim != 2:
             raise ValueError("RenderMask data must have shape HxW")
-        if mask.shape[0] < 1 or mask.shape[1] < 1:
+        if raw.shape[0] < 1 or raw.shape[1] < 1:
             raise ValueError("RenderMask dimensions must be positive")
-        if not np.issubdtype(mask.dtype, np.floating):
+        if not np.issubdtype(raw.dtype, np.floating):
             raise TypeError("RenderMask data must be floating point")
-        if not np.isfinite(mask).all():
+        if not np.isfinite(raw).all():
             raise ValueError("RenderMask data must be finite")
-        if np.any((mask < 0.0) | (mask > 1.0)):
+        if np.any((raw < 0.0) | (raw > 1.0)):
             raise ValueError("RenderMask data must be within [0, 1]")
-
-        owned = np.array(mask, dtype=np.float32, copy=True)
-        owned.setflags(write=False)
-        object.__setattr__(self, "_mask", owned)
+        owned = np.array(raw, dtype=np.float32, copy=True, order="C")
+        with _MASK_STORAGE_LOCK:
+            _MASK_STORAGE[self] = _build_mask_storage(owned)
 
     @classmethod
     def from_array(cls, value: np.ndarray) -> RenderMask:
@@ -42,7 +57,6 @@ class RenderMask:
         *,
         value: float = 0.0,
     ) -> RenderMask:
-        """Allocate a constant canonical mask."""
         if width < 1 or height < 1:
             raise ValueError("RenderMask dimensions must be positive")
         if not np.isfinite(value) or not 0.0 <= value <= 1.0:
@@ -51,17 +65,25 @@ class RenderMask:
 
     @property
     def data(self) -> np.ndarray:
-        """Return the read-only canonical mask data."""
-        return self._mask
+        """Return the cached read-only canonical mask data."""
+        with _MASK_STORAGE_LOCK:
+            storage = _MASK_STORAGE.get(self)
+        if storage is None:
+            raise RuntimeError("RenderMask storage is unavailable")
+        return storage[2]
 
     @property
     def shape(self) -> tuple[int, int]:
-        return self._mask.shape
+        with _MASK_STORAGE_LOCK:
+            storage = _MASK_STORAGE.get(self)
+        if storage is None:
+            raise RuntimeError("RenderMask storage is unavailable")
+        return storage[1]
 
     @property
     def dtype(self) -> np.dtype:
-        return self._mask.dtype
+        return np.dtype(np.float32)
 
     def copy(self) -> RenderMask:
         """Return an independent copy of this mask."""
-        return RenderMask(self._mask.copy())
+        return RenderMask(self.data)

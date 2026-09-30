@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
+from ai_gif_studio.temporal_engine.render_buffer import _STORAGE, RenderBuffer
 
 pytestmark = pytest.mark.unit
 
@@ -99,12 +99,10 @@ def test_render_buffer_rejects_storage_replacement() -> None:
         buffer._rgba_linear = np.zeros((1, 1, 4), dtype=np.float32)
 
 
-def test_reflective_attribute_replacement_cannot_swap_canonical_storage() -> None:
+def test_reflective_attribute_replacement_cannot_create_identity_slot() -> None:
     buffer = RenderBuffer.allocate(1, 1)
-    before = buffer.data.copy()
-
-    object.__setattr__(buffer, "_identity", object())
-    np.testing.assert_array_equal(buffer.data, before)
+    with pytest.raises(AttributeError):
+        object.__setattr__(buffer, "_identity", object())
 
 
 def test_raw_ndarray_construction_requires_explicit_color_space_boundary() -> None:
@@ -132,3 +130,63 @@ def test_clear_replaces_storage_without_exposing_writable_alias() -> None:
     with pytest.raises(ValueError, match="WRITEABLE"):
         buffer.data.setflags(write=True)
     np.testing.assert_array_equal(buffer.data, [[[1.0, 0.0, 0.0, 1.0]]])
+
+
+def test_render_buffer_data_base_is_immutable_bytes() -> None:
+    buffer = RenderBuffer.allocate(2, 2)
+    data = buffer.data
+    assert isinstance(data.base, bytes)
+    assert data.flags.writeable is False
+    with pytest.raises(ValueError):
+        data.setflags(write=True)
+
+
+def test_render_buffer_internal_storage_cannot_be_escalated() -> None:
+    buffer = RenderBuffer.allocate(1, 1)
+    raw_bytes, shape, view = _STORAGE[buffer]
+    assert shape == buffer.shape
+    assert isinstance(raw_bytes, bytes)
+    assert view.flags.writeable is False
+    with pytest.raises(ValueError):
+        view.setflags(write=True)
+    with pytest.raises(ValueError):
+        view[0, 0, 0] = 1.0
+
+
+def test_render_buffer_base_mutation_cannot_change_canonical_storage() -> None:
+    buffer = RenderBuffer.allocate(1, 1)
+    base = buffer.data.base
+    assert isinstance(base, bytes)
+    with pytest.raises(TypeError):
+        base[0] = 1
+    np.testing.assert_array_equal(buffer.data, 0.0)
+
+
+def test_render_buffer_reflection_cannot_create_internal_storage_slot() -> None:
+    buffer = RenderBuffer.allocate(1, 1)
+    with pytest.raises(AttributeError):
+        object.__setattr__(buffer, "_identity", object())
+    with pytest.raises(AttributeError):
+        object.__delattr__(buffer, "_identity")
+
+
+def test_render_buffer_memoryview_is_readonly() -> None:
+    buffer = RenderBuffer.allocate(1, 1)
+    view = memoryview(buffer.data)
+    assert view.readonly is True
+
+
+def test_render_buffer_copy_has_independent_storage() -> None:
+    original = RenderBuffer.allocate(1, 1)
+    copied = original.copy()
+    assert not np.shares_memory(original.data, copied.data)
+    np.testing.assert_array_equal(original.data, copied.data)
+
+
+def test_render_buffer_old_view_survives_clear_without_aliasing_new_storage() -> None:
+    buffer = RenderBuffer.allocate(1, 1)
+    old_view = buffer.data
+    buffer.clear((1.0, 0.0, 0.0, 1.0))
+    np.testing.assert_array_equal(old_view, 0.0)
+    np.testing.assert_array_equal(buffer.data, [[[1.0, 0.0, 0.0, 1.0]]])
+    assert not np.shares_memory(old_view, buffer.data)

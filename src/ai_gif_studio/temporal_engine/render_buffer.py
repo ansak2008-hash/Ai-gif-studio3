@@ -1,4 +1,7 @@
-"""Canonical linear RGBA render target contract for the temporal engine."""
+"""Canonical linear RGBA render target contract for the temporal engine.
+
+Canonical storage is immutable bytes with a cached read-only ndarray view.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -11,7 +14,20 @@ from .color import linearize_srgb
 
 _CONSTRUCTION_TOKEN = object()
 _STORAGE_LOCK = RLock()
-_STORAGE: WeakKeyDictionary[RenderBuffer, np.ndarray] = WeakKeyDictionary()
+_STORAGE: WeakKeyDictionary[
+    RenderBuffer, tuple[bytes, tuple[int, int, int], np.ndarray]
+] = WeakKeyDictionary()
+
+
+def _build_immutable_storage(
+    owned: np.ndarray,
+) -> tuple[bytes, tuple[int, int, int], np.ndarray]:
+    raw_bytes = owned.tobytes()
+    shape = tuple(int(value) for value in owned.shape)
+    view = np.ndarray(shape, dtype=np.float32, buffer=raw_bytes)
+    if view.flags.writeable:
+        raise RuntimeError("immutable RenderBuffer storage unexpectedly writable")
+    return raw_bytes, shape, view
 
 
 @dataclass(frozen=True, eq=False, slots=True, weakref_slot=True, init=False)
@@ -24,8 +40,6 @@ class RenderBuffer:
     operations.
     """
 
-    _identity: object
-
     def __init__(self, storage: np.ndarray, *, _token: object | None = None) -> None:
         if _token is not _CONSTRUCTION_TOKEN:
             raise TypeError(
@@ -37,12 +51,9 @@ class RenderBuffer:
         if raw.dtype != np.float32:
             raise TypeError("RenderBuffer storage must use float32")
         self._validate_buffer_values(raw)
-        owned = np.array(raw, dtype=np.float32, copy=True)
-        owned.setflags(write=False)
-        identity = object()
-        object.__setattr__(self, "_identity", identity)
+        owned = np.array(raw, dtype=np.float32, copy=True, order="C")
         with _STORAGE_LOCK:
-            _STORAGE[self] = owned
+            _STORAGE[self] = _build_immutable_storage(owned)
 
     @classmethod
     def allocate(cls, width: int, height: int) -> RenderBuffer:
@@ -83,26 +94,28 @@ class RenderBuffer:
 
     @property
     def width(self) -> int:
-        return int(self._storage_view().shape[1])
+        return self._storage_shape()[1]
 
     @property
     def height(self) -> int:
-        return int(self._storage_view().shape[0])
+        return self._storage_shape()[0]
 
     @property
     def shape(self) -> tuple[int, int, int]:
-        return self._storage_view().shape
+        return self._storage_shape()
 
     @property
     def dtype(self) -> np.dtype:
-        return self._storage_view().dtype
+        return np.dtype(np.float32)
 
     @property
     def data(self) -> np.ndarray:
-        """Return a read-only view of the canonical RGBA storage."""
-        view = self._storage_view().view()
-        view.setflags(write=False)
-        return view
+        """Return the cached read-only canonical RGBA view."""
+        with _STORAGE_LOCK:
+            storage = _STORAGE.get(self)
+        if storage is None:
+            raise RuntimeError("RenderBuffer storage is unavailable")
+        return storage[2]
 
     def clear(self, rgba_linear: tuple[float, float, float, float]) -> None:
         """Clear the buffer to one validated linear RGBA value."""
@@ -110,22 +123,21 @@ class RenderBuffer:
         if value.shape != (4,):
             raise ValueError("clear color must contain exactly four values")
         self._validate_color_value(value)
-        current = self._storage_view()
+        current = self.data
         updated = np.broadcast_to(value, current.shape).copy()
-        updated.setflags(write=False)
         with _STORAGE_LOCK:
-            _STORAGE[self] = updated
+            _STORAGE[self] = _build_immutable_storage(updated)
 
     def copy(self) -> RenderBuffer:
         """Return an independent owned copy."""
-        return RenderBuffer(self._storage_view(), _token=_CONSTRUCTION_TOKEN)
+        return RenderBuffer(self.data, _token=_CONSTRUCTION_TOKEN)
 
-    def _storage_view(self) -> np.ndarray:
+    def _storage_shape(self) -> tuple[int, int, int]:
         with _STORAGE_LOCK:
             storage = _STORAGE.get(self)
         if storage is None:
             raise RuntimeError("RenderBuffer storage is unavailable")
-        return storage
+        return storage[1]
 
     @staticmethod
     def _positive_dimension(value: int, name: str) -> int:
