@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from threading import Lock
 from typing import Final
 
@@ -30,6 +30,7 @@ class ResourceReservation:
     reservation_id: int
     memory_bytes: int
     model: str | None = None
+    _owner_token: object | None = field(default=None, repr=False, compare=False)
 
 
 class ResourceManager:
@@ -51,6 +52,7 @@ class ResourceManager:
         self._next_id = 1
         self._active: dict[int, ResourceReservation] = {}
         self._lock = Lock()
+        self._owner_token = object()
 
     @staticmethod
     def estimate_render_memory_bytes(
@@ -118,13 +120,22 @@ class ResourceManager:
                     f"resource request would exceed available budget: "
                     f"requested {request.memory_bytes} bytes, available {self._limit - self._reserved} bytes"
                 )
-            reservation = ResourceReservation(self._next_id, request.memory_bytes, request.model)
+            reservation = ResourceReservation(
+                self._next_id,
+                request.memory_bytes,
+                request.model,
+                self._owner_token,
+            )
             self._next_id += 1
             self._active[reservation.reservation_id] = reservation
             self._reserved += reservation.memory_bytes
             return reservation
 
     def release(self, reservation: ResourceReservation) -> None:
+        if not isinstance(reservation, ResourceReservation):
+            raise TypeError("reservation must be a ResourceReservation")
+        if reservation._owner_token is not self._owner_token:
+            raise ValueError("reservation does not belong to this resource manager")
         with self._lock:
             active = self._active.pop(reservation.reservation_id, None)
             if active is not None:
