@@ -49,9 +49,33 @@ jobs:
       - name: Check formatting of newly added Python files
         shell: bash
         run: |
-          files="$(git diff --name-status "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}" -- '*.py' | awk '$1 == "A" {print $2}')"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            BASE_SHA="${{ github.event.before }}"
+          else
+            BASE_SHA=""
+          fi
+
+          files=""
+          if [[ -n "$BASE_SHA" ]] &&
+             [[ "$BASE_SHA" != "0000000000000000000000000000000000000000" ]] &&
+             git rev-parse --verify "$BASE_SHA^{commit}" >/dev/null 2>&1; then
+            files="$(git diff --name-status "$BASE_SHA" "${{ github.sha }}" -- '*.py' |
+              awk '$1 == "A" {print $2}')"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            files="$(git diff-tree --root --no-commit-id --name-status -r "${{ github.sha }}" -- '*.py' |
+              awk '$1 == "A" {print $2}')"
+          else
+            echo "No valid comparison base; no newly added Python files to format-check."
+          fi
+
           if [[ -n "$files" ]]; then
+            echo "Checking formatting for added files:"
+            printf '%s\n' "$files"
             printf '%s\n' "$files" | xargs ruff format --check
+          else
+            echo "No newly added Python files to check."
           fi
 
   unit:
@@ -110,6 +134,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
