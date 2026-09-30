@@ -42,3 +42,11 @@ def test_filter_coordinates_are_numeric_and_bounded(payload: dict) -> None:
 def test_background_mode_is_allowlisted() -> None:
     with pytest.raises(ValueError):
         DesignSpec(background={"mode": "movie=/etc/passwd", "color": "#111111"})
+
+
+@pytest.mark.unit
+def test_processing_settings_enforces_hard_gif_byte_ceiling() -> None:
+    from ai_gif_studio.domain.specs import ProcessingSettings
+
+    with pytest.raises(ValueError):
+        ProcessingSettings(max_bytes=2_400_001)
