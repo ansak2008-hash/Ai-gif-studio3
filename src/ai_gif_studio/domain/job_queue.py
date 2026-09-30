@@ -40,6 +40,8 @@ class AtomicJobQueue:
         self._dispatcher = dispatcher
 
     async def enqueue(self, job: ProcessingJob) -> ProcessingJob | None:
+        if self._dispatcher is not None:
+            await self._dispatcher(str(job.id), _job_id=str(job.id))
         changed = await self._repository.set_status(
             job.id,
             JobStatus.QUEUED.value,
@@ -50,15 +52,6 @@ class AtomicJobQueue:
             if current is not None and current.status is not JobStatus.CREATED:
                 return None
             raise DuplicateEnqueueError(f"job {job.id} could not be enqueued atomically")
-
-        if self._dispatcher is not None:
-            try:
-                await self._dispatcher(str(job.id), _job_id=str(job.id))
-            except Exception:
-                # Never regress QUEUED -> CREATED. A reconciliation/retry worker can
-                # safely re-submit the deterministic ARQ job id later.
-                raise
-
         return await self._repository.get(job.id)
 
     async def claim_for_processing(self, job_id: UUID, worker_id: str) -> ProcessingJob | None:
