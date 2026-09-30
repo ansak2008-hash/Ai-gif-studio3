@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import socket
 from pathlib import Path
 from uuid import UUID
 
@@ -16,6 +18,7 @@ from ai_gif_studio.database.repositories import (
     JobStepRepository,
     SqlAlchemyJobRepository,
 )
+from ai_gif_studio.domain.job_queue import AtomicJobQueue
 from ai_gif_studio.engines.design_production2 import ProductionDesignGifEngine
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 from ai_gif_studio.observability import stage
@@ -33,10 +36,18 @@ async def process_job(ctx, job_id: str):
     source: Path | None = None
     try:
         repo = SqlAlchemyJobRepository(db.session_factory)
+        queue = AtomicJobQueue(repo)
         job = await repo.get(UUID(job_id))
         if job is None:
             logger.warning("job_missing job_id=%s", job_id)
             return {"status": "missing", "job_id": job_id}
+
+        worker_id = f"{socket.gethostname()}:{os.getpid()}"
+        claimed = await queue.claim_for_processing(job.id, worker_id)
+        if claimed is None:
+            logger.info("worker_claim_lost job_id=%s worker_id=%s", job_id, worker_id)
+            return {"status": "claim_lost", "job_id": job_id}
+
         source = settings.temp_directory / f"{job.id}.source"
         target = settings.storage_directory / f"{job.id}.gif"
         source.parent.mkdir(parents=True, exist_ok=True)
