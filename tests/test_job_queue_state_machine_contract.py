@@ -75,6 +75,21 @@ async def test_enqueue_is_idempotent_for_duplicate_submission() -> None:
 
 
 @pytest.mark.asyncio
+async def test_progressed_job_does_not_reenter_transport_enqueue() -> None:
+    repo = FakeRepository(make_job())
+    calls: list[str] = []
+
+    async def dispatch(job_id: str) -> None:
+        calls.append(job_id)
+
+    queue = AtomicJobQueue(repo, dispatch)
+    await queue.enqueue(repo.job)
+    calls.clear()
+    assert await queue.enqueue(repo.job) is None
+    assert calls == []
+
+
+@pytest.mark.asyncio
 async def test_duplicate_enqueue_never_regresses_queued_to_created() -> None:
     repo = FakeRepository(make_job())
     queue = AtomicJobQueue(repo)
