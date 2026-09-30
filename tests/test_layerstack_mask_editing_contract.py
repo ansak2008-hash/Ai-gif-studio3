@@ -43,11 +43,17 @@ def test_update_mask_replaces_only_existing_mask_state() -> None:
 
 def test_update_mask_preserves_mask_and_source_identity() -> None:
     stack, mask = _stack_with_mask()
+    original_layer = stack.layers[0]
     edited = mask.with_blur_radius(8.0)
     updated = stack.update_mask(LAYER_ID, edited)
     assert updated.layers[0].mask is edited
     assert updated.layers[0].mask.mask_id == MASK_ID
     assert updated.layers[0].mask.source_asset_id == ASSET_ID
+    assert updated.layers[0].source_asset_id == original_layer.source_asset_id
+    assert updated.layers[0].opacity == original_layer.opacity
+    assert updated.layers[0].visible is original_layer.visible
+    assert updated.layers[0].blend_mode is original_layer.blend_mode
+    assert updated.max_layers == stack.max_layers
 
 
 def test_update_mask_rejects_layer_without_mask() -> None:
