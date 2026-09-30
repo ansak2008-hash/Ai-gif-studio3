@@ -51,10 +51,10 @@ class Queue:
         self.worker_id = worker_id
         return ClaimResult(self.job, worker_id, 1, __import__("datetime").datetime.now(__import__("datetime").UTC), 1)
 
-    async def complete(self, job_id, worker_id):
+    async def complete(self, job_id, worker_id, version):
         self.status = "completed"
 
-    async def fail(self, job_id, worker_id, error):
+    async def fail(self, job_id, worker_id, version, error):
         self.status = "failed"
 
 
