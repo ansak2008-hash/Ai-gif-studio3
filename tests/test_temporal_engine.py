@@ -198,3 +198,47 @@ def test_palette_is_deterministic():
         np.asarray(pal1.convert("RGB"), dtype=np.uint8),
         np.asarray(pal2.convert("RGB"), dtype=np.uint8),
     )
+
+
+def test_timeline_rejects_bool_and_non_numeric_constructor_values() -> None:
+    with pytest.raises(TypeError):
+        AnimationTimeline(True, 10.0)
+    with pytest.raises(TypeError):
+        AnimationTimeline(1.0, True)
+    with pytest.raises(TypeError):
+        AnimationTimeline("1.0", 10.0)
+    with pytest.raises(TypeError):
+        AnimationTimeline(1.0, "10.0")
+
+
+def test_timeline_timestamps_are_deterministic_monotonic_and_bounded() -> None:
+    timeline = AnimationTimeline(1.37, 23.0, loop=False)
+    first = timeline.frame_times
+    second = timeline.frame_times
+    assert first == second
+    assert first[0] == 0.0
+    assert all(a < b for a, b in zip(first, first[1:]))
+    assert all(0.0 <= t < timeline.total_duration_sec for t in first)
+    assert timeline.timings() == timeline.timings()
+
+
+def test_timeline_fractional_frame_boundary_is_stable() -> None:
+    timeline = AnimationTimeline(1.0, 10.5)
+    assert timeline.total_frames == 10
+    assert timeline.frame_times == tuple(
+        i / timeline.total_frames for i in range(timeline.total_frames)
+    )
+
+
+def test_timeline_rejects_sub_centisecond_total_duration() -> None:
+    with pytest.raises(ValueError, match="centisecond"):
+        AnimationTimeline(0.001, 1.0).centisecond_delays()
+
+
+def test_timeline_progress_is_deterministic_at_loop_and_clamp_boundaries() -> None:
+    looping = AnimationTimeline(2.0, 4.0, loop=True)
+    assert looping.progress(2.0) == 0.0
+    assert looping.progress(4.5) == 0.25
+    non_looping = AnimationTimeline(2.0, 4.0, loop=False)
+    assert non_looping.progress(-1.0) == 0.0
+    assert non_looping.progress(3.0) == 1.0
