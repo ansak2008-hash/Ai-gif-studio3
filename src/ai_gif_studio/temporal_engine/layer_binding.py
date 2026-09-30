@@ -7,8 +7,8 @@ from uuid import UUID
 from ai_gif_studio.domain.layer_state import LayerStack
 from ai_gif_studio.temporal_engine.blend import BlendMode
 from ai_gif_studio.temporal_engine.compositor import BlendLayer
-from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
 from ai_gif_studio.temporal_engine.mask_processing import process_mask
+from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
 from ai_gif_studio.temporal_engine.render_mask import RenderMask
 
 
@@ -59,7 +59,7 @@ def bind_layer_stack(
             resolved_mask = process_mask(source_mask, layer.mask)
             if layer.opacity != 1.0:
                 resolved_mask = RenderMask.from_array(
-                    (resolved_mask.data * layer.opacity).astype(np.float32)
+                    resolved_mask.data * layer.opacity
                 )
             mask = resolved_mask
         else:
