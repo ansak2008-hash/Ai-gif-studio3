@@ -57,12 +57,6 @@ class RenderMask:
         *,
         value: float = 0.0,
     ) -> RenderMask:
-        if isinstance(width, bool) or isinstance(height, bool):
-            raise TypeError("RenderMask dimensions must be integers")
-        if not isinstance(width, (int, np.integer)) or not isinstance(
-            height, (int, np.integer)
-        ):
-            raise TypeError("RenderMask dimensions must be integers")
         if width < 1 or height < 1:
             raise ValueError("RenderMask dimensions must be positive")
         if not np.isfinite(value) or not 0.0 <= value <= 1.0:
