@@ -14,15 +14,36 @@ from ai_gif_studio.quality_engine import QualityEngine
 
 
 class ProductionDesignGifEngine:
-    def __init__(self, ffmpeg, render=None, quality=None):
+    def __init__(
+        self,
+        ffmpeg,
+        render=None,
+        quality=None,
+        *,
+        max_input_bytes: int | None = None,
+        max_input_width: int | None = None,
+        max_input_height: int | None = None,
+        max_input_duration_seconds: float | None = None,
+    ):
         self.ffmpeg = ffmpeg
         self.render = render or RenderConfiguration()
         self.quality = quality or QualityEngine()
+        self.max_input_bytes = max_input_bytes
+        self.max_input_width = max_input_width
+        self.max_input_height = max_input_height
+        self.max_input_duration_seconds = max_input_duration_seconds
 
     async def convert(self, source: Path, target: Path, design: DesignSpec, settings: ProcessingSettings):
         trace = DebugTraceBundle()
         try:
-                preflight = await preflight_media(source, self.ffmpeg)
+                preflight = await preflight_media(
+                    source,
+                    self.ffmpeg,
+                    max_bytes=self.max_input_bytes,
+                    max_width=self.max_input_width,
+                    max_height=self.max_input_height,
+                    max_duration_seconds=self.max_input_duration_seconds,
+                )
                 probe = preflight.probe
                 video = next(x for x in probe.get("streams", []) if x.get("codec_type") == "video")
                 width, height = preflight.width, preflight.height
