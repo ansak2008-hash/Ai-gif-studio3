@@ -20,6 +20,10 @@ class ProcessingJobRecord(Base):
     )
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    owner_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     telegram_file_id: Mapped[str] = mapped_column(String(255), nullable=False)
     original_filename: Mapped[str | None] = mapped_column(String(255))
     content_type: Mapped[str | None] = mapped_column(String(128))
@@ -68,7 +72,7 @@ class DesignSpecRecord(Base):
 class ProcessingSettingsRecord(Base):
     __tablename__ = "processing_settings"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    job_id: Mapped[str] = mapped_column(String(36), ForeignKey("processing_jobs.id"), index=True, nullable=False)
+    job_id: Mapped[str] = mapped_column(String(36), ForeignKey("processing_jobs.id"), nullable=False)
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False)
     document: Mapped[dict] = mapped_column(JSON, nullable=False)
 

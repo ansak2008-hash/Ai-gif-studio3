@@ -5,6 +5,7 @@ import asyncio
 from ai_gif_studio.configuration import get_settings
 from ai_gif_studio.database import Database
 from ai_gif_studio.database.repositories import SqlAlchemyJobRepository
+from ai_gif_studio.domain.job_queue import AtomicJobQueue
 from ai_gif_studio.infrastructure.queue import ArqQueue
 from ai_gif_studio.logging import configure_logging
 from ai_gif_studio.services import IntakeService
@@ -21,18 +22,20 @@ async def run():
     db = Database(s.database_url)
     if s.auto_create_schema:
         await db.create_schema()
-    queue = await ArqQueue(s.redis_url).connect()
+    repository = SqlAlchemyJobRepository(db.session_factory)
+    queue_transport = await ArqQueue(s.redis_url).connect()
+    job_queue = AtomicJobQueue(repository, queue_transport.enqueue_job)
     intake = IntakeService(
-        SqlAlchemyJobRepository(db.session_factory),
+        repository,
         s.max_upload_bytes,
         s.telegram_allowed_user_ids,
         s.max_queue_depth,
     )
     bot = create_bot(s.telegram_bot_token)
     try:
-        await create_dispatcher(intake, queue).start_polling(bot)
+        await create_dispatcher(intake, job_queue).start_polling(bot)
     finally:
-        await queue.close()
+        await queue_transport.close()
         await bot.session.close()
         await db.dispose()
 

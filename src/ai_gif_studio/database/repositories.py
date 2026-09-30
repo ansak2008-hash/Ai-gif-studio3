@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Protocol
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select, update
+from sqlalchemy import case, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -34,6 +34,30 @@ class JobRepository(Protocol):
     async def get(self, job_id: UUID) -> ProcessingJob | None: ...
     async def get_by_submission_key(self, submitted_by: int, source_message_id: int) -> ProcessingJob | None: ...
     async def count_active(self) -> int: ...
+    async def transition_created_to_queued(self, job_id: UUID) -> bool: ...
+
+    async def rollback_queued_to_created(self, job_id: UUID) -> bool: ...
+
+    async def claim_for_processing(
+        self, job_id: UUID, owner_id: str, lease_expires_at: datetime
+    ): ...
+
+    async def complete_processing(
+        self, job_id: UUID, owner_id: str, version: int, now: datetime
+    ) -> bool: ...
+
+    async def fail_processing(
+        self, job_id: UUID, owner_id: str, version: int, error: str, now: datetime
+    ) -> bool: ...
+
+    async def retry_processing(
+        self, job_id: UUID, owner_id: str, version: int, error: str, now: datetime
+    ) -> bool: ...
+
+    async def recover_expired_processing(
+        self, now: datetime, max_attempts: int
+    ) -> list[UUID]: ...
+
     async def set_status(self, job_id: UUID, status: str, expected_status: str | None = None) -> bool: ...
     async def get_design_spec(self, job_id: UUID) -> DesignSpec: ...
     async def save_design_spec(self, job_id: UUID, spec: DesignSpec) -> None: ...
@@ -44,6 +68,185 @@ class JobRepository(Protocol):
 class SqlAlchemyJobRepository:
     def __init__(self, session_factory: async_sessionmaker) -> None:
         self._session_factory = session_factory
+
+    async def transition_created_to_queued(self, job_id: UUID) -> bool:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                update(ProcessingJobRecord)
+                .where(
+                    ProcessingJobRecord.id == str(job_id),
+                    ProcessingJobRecord.status == JobStatus.CREATED.value,
+                )
+                .values(
+                    status=JobStatus.QUEUED.value,
+                    version=ProcessingJobRecord.version + 1,
+                    owner_id=None,
+                    lease_expires_at=None,
+                )
+            )
+            await session.commit()
+            return result.rowcount == 1
+
+    async def rollback_queued_to_created(self, job_id: UUID) -> bool:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                update(ProcessingJobRecord)
+                .where(
+                    ProcessingJobRecord.id == str(job_id),
+                    ProcessingJobRecord.status == JobStatus.QUEUED.value,
+                )
+                .values(
+                    status=JobStatus.CREATED.value,
+                    version=ProcessingJobRecord.version + 1,
+                )
+            )
+            await session.commit()
+            return result.rowcount == 1
+
+    async def claim_for_processing(
+        self, job_id: UUID, owner_id: str, lease_expires_at: datetime
+    ):
+        async with self._session_factory() as session:
+            result = await session.execute(
+                update(ProcessingJobRecord)
+                .where(
+                    ProcessingJobRecord.id == str(job_id),
+                    ProcessingJobRecord.status == JobStatus.QUEUED.value,
+                )
+                .values(
+                    status=JobStatus.PROCESSING.value,
+                    owner_id=owner_id,
+                    lease_expires_at=lease_expires_at,
+                    attempt=ProcessingJobRecord.attempt + 1,
+                    version=ProcessingJobRecord.version + 1,
+                )
+                .returning(
+                    ProcessingJobRecord.version,
+                    ProcessingJobRecord.attempt,
+                )
+            )
+            row = result.one_or_none()
+            if row is None:
+                await session.rollback()
+                return None
+            await session.commit()
+        job = await self.get(job_id)
+        if job is None:
+            return None
+        from ai_gif_studio.domain.job_queue import ClaimResult
+        return ClaimResult(job, owner_id, row.attempt, lease_expires_at, row.version)
+
+    async def complete_processing(self, job_id: UUID, owner_id: str, version: int, now: datetime) -> bool:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                update(ProcessingJobRecord)
+                .where(
+                    ProcessingJobRecord.id == str(job_id),
+                    ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                    ProcessingJobRecord.owner_id == owner_id,
+                    ProcessingJobRecord.version == version,
+                    ProcessingJobRecord.lease_expires_at.is_not(None),
+                    ProcessingJobRecord.lease_expires_at > now,
+                )
+                .values(
+                    status=JobStatus.COMPLETED.value,
+                    owner_id=None,
+                    lease_expires_at=None,
+                    version=ProcessingJobRecord.version + 1,
+                )
+            )
+            await session.commit()
+            return result.rowcount == 1
+
+    async def fail_processing(
+        self, job_id: UUID, owner_id: str, version: int, error: str, now: datetime
+    ) -> bool:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                update(ProcessingJobRecord)
+                .where(
+                    ProcessingJobRecord.id == str(job_id),
+                    ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                    ProcessingJobRecord.owner_id == owner_id,
+                    ProcessingJobRecord.version == version,
+                    ProcessingJobRecord.lease_expires_at.is_not(None),
+                    ProcessingJobRecord.lease_expires_at > now,
+                )
+                .values(
+                    status=JobStatus.FAILED.value,
+                    owner_id=None,
+                    lease_expires_at=None,
+                    version=ProcessingJobRecord.version + 1,
+                )
+            )
+            await session.commit()
+            return result.rowcount == 1
+
+    async def retry_processing(
+        self, job_id: UUID, owner_id: str, version: int, error: str, now: datetime
+    ) -> bool:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                update(ProcessingJobRecord)
+                .where(
+                    ProcessingJobRecord.id == str(job_id),
+                    ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                    ProcessingJobRecord.owner_id == owner_id,
+                    ProcessingJobRecord.version == version,
+                    ProcessingJobRecord.lease_expires_at.is_not(None),
+                    ProcessingJobRecord.lease_expires_at > now,
+                )
+                .values(
+                    status=JobStatus.QUEUED.value,
+                    owner_id=None,
+                    lease_expires_at=None,
+                    version=ProcessingJobRecord.version + 1,
+                )
+            )
+            await session.commit()
+            return result.rowcount == 1
+
+    async def recover_expired_processing(
+        self, now: datetime, max_attempts: int
+    ) -> list[UUID]:
+        async with self._session_factory() as session:
+            rows = (
+                await session.scalars(
+                    select(ProcessingJobRecord.id).where(
+                        ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                        ProcessingJobRecord.lease_expires_at.is_not(None),
+                        ProcessingJobRecord.lease_expires_at <= now,
+                    )
+                )
+            ).all()
+            recovered: list[UUID] = []
+            for job_id in rows:
+                result = await session.execute(
+                    update(ProcessingJobRecord)
+                    .where(
+                        ProcessingJobRecord.id == job_id,
+                        ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                        ProcessingJobRecord.lease_expires_at <= now,
+                    )
+                    .values(
+                        status=case(
+                            (ProcessingJobRecord.attempt >= max_attempts, JobStatus.FAILED.value),
+                            else_=JobStatus.QUEUED.value,
+                        ),
+                        owner_id=None,
+                        lease_expires_at=None,
+                        version=ProcessingJobRecord.version + 1,
+                    )
+                )
+                if result.rowcount:
+                    if await session.scalar(
+                        select(ProcessingJobRecord.status).where(
+                            ProcessingJobRecord.id == job_id
+                        )
+                    ) == JobStatus.QUEUED.value:
+                        recovered.append(UUID(job_id))
+            await session.commit()
+            return recovered
 
     async def create(self, submission: VideoSubmission) -> ProcessingJob:
         job = ProcessingJob(id=uuid4(), status=JobStatus.CREATED, submission=submission, created_at=datetime.now(UTC))
@@ -156,49 +359,30 @@ class SqlAlchemyJobRepository:
         cutoff: datetime,
         max_retries: int = 2,
     ) -> int:
+        """Compatibility wrapper; queue authority owns job-state recovery."""
+        recovered_ids = await self.recover_expired_processing(
+            datetime.now(UTC), max_retries
+        )
+        if not recovered_ids:
+            return 0
         recovered = 0
         async with self._session_factory() as session:
             rows = (
                 await session.scalars(
-                    select(JobStepRecord)
-                    .join(ProcessingJobRecord, JobStepRecord.job_id == ProcessingJobRecord.id)
-                    .where(
-                        ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                    select(JobStepRecord).where(
+                        JobStepRecord.job_id.in_([str(job_id) for job_id in recovered_ids]),
                         JobStepRecord.status == "running",
                         JobStepRecord.started_at.is_not(None),
                         JobStepRecord.started_at <= cutoff,
                     )
-                    .order_by(JobStepRecord.started_at.asc())
                 )
             ).all()
             for step in rows:
-                if step.retry_count >= max_retries:
-                    await session.execute(
-                        update(ProcessingJobRecord)
-                        .where(
-                            ProcessingJobRecord.id == step.job_id,
-                            ProcessingJobRecord.status == JobStatus.PROCESSING.value,
-                        )
-                        .values(status=JobStatus.FAILED.value)
-                    )
-                    step.status = "failed"
-                    step.completed_at = datetime.now(UTC)
-                    step.error = "worker lease expired; retry limit reached"
-                    continue
-                result = await session.execute(
-                    update(ProcessingJobRecord)
-                    .where(
-                        ProcessingJobRecord.id == step.job_id,
-                        ProcessingJobRecord.status == JobStatus.PROCESSING.value,
-                    )
-                    .values(status=JobStatus.QUEUED.value)
-                )
-                if result.rowcount:
-                    step.status = "failed"
-                    step.completed_at = datetime.now(UTC)
-                    step.retry_count += 1
-                    step.error = "worker lease expired; job requeued"
-                    recovered += 1
+                step.status = "failed"
+                step.completed_at = datetime.now(UTC)
+                step.retry_count += 1
+                step.error = "worker lease expired; job requeued"
+                recovered += 1
             await session.commit()
         return recovered
 

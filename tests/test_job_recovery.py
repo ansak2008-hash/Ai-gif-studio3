@@ -5,7 +5,8 @@ from sqlalchemy import select, update
 
 from ai_gif_studio.database.repositories import JobStepRepository, SqlAlchemyJobRepository
 from ai_gif_studio.database.session import Database
-from ai_gif_studio.database.tables import JobStepRecord
+from ai_gif_studio.database.tables import JobStepRecord, ProcessingJobRecord
+from ai_gif_studio.domain.job_queue import AtomicJobQueue, QueueConfig
 from ai_gif_studio.models import JobStatus, ProcessingMode, VideoSubmission
 
 
@@ -18,8 +19,10 @@ async def test_stale_processing_job_is_requeued_and_step_is_failed(tmp_path) -> 
         job = await repository.create(
             VideoSubmission("file", "video.mp4", "video/mp4", 10, 7, ProcessingMode.CROP_ONLY, 9)
         )
-        await repository.set_status(job.id, "queued", expected_status="created")
-        await repository.set_status(job.id, "processing", expected_status="queued")
+        queue = AtomicJobQueue(repository, config=QueueConfig(lease_duration_seconds=60, max_attempts=2))
+        await queue.enqueue(job)
+        claim = await queue.claim_for_processing(job.id, "reaper-test")
+        assert claim is not None
 
         steps = JobStepRepository(database.session_factory)
         step_id = await steps.start(job.id, "render")
@@ -29,6 +32,11 @@ async def test_stale_processing_job_is_requeued_and_step_is_failed(tmp_path) -> 
                 update(JobStepRecord)
                 .where(JobStepRecord.id == str(step_id))
                 .values(started_at=stale)
+            )
+            await session.execute(
+                update(ProcessingJobRecord)
+                .where(ProcessingJobRecord.id == str(job.id))
+                .values(lease_expires_at=datetime.now(UTC) - timedelta(minutes=10))
             )
             await session.commit()
 
@@ -57,8 +65,10 @@ async def test_stale_job_reaches_failed_after_retry_limit(tmp_path) -> None:
         job = await repository.create(
             VideoSubmission("file", "video.mp4", "video/mp4", 10, 7, ProcessingMode.CROP_ONLY, 10)
         )
-        await repository.set_status(job.id, "queued", expected_status="created")
-        await repository.set_status(job.id, "processing", expected_status="queued")
+        queue = AtomicJobQueue(repository, config=QueueConfig(lease_duration_seconds=60, max_attempts=2))
+        await queue.enqueue(job)
+        claim = await queue.claim_for_processing(job.id, "reaper-test")
+        assert claim is not None
         steps = JobStepRepository(database.session_factory)
         step_id = await steps.start(job.id, "render")
         stale = datetime.now(UTC) - timedelta(minutes=10)
@@ -67,6 +77,14 @@ async def test_stale_job_reaches_failed_after_retry_limit(tmp_path) -> None:
                 update(JobStepRecord)
                 .where(JobStepRecord.id == str(step_id))
                 .values(started_at=stale, retry_count=2)
+            )
+            await session.execute(
+                update(ProcessingJobRecord)
+                .where(ProcessingJobRecord.id == str(job.id))
+                .values(
+                    attempt=2,
+                    lease_expires_at=datetime.now(UTC) - timedelta(minutes=10),
+                )
             )
             await session.commit()
 
