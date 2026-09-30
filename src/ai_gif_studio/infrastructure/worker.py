@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import socket
 from uuid import UUID
 
 from aiogram import Bot
@@ -14,6 +16,7 @@ from ai_gif_studio.database.repositories import (
     JobStepRepository,
     SqlAlchemyJobRepository,
 )
+from ai_gif_studio.domain.job_queue import AtomicJobQueue
 from ai_gif_studio.domain.specs import ProcessingSettings
 from ai_gif_studio.engines.crop import CropOnlyEngine
 from ai_gif_studio.engines.design import DesignGifEngine
@@ -26,11 +29,19 @@ async def process_job(ctx, job_id: str, **_):
     settings = ctx["settings"]
     db = Database(settings.database_url)
     repo = SqlAlchemyJobRepository(db.session_factory)
+    queue = AtomicJobQueue(repo)
     step_repo = JobStepRepository(db.session_factory)
     job = await repo.get(UUID(job_id))
     if job is None:
         await db.dispose()
         raise RuntimeError("job not found")
+
+    worker_id = f"{socket.gethostname()}:{os.getpid()}"
+    claimed = await queue.claim_for_processing(job.id, worker_id)
+    if claimed is None:
+        await db.dispose()
+        return
+    job = claimed
 
     bot = Bot(settings.telegram_bot_token)
     storage = ArtifactStorage(str(settings.storage_directory))
@@ -39,9 +50,6 @@ async def process_job(ctx, job_id: str, **_):
     steps = ("download", "probe", "render", "quality", "artifact_register", "delivery")
     active_step = None
     try:
-        if not await repo.set_status(job.id, "processing", expected_status="queued"):
-            raise RuntimeError(f"job {job.id} is not in queued state")
-
         active_step = await step_repo.start(job.id, steps[0])
         await bot.download(job.submission.telegram_file_id, destination=source)
         await step_repo.complete(active_step)
@@ -82,16 +90,22 @@ async def process_job(ctx, job_id: str, **_):
         if not await OutputValidator(ff).validate_gif(output, max_bytes=processing.max_bytes, ffmpeg=ff):
             raise ValueError("rendered GIF failed output validation")
         await ArtifactRepository(db.session_factory).register(
-            job.id, output, "output_gif", "image/gif",
-            metadata={"design_spec_version": design.schema_version, "processing_settings_version": processing.schema_version, "quality": report.as_dict()},
+            job.id,
+            output,
+            "output_gif",
+            "image/gif",
+            metadata={
+                "design_spec_version": design.schema_version,
+                "processing_settings_version": processing.schema_version,
+                "quality": report.as_dict(),
+            },
         )
         await step_repo.complete(active_step)
 
         active_step = await step_repo.start(job.id, steps[5])
         await bot.send_document(job.submission.submitted_by, FSInputFile(output))
         await step_repo.complete(active_step)
-        if not await repo.set_status(job.id, "completed", expected_status="processing"):
-            raise RuntimeError("job completion state transition failed")
+        await queue.complete(job.id)
     except Exception as error:
         if active_step is not None:
             await step_repo.fail(active_step, str(error), max(0, int(ctx.get("job_try", 1)) - 1))
@@ -99,7 +113,7 @@ async def process_job(ctx, job_id: str, **_):
         if job_try < 2:
             await repo.set_status(job.id, "queued", expected_status="processing")
             raise Retry(defer=job_try * 5) from error
-        await repo.set_status(job.id, "failed", expected_status="processing")
+        await queue.fail(job.id, str(error))
         raise
     finally:
         await bot.session.close()
