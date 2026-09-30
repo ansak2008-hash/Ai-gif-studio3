@@ -139,3 +139,34 @@ def test_layer_mask_can_be_removed_without_mutating_previous_state() -> None:
 
     assert original.layers[0].mask == mask
     assert cleared.layers[0].mask is None
+
+
+def test_mask_state_persistence_rejects_duplicate_json_keys() -> None:
+    encoded = (
+        '{"mask_id":"00000000-0000-0000-0000-000000000001",'
+        '"source_asset_id":"00000000-0000-0000-0000-000000000002",'
+        '"enabled":true,"inverted":false,"opacity":1.0,'
+        '"feather_radius":0.0,"blur_radius":0.0,"levels_low":0.0,'
+        '"levels_high":1.0,"threshold":null,"opacity":0.5}'
+    )
+    with pytest.raises(ValueError, match="duplicate JSON object key"):
+        MaskState.from_canonical_json(encoded)
+
+
+def test_mask_state_persistence_survives_chained_immutable_edits() -> None:
+    original = MaskState(MASK_ID, ASSET_ID)
+    edited = (
+        original.with_enabled(False)
+        .with_inverted(True)
+        .with_opacity(0.4)
+        .with_feather_radius(16.0)
+        .with_blur_radius(8.0)
+        .with_levels(0.2, 0.8)
+        .with_threshold(0.6)
+    )
+    restored = MaskState.from_canonical_json(edited.canonical_json)
+    assert restored == edited
+    assert restored.mask_id == MASK_ID
+    assert restored.source_asset_id == ASSET_ID
+    assert restored.canonical_json == edited.canonical_json
+    assert original == MaskState(MASK_ID, ASSET_ID)
