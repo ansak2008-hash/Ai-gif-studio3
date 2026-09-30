@@ -60,9 +60,7 @@ class JobQueueRepository(Protocol):
         self, job_id: UUID, owner_id: str, lease_expires_at: datetime
     ) -> ClaimResult | None: ...
 
-    async def complete_processing(
-        self, job_id: UUID, owner_id: str, now: datetime
-    ) -> bool: ...
+    async def complete_processing(self, job_id: UUID, owner_id: str, now: datetime) -> bool: ...
 
     async def fail_processing(
         self, job_id: UUID, owner_id: str, error: str, now: datetime
@@ -72,9 +70,7 @@ class JobQueueRepository(Protocol):
         self, job_id: UUID, owner_id: str, error: str, now: datetime
     ) -> bool: ...
 
-    async def recover_expired_processing(
-        self, now: datetime, max_attempts: int
-    ) -> list[UUID]: ...
+    async def recover_expired_processing(self, now: datetime, max_attempts: int) -> list[UUID]: ...
 
 
 class JobDispatcher(Protocol):
@@ -114,9 +110,7 @@ class AtomicJobQueue:
                 raise TransportSendError(f"dispatch failed for job {job.id}") from exc
         return await self._repository.get(job.id)
 
-    async def claim_for_processing(
-        self, job_id: UUID, worker_id: str
-    ) -> ClaimResult | None:
+    async def claim_for_processing(self, job_id: UUID, worker_id: str) -> ClaimResult | None:
         self._validate_owner(worker_id)
         now = datetime.now(UTC)
         lease = now + timedelta(seconds=self._config.lease_duration_seconds)
@@ -124,29 +118,21 @@ class AtomicJobQueue:
 
     async def complete(self, job_id: UUID, worker_id: str) -> None:
         self._validate_owner(worker_id)
-        if not await self._repository.complete_processing(
-            job_id, worker_id, datetime.now(UTC)
-        ):
+        if not await self._repository.complete_processing(job_id, worker_id, datetime.now(UTC)):
             raise LostClaimError(f"job {job_id} is not owned by {worker_id}")
 
     async def fail(self, job_id: UUID, worker_id: str, error: str) -> None:
         self._validate_owner(worker_id)
         if not isinstance(error, str):
             raise TypeError("error must be a string")
-        if not await self._repository.fail_processing(
-            job_id, worker_id, error, datetime.now(UTC)
-        ):
+        if not await self._repository.fail_processing(job_id, worker_id, error, datetime.now(UTC)):
             raise LostClaimError(f"job {job_id} is not owned by {worker_id}")
 
-    async def retry(
-        self, job_id: UUID, worker_id: str, error: str
-    ) -> bool:
+    async def retry(self, job_id: UUID, worker_id: str, error: str) -> bool:
         self._validate_owner(worker_id)
         if not isinstance(error, str):
             raise TypeError("error must be a string")
-        return await self._repository.retry_processing(
-            job_id, worker_id, error, datetime.now(UTC)
-        )
+        return await self._repository.retry_processing(job_id, worker_id, error, datetime.now(UTC))
 
     async def recover_expired(self) -> int:
         recovered = await self._repository.recover_expired_processing(
@@ -159,9 +145,7 @@ class AtomicJobQueue:
             try:
                 await self._dispatcher(str(job_id))
             except Exception as exc:
-                raise TransportSendError(
-                    f"recovered job {job_id} could not be dispatched"
-                ) from exc
+                raise TransportSendError(f"recovered job {job_id} could not be dispatched") from exc
             dispatched += 1
         return dispatched
 
