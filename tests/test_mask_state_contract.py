@@ -5,7 +5,7 @@ from uuid import UUID
 
 import pytest
 
-from ai_gif_studio.domain.layer_state import LayerState, LayerStack
+from ai_gif_studio.domain.layer_state import LayerStack, LayerState
 from ai_gif_studio.domain.mask_state import (
     MAX_MASK_BLUR_RADIUS,
     MAX_MASK_FEATHER_RADIUS,
