@@ -60,14 +60,14 @@ class JobQueueRepository(Protocol):
         self, job_id: UUID, owner_id: str, lease_expires_at: datetime
     ) -> ClaimResult | None: ...
 
-    async def complete_processing(self, job_id: UUID, owner_id: str, now: datetime) -> bool: ...
+    async def complete_processing(self, job_id: UUID, owner_id: str, version: int, now: datetime) -> bool: ...
 
     async def fail_processing(
-        self, job_id: UUID, owner_id: str, error: str, now: datetime
+        self, job_id: UUID, owner_id: str, version: int, error: str, now: datetime
     ) -> bool: ...
 
     async def retry_processing(
-        self, job_id: UUID, owner_id: str, error: str, now: datetime
+        self, job_id: UUID, owner_id: str, version: int, error: str, now: datetime
     ) -> bool: ...
 
     async def recover_expired_processing(self, now: datetime, max_attempts: int) -> list[UUID]: ...
@@ -116,23 +116,23 @@ class AtomicJobQueue:
         lease = now + timedelta(seconds=self._config.lease_duration_seconds)
         return await self._repository.claim_for_processing(job_id, worker_id, lease)
 
-    async def complete(self, job_id: UUID, worker_id: str) -> None:
+    async def complete(self, job_id: UUID, worker_id: str, version: int) -> None:
         self._validate_owner(worker_id)
         if not await self._repository.complete_processing(job_id, worker_id, datetime.now(UTC)):
             raise LostClaimError(f"job {job_id} is not owned by {worker_id}")
 
-    async def fail(self, job_id: UUID, worker_id: str, error: str) -> None:
+    async def fail(self, job_id: UUID, worker_id: str, version: int, error: str) -> None:
         self._validate_owner(worker_id)
         if not isinstance(error, str):
             raise TypeError("error must be a string")
         if not await self._repository.fail_processing(job_id, worker_id, error, datetime.now(UTC)):
             raise LostClaimError(f"job {job_id} is not owned by {worker_id}")
 
-    async def retry(self, job_id: UUID, worker_id: str, error: str) -> bool:
+    async def retry(self, job_id: UUID, worker_id: str, version: int, error: str) -> bool:
         self._validate_owner(worker_id)
         if not isinstance(error, str):
             raise TypeError("error must be a string")
-        return await self._repository.retry_processing(job_id, worker_id, error, datetime.now(UTC))
+        return await self._repository.retry_processing(job_id, worker_id, version, error, datetime.now(UTC))
 
     async def recover_expired(self) -> int:
         recovered = await self._repository.recover_expired_processing(
