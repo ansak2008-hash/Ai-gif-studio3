@@ -65,21 +65,29 @@ async def test_enqueue_is_idempotent_for_duplicate_submission() -> None:
 
 
 @pytest.mark.asyncio
-async def test_dispatch_happens_before_state_claim() -> None:
+async def test_duplicate_enqueue_never_regresses_queued_to_created() -> None:
     repo = FakeRepository(make_job())
-    calls: list[str] = []
-
-    async def dispatch(job_id: str, **_: object) -> None:
-        calls.append(job_id)
-
-    queue = AtomicJobQueue(repo, dispatch)
+    queue = AtomicJobQueue(repo)
     await queue.enqueue(repo.job)
-    assert calls == [str(repo.job.id)]
+    assert await queue.enqueue(repo.job) is None
     assert repo.job.status is JobStatus.QUEUED
 
 
 @pytest.mark.asyncio
-async def test_dispatch_failure_does_not_regress_created_state() -> None:
+async def test_dispatch_happens_only_after_atomic_state_transition() -> None:
+    repo = FakeRepository(make_job())
+    observed: list[JobStatus] = []
+
+    async def dispatch(_job_id: str, **_: object) -> None:
+        observed.append(repo.job.status)
+
+    queue = AtomicJobQueue(repo, dispatch)
+    await queue.enqueue(repo.job)
+    assert observed == [JobStatus.QUEUED]
+
+
+@pytest.mark.asyncio
+async def test_dispatch_failure_does_not_regress_queued_state() -> None:
     repo = FakeRepository(make_job())
 
     async def dispatch(_job_id: str, **_: object) -> None:
@@ -88,7 +96,7 @@ async def test_dispatch_failure_does_not_regress_created_state() -> None:
     queue = AtomicJobQueue(repo, dispatch)
     with pytest.raises(RuntimeError):
         await queue.enqueue(repo.job)
-    assert repo.job.status is JobStatus.CREATED
+    assert repo.job.status is JobStatus.QUEUED
 
 
 @pytest.mark.asyncio
