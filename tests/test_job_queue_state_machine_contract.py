@@ -96,7 +96,7 @@ class FakeRepository:
         self, job_id: UUID, owner_id: str, version: int, error: str, now: datetime
     ) -> bool:
         async with self._lock:
-            if not self._owns(job_id, owner_id, now):
+            if not self._owns(job_id, owner_id, version, now):
                 return False
             self.job = ProcessingJob(
                 self.job.id, JobStatus.QUEUED, self.job.submission, self.job.created_at
