@@ -5,7 +5,7 @@ from uuid import uuid4
 import numpy as np
 import pytest
 
-from ai_gif_studio.domain.layer_state import LayerState, LayerStack
+from ai_gif_studio.domain.layer_state import LayerStack, LayerState
 from ai_gif_studio.domain.mask_state import MaskState
 from ai_gif_studio.temporal_engine.layer_binding import bind_layer_stack
 from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
