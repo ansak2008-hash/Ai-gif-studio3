@@ -24,7 +24,7 @@ def _build_mask_storage(
     return raw_bytes, shape, view
 
 
-@dataclass(frozen=True, slots=True, weakref_slot=True, init=False)
+@dataclass(frozen=True, eq=False, slots=True, weakref_slot=True, init=False)
 class RenderMask:
     """Owned, read-only float32 coverage/control field."""
 
