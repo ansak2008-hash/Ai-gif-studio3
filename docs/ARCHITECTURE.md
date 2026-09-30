@@ -1,6 +1,6 @@
 # AI GIF Studio — Architecture Baseline
 
-> This document preserves the architecture/design baseline from PR #4 without reinterpretation.
+> This document preserves the architecture/design baseline from PR #4 and records subsequent foundational contracts without reinterpretation.
 
 ## Architecture
 
@@ -41,6 +41,8 @@ Telegram update → IntakeService → JobRepository → processing pipeline
 
 `DesignSpec` and `ProcessingSettings` include an explicit `schema_version`. Their `from_payload` methods accept older versions and migrate them before validation. Future changes must add a migration rather than reinterpret old persisted JSON, preserving backwards compatibility.
 
+Project/revision persistence follows the same principle: immutable project state, commands, revision graphs, and canonical persistence are treated as contracts rather than ad-hoc UI state.
+
 ## Processing pipeline
 
 The target pipeline is: ingest → probe → crop choice (including **crop-only** mode) → compose → background/frame/motion → palette and quality validation → GIF encode → delivery. `ProcessingMode` already models `designed` and `crop_only`; implementing a mode means providing a real pipeline implementation and registering it through the service boundary.
@@ -49,11 +51,37 @@ The target pipeline is: ingest → probe → crop choice (including **crop-only*
 
 `DesignSpec` is the durable description of design intent: a 320×320 canvas default, crop policy, background, frame, motion, and colour policy. `ProcessingSettings` is operational output policy. Separating these allows presets and AI suggestions to change design intent without silently changing output-processing limits.
 
+## Project Editor Foundation
+
+The creative editor is built around immutable document state rather than mutable UI state.
+
+The current foundation is:
+
+```text
+ProjectState
+    ↓
+ProjectCommand
+    ↓
+ProjectEditor
+    ↓
+RevisionGraph
+    ↓
+Canonical Persistence
+```
+
+Phase 6.1 establishes `ProjectEditor` as the application boundary. It owns the current revision pointer while preserving all prior revisions, supports atomic command execution, immutable checkout, branching, and canonical save/load. It intentionally does not introduce a registry, plugin system, rendering dependency, or provider abstraction.
+
+Future editor capabilities must compose through this boundary rather than bypassing it.
+
 ## Future extension points
 
-* **Presets / projects / variations:** add versioned aggregates referencing immutable `DesignSpec` snapshots.
-* **Undo/redo:** persist commands or revision chains per project rather than overwriting specs.
-* **AI providers:** implement provider protocols in engine packages; providers receive typed input and return validated schema data.
+* **Layer editing:** extend immutable layer commands for insertion, removal, duplication, ordering, visibility, opacity, transforms, blend modes, and masks.
+* **Workflow/replay:** represent operation sequences canonically so a project can be replayed and verified deterministically.
+* **Concurrency:** define ownership, isolation, admission, cancellation, and serialization before parallel execution is expanded.
+* **Capabilities:** introduce typed capability contracts and compatibility validation only after the execution boundary is stable; avoid premature global registries.
+* **Presets / projects / variations:** add versioned aggregates referencing immutable `DesignSpec` and project snapshots.
+* **Timeline / temporal composition:** connect layer/project state to the existing deterministic temporal engine without duplicating temporal semantics.
+* **AI providers:** implement provider protocols in engine packages; providers receive typed input and return validated schema data with model/license/provenance gates.
 * **Workers:** replace direct pipeline invocation with a queue consumer while preserving the `ProcessingJob` repository contract.
 * **Database migrations:** introduce Alembic before the first schema migration in a deployed environment.
 

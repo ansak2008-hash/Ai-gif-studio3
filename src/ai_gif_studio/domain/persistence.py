@@ -45,7 +45,7 @@ def _dump(payload: Any) -> str:
             sort_keys=True,
             separators=(",", ":"),
         )
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError, RecursionError) as exc:
         raise PersistenceValidationError("payload is not canonically JSON-serializable") from exc
 
 
@@ -131,7 +131,7 @@ class RevisionGraphPersistence:
                     raise PersistenceValidationError("revision entries must be JSON objects")
                 revision_json = _dump(revision_payload)
                 revisions.append(Revision.from_canonical_json(revision_json))
-        except (RevisionGraphError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        except (RevisionGraphError, TypeError, ValueError, RecursionError, json.JSONDecodeError) as exc:
             raise PersistenceValidationError("persisted revision is invalid") from exc
 
         by_id = {revision.revision_id: revision for revision in revisions}

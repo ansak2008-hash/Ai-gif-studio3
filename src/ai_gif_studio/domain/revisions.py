@@ -37,7 +37,7 @@ def _canonical_metadata(metadata: Mapping[str, Any]) -> str:
             sort_keys=True,
             separators=(",", ":"),
         )
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError, RecursionError) as exc:
         raise TypeError("command_metadata must be JSON-compatible") from exc
 
 
@@ -46,6 +46,26 @@ def _validate_revision_id(value: str) -> None:
         raise TypeError("revision_id must be a string")
     if len(value) != 64 or any(ch not in "0123456789abcdef" for ch in value):
         raise RevisionValidationError("revision_id must be a lowercase SHA-256 hex digest")
+
+
+def _revision_identity(
+    state: ProjectState,
+    parent_id: str | None,
+    command_metadata: str,
+) -> str:
+    envelope = {
+        "parent_id": parent_id,
+        "state": state.canonical_json,
+        "command_metadata": json.loads(command_metadata),
+    }
+    canonical = json.dumps(
+        envelope,
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,19 +89,7 @@ class Revision:
         if parent_id is not None:
             _validate_revision_id(parent_id)
         metadata = _canonical_metadata(command_metadata)
-        envelope = {
-            "parent_id": parent_id,
-            "state": state.canonical_json,
-            "command_metadata": json.loads(metadata),
-        }
-        canonical = json.dumps(
-            envelope,
-            ensure_ascii=False,
-            allow_nan=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        revision_id = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        revision_id = _revision_identity(state, parent_id, metadata)
         return cls(revision_id, parent_id, state, metadata)
 
     def __post_init__(self) -> None:
@@ -92,8 +100,12 @@ class Revision:
             raise TypeError("state must be a ProjectState")
         metadata = json.loads(self.command_metadata)
         _canonical_metadata(metadata)
-        expected = Revision.create(self.state, self.parent_id, metadata)
-        if expected.revision_id != self.revision_id:
+        expected_id = _revision_identity(
+            self.state,
+            self.parent_id,
+            self.command_metadata,
+        )
+        if expected_id != self.revision_id:
             raise RevisionValidationError("revision identity does not match revision content")
 
     @property
@@ -129,7 +141,7 @@ class Revision:
             return revision
         except RevisionGraphError:
             raise
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        except (KeyError, TypeError, ValueError, RecursionError, json.JSONDecodeError) as exc:
             raise RevisionValidationError("invalid canonical revision JSON") from exc
 
 
