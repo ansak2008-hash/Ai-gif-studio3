@@ -82,22 +82,6 @@ class LayerState:
             value["mask"] = dict(self.mask.metadata)
         return MappingProxyType(value)
 
-    def set_mask(self, layer_id: UUID, mask: MaskState | None) -> LayerStack:
-        if mask is not None and not isinstance(mask, MaskState):
-            raise TypeError("mask must be a MaskState or None")
-        index = self._index(layer_id)
-        values = list(self.layers)
-        layer = values[index]
-        values[index] = LayerState(
-            layer.layer_id,
-            layer.source_asset_id,
-            layer.opacity,
-            layer.visible,
-            layer.blend_mode,
-            mask,
-        )
-        return LayerStack(tuple(values), max_layers=self.max_layers)
-
     @property
     def canonical_json(self) -> str:
         return json.dumps(
@@ -182,6 +166,22 @@ class LayerStack:
             layer.visible,
             blend_mode,
             layer.mask,
+        )
+        return LayerStack(tuple(values), max_layers=self.max_layers)
+
+    def set_mask(self, layer_id: UUID, mask: MaskState | None) -> LayerStack:
+        if mask is not None and not isinstance(mask, MaskState):
+            raise TypeError("mask must be a MaskState or None")
+        index = self._index(layer_id)
+        values = list(self.layers)
+        layer = values[index]
+        values[index] = LayerState(
+            layer.layer_id,
+            layer.source_asset_id,
+            layer.opacity,
+            layer.visible,
+            layer.blend_mode,
+            mask,
         )
         return LayerStack(tuple(values), max_layers=self.max_layers)
 
