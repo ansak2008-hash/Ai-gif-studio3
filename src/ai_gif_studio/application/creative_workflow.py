@@ -32,7 +32,13 @@ class CreativeWorkflow:
         if job.status not in {JobStatus.QUEUED, JobStatus.PROCESSING}:
             raise ValueError(f"job is not processable from state: {job.status.value}")
         if job.status is JobStatus.QUEUED:
-            await self.repository.set_status(job_id, JobStatus.PROCESSING.value, expected_status=JobStatus.QUEUED.value)
+            changed = await self.repository.set_status(
+                job_id,
+                JobStatus.PROCESSING.value,
+                expected_status=JobStatus.QUEUED.value,
+            )
+            if not changed:
+                raise ValueError(f"job state changed before processing: {job_id}")
         design = await self.repository.get_design_spec(job_id)
         settings = await self.repository.get_processing_settings(job_id)
         step_id = await self.steps.start(job_id, "render")
