@@ -168,3 +168,25 @@ def test_render_buffer_reflection_cannot_create_internal_storage_slot() -> None:
         object.__setattr__(buffer, "_identity", object())
     with pytest.raises(AttributeError):
         object.__delattr__(buffer, "_identity")
+
+
+def test_render_buffer_memoryview_is_readonly() -> None:
+    buffer = RenderBuffer.allocate(1, 1)
+    view = memoryview(buffer.data)
+    assert view.readonly is True
+
+
+def test_render_buffer_copy_has_independent_storage() -> None:
+    original = RenderBuffer.allocate(1, 1)
+    copied = original.copy()
+    assert not np.shares_memory(original.data, copied.data)
+    np.testing.assert_array_equal(original.data, copied.data)
+
+
+def test_render_buffer_old_view_survives_clear_without_aliasing_new_storage() -> None:
+    buffer = RenderBuffer.allocate(1, 1)
+    old_view = buffer.data
+    buffer.clear((1.0, 0.0, 0.0, 1.0))
+    np.testing.assert_array_equal(old_view, 0.0)
+    np.testing.assert_array_equal(buffer.data, [[[1.0, 0.0, 0.0, 1.0]]])
+    assert not np.shares_memory(old_view, buffer.data)
