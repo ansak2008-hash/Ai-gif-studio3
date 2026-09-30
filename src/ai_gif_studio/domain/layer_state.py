@@ -82,6 +82,29 @@ class LayerState:
             value["mask"] = dict(self.mask.metadata)
         return MappingProxyType(value)
 
+    def update_mask(self, layer_id: UUID, mask: MaskState) -> LayerStack:
+        """Return a new stack with an existing layer mask immutably edited."""
+        if not isinstance(mask, MaskState):
+            raise TypeError("mask must be a MaskState")
+        index = self._index(layer_id)
+        values = list(self.layers)
+        layer = values[index]
+        if layer.mask is None:
+            raise ValueError("layer has no mask to update")
+        if mask.mask_id != layer.mask.mask_id:
+            raise ValueError("mask_id cannot change during mask update")
+        if mask.source_asset_id != layer.mask.source_asset_id:
+            raise ValueError("source_asset_id cannot change during mask update")
+        values[index] = LayerState(
+            layer.layer_id,
+            layer.source_asset_id,
+            layer.opacity,
+            layer.visible,
+            layer.blend_mode,
+            mask,
+        )
+        return LayerStack(tuple(values), max_layers=self.max_layers)
+
     @property
     def canonical_json(self) -> str:
         return json.dumps(
