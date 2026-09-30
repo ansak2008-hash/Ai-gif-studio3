@@ -339,7 +339,7 @@ class ArtifactRepository:
             row = ArtifactRecord(
                 artifact_id=str(uuid4()), job_id=str(job_id), type=artifact_type,
                 storage_path=str(path), mime_type=mime_type, size_bytes=size,
-                sha256=sha256, created_at=datetime.now(UTC), expires_at=expires_at, metadata=metadata or {},
+                sha256=sha256, created_at=datetime.now(UTC), expires_at=expires_at, metadata_json=metadata or {},
             )
             session.add(row)
             await session.commit()
