@@ -65,3 +65,21 @@ async def test_preflight_rejects_invalid_frame_rate(tmp_path: Path) -> None:
 
     with pytest.raises(MediaPreflightError, match="frame rate"):
         await preflight_media(source, FakeFFmpeg(probe(fps="0/1")))
+
+
+@pytest.mark.unit
+async def test_preflight_rejects_dimensions_above_configured_limits(tmp_path: Path) -> None:
+    source = tmp_path / "input.mp4"
+    source.write_bytes(b"video")
+
+    with pytest.raises(MediaPreflightError, match="width"):
+        await preflight_media(source, FakeFFmpeg(probe(width=4000)), max_width=3200)
+
+
+@pytest.mark.unit
+async def test_preflight_rejects_duration_above_configured_limit(tmp_path: Path) -> None:
+    source = tmp_path / "input.mp4"
+    source.write_bytes(b"video")
+
+    with pytest.raises(MediaPreflightError, match="duration"):
+        await preflight_media(source, FakeFFmpeg(probe(duration="61")), max_duration_seconds=60)
