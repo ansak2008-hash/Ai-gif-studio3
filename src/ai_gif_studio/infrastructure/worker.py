@@ -105,16 +105,16 @@ async def process_job(ctx, job_id: str, **_):
         active_step = await step_repo.start(job.id, steps[5])
         await bot.send_document(job.submission.submitted_by, FSInputFile(output))
         await step_repo.complete(active_step)
-        await queue.complete(job.id, worker_id)
+        await queue.complete(job.id, worker_id, claimed.version)
     except Exception as error:
         if active_step is not None:
             await step_repo.fail(active_step, str(error), max(0, int(ctx.get("job_try", 1)) - 1))
         job_try = int(ctx.get("job_try", 1))
         if job_try < 2:
-            if not await queue.retry(job.id, worker_id, str(error)):
+            if not await queue.retry(job.id, worker_id, claimed.version, str(error)):
                 raise RuntimeError("job claim was lost before retry") from error
             raise Retry(defer=job_try * 5) from error
-        await queue.fail(job.id, worker_id, str(error))
+        await queue.fail(job.id, worker_id, claimed.version, str(error))
         raise
     finally:
         await bot.session.close()
