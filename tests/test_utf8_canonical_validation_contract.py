@@ -122,3 +122,23 @@ def test_mapping_is_not_mutated() -> None:
 def test_validator_is_deterministic() -> None:
     payload = {"z": "ok", "a": ["العربية", "😀"]}
     assert validate_mapping(payload) == validate_mapping(payload)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_rejects_non_finite_numbers(value: float) -> None:
+    with pytest.raises(UTF8ValidationError):
+        validate_value(value)
+
+
+def test_rejects_cyclic_mapping() -> None:
+    payload: dict[str, object] = {}
+    payload["self"] = payload
+    with pytest.raises(UTF8ValidationError):
+        validate_mapping(payload)
+
+
+def test_rejects_cyclic_sequence() -> None:
+    payload: list[object] = []
+    payload.append(payload)
+    with pytest.raises(UTF8ValidationError):
+        validate_value(payload)
