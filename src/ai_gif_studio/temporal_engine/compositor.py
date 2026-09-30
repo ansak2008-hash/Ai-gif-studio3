@@ -97,6 +97,8 @@ def composite_blend_layers(
         if not isinstance(layer, BlendLayer):
             raise TypeError("layers must contain BlendLayer values")
         _validate_pair(base, layer.source)
+        if layer.mask is not None and layer.mask.shape != base.shape[:2]:
+            raise ValueError("mask shape must match RenderBuffer spatial shape")
 
     reservation = None
     if resource_manager is not None:
