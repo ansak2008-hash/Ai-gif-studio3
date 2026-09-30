@@ -74,7 +74,7 @@ async def test_duplicate_enqueue_never_regresses_queued_to_created() -> None:
 
 
 @pytest.mark.asyncio
-async def test_dispatch_happens_only_after_atomic_state_transition() -> None:
+async def test_dispatch_observes_created_before_atomic_state_transition() -> None:
     repo = FakeRepository(make_job())
     observed: list[JobStatus] = []
 
@@ -87,7 +87,7 @@ async def test_dispatch_happens_only_after_atomic_state_transition() -> None:
 
 
 @pytest.mark.asyncio
-async def test_dispatch_failure_does_not_regress_queued_state() -> None:
+async def test_dispatch_failure_leaves_created_state() -> None:
     repo = FakeRepository(make_job())
 
     async def dispatch(_job_id: str, **_: object) -> None:
