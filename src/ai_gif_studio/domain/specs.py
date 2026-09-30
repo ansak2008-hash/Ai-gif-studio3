@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from .canonical_validation import validate_mapping
+
 DESIGN_SPEC_VERSION = 3
 PROCESSING_SETTINGS_VERSION = 2
 HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
@@ -37,6 +39,7 @@ class DesignSpec(BaseModel):
         return DESIGN_SPEC_VERSION
 
     def model_post_init(self, __context: Any) -> None:
+        validate_mapping(self.model_dump(mode="python"), context="DesignSpec")
         if self.canvas.get("width") != 320 or self.canvas.get("height") != 320:
             raise ValueError("MVP canvas must be exactly 320x320")
         focus = self.crop.get("focus", {})
