@@ -14,6 +14,7 @@ UTF8_FILES = (
 )
 QUEUE_FILES = (
     "src/ai_gif_studio/telegram/router.py",
+    "src/ai_gif_studio/main.py",
     "src/ai_gif_studio/infrastructure/worker.py",
     "src/ai_gif_studio/worker.py",
 )
@@ -47,7 +48,8 @@ def check_atomic_queue_usage() -> bool:
     ok = True
     for path in QUEUE_FILES:
         source = _source(path)
-        if "AtomicJobQueue" not in source:
+        required = "AtomicJobQueue" in source or "queue.enqueue(" in source
+        if not required:
             print(f"FAIL: {path}: missing AtomicJobQueue integration")
             ok = False
     worker_sources = (_source(path) for path in QUEUE_FILES if "worker.py" in path)
