@@ -54,9 +54,9 @@ class CreativeWorkflow:
             await self.engine.convert(source, target, design, settings)
             artifact = await self.artifacts.register(job_id, target, "gif", "image/gif", metadata={"workflow": "creative"})
             await self.steps.complete(step_id)
-            await self.queue.complete(job_id, worker_id)
+            await self.queue.complete(job_id, worker_id, claim.version)
             return WorkflowResult(job_id, Path(artifact.storage_path), artifact.size_bytes)
         except Exception as exc:
             await self.steps.fail(step_id, str(exc))
-            await self.queue.fail(job_id, worker_id, str(exc))
+            await self.queue.fail(job_id, worker_id, claim.version, str(exc))
             raise
