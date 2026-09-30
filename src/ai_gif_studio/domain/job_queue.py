@@ -17,6 +17,9 @@ class JobQueueRepository(Protocol):
     ) -> bool: ...
 
 
+Dispatcher = Callable[..., Awaitable[object]]
+
+
 class DuplicateEnqueueError(RuntimeError):
     """The job is already queued or has progressed beyond the enqueue boundary."""
 
@@ -28,10 +31,17 @@ class LostClaimError(RuntimeError):
 class AtomicJobQueue:
     """Persistent CAS-based queue boundary; no process-local state is used."""
 
-    def __init__(self, repository: JobQueueRepository) -> None:
+    def __init__(
+        self,
+        repository: JobQueueRepository,
+        dispatcher: Dispatcher | None = None,
+    ) -> None:
         self._repository = repository
+        self._dispatcher = dispatcher
 
     async def enqueue(self, job: ProcessingJob) -> ProcessingJob | None:
+        if self._dispatcher is not None:
+            await self._dispatcher(str(job.id), _job_id=str(job.id))
         changed = await self._repository.set_status(
             job.id,
             JobStatus.QUEUED.value,
