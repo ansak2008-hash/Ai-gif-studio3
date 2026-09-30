@@ -13,7 +13,9 @@ def upgrade():
         batch_op.add_column(sa.Column("version", sa.Integer(), nullable=False, server_default="0"))
         batch_op.add_column(sa.Column("attempt", sa.Integer(), nullable=False, server_default="0"))
         batch_op.add_column(sa.Column("owner_id", sa.String(255), nullable=True))
-        batch_op.add_column(sa.Column("lease_expires_at", sa.DateTime(timezone=True), nullable=True))
+        batch_op.add_column(
+            sa.Column("lease_expires_at", sa.DateTime(timezone=True), nullable=True)
+        )
         batch_op.create_index("ix_processing_jobs_owner_id", ["owner_id"])
 
 
