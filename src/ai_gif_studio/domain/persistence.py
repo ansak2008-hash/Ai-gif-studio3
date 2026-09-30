@@ -45,7 +45,7 @@ def _dump(payload: Any) -> str:
             sort_keys=True,
             separators=(",", ":"),
         )
-    except (TypeError, ValueError, RecursionError) as exc:
+    except (TypeError, ValueError, RecursionError, UnicodeEncodeError) as exc:
         raise PersistenceValidationError("payload is not canonically JSON-serializable") from exc
 
 
@@ -83,7 +83,11 @@ class RevisionGraphPersistence:
             ],
         }
         document = _dump(payload)
-        if len(document.encode("utf-8")) > max_document_bytes:
+        try:
+            document_bytes = len(document.encode("utf-8"))
+        except UnicodeEncodeError as exc:
+            raise PersistenceValidationError("persisted document contains unsupported UTF-8 data") from exc
+        if document_bytes > max_document_bytes:
             raise PersistenceValidationError("persisted document exceeds byte limit")
         return document
 
@@ -98,7 +102,11 @@ class RevisionGraphPersistence:
             raise TypeError("document must be a string")
         _validate_limit(max_document_bytes, "max_document_bytes")
         _validate_limit(max_revisions, "max_revisions")
-        if len(document.encode("utf-8")) > max_document_bytes:
+        try:
+            document_bytes = len(document.encode("utf-8"))
+        except UnicodeEncodeError as exc:
+            raise PersistenceValidationError("persisted document contains unsupported UTF-8 data") from exc
+        if document_bytes > max_document_bytes:
             raise PersistenceValidationError("persisted document exceeds byte limit")
         try:
             payload = json.loads(
