@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from threading import RLock
 from typing import Any
 
+from .canonical_validation import UTF8ValidationError, validate_mapping
 from .project import ProjectState
 
 
@@ -29,6 +30,10 @@ class RevisionLimitError(RevisionGraphError):
 def _canonical_metadata(metadata: Mapping[str, Any]) -> str:
     if not isinstance(metadata, Mapping):
         raise TypeError("command_metadata must be a mapping")
+    try:
+        validate_mapping(metadata, context="Revision.command_metadata")
+    except UTF8ValidationError as exc:
+        raise TypeError("command_metadata must be JSON-compatible") from exc
     try:
         return json.dumps(
             dict(metadata),
@@ -58,6 +63,7 @@ def _revision_identity(
         "state": state.canonical_json,
         "command_metadata": json.loads(command_metadata),
     }
+    validate_mapping(envelope, context="Revision.identity")
     canonical = json.dumps(
         envelope,
         ensure_ascii=False,
@@ -128,9 +134,11 @@ class Revision:
         if not isinstance(value, str):
             raise TypeError("revision JSON must be a string")
         try:
+            value.encode("utf-8", "strict")
             payload = json.loads(value)
             if not isinstance(payload, dict):
                 raise ValueError("revision payload must be an object")
+            validate_mapping(payload, context="Revision")
             state = ProjectState.from_canonical_json(payload["state"])
             metadata = payload["command_metadata"]
             revision = cls.create(state, payload["parent_id"], metadata)
@@ -141,7 +149,7 @@ class Revision:
             return revision
         except RevisionGraphError:
             raise
-        except (KeyError, TypeError, ValueError, RecursionError, json.JSONDecodeError) as exc:
+        except (UnicodeEncodeError, KeyError, TypeError, ValueError, RecursionError, json.JSONDecodeError) as exc:
             raise RevisionValidationError("invalid canonical revision JSON") from exc
 
 
