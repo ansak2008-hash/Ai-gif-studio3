@@ -53,7 +53,11 @@ async def process_job(ctx, job_id: str):
                     settings.ffmpeg_binary,
                     settings.ffprobe_binary,
                     settings.worker_timeout_seconds,
-                )
+                ),
+                max_input_bytes=settings.max_upload_bytes,
+                max_input_width=settings.max_width,
+                max_input_height=settings.max_height,
+                max_input_duration_seconds=settings.max_duration_seconds,
             ),
         )
         async with stage(job.id, "render"):
