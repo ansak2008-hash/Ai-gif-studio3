@@ -183,3 +183,64 @@ def test_compositor_reserves_before_first_output_allocation(monkeypatch) -> None
     assert observed
     assert observed[0] == requested
     assert manager.reserved_bytes == 0
+
+
+def test_composition_preserves_zero_and_full_source_alpha_boundaries() -> None:
+    base = _buffer((0.2, 0.4, 0.8, 0.5))
+    transparent = _buffer((1.0, 0.0, 0.0, 0.0))
+    opaque = _buffer((0.6, 0.2, 0.4, 1.0))
+    transparent_result = composite_blend_layers(base, [BlendLayer(transparent)])
+    opaque_result = composite_blend_layers(base, [BlendLayer(opaque)])
+    np.testing.assert_array_equal(transparent_result.data, base.data)
+    np.testing.assert_array_equal(opaque_result.data, opaque.data)
+
+
+def test_reversed_layer_order_is_not_silently_normalized() -> None:
+    base = _buffer((0.1, 0.1, 0.1, 1.0))
+    first = BlendLayer(_buffer((0.8, 0.2, 0.1, 0.75)), mode=BlendMode.MULTIPLY)
+    second = BlendLayer(_buffer((0.1, 0.9, 0.3, 0.75)), mode=BlendMode.SCREEN)
+    forward = composite_blend_layers(base, [first, second])
+    reverse = composite_blend_layers(base, [second, first])
+    assert not np.array_equal(forward.data, reverse.data)
+
+
+def test_insufficient_resource_budget_fails_before_output_allocation(monkeypatch) -> None:
+    from ai_gif_studio.resources import ResourceLimitError, ResourceManager
+    from ai_gif_studio.temporal_engine import compositor
+
+    manager = ResourceManager(1)
+    base = _buffer((0.0, 0.0, 0.0, 1.0))
+    source = _buffer((1.0, 0.0, 0.0, 1.0))
+    monkeypatch.setattr(
+        compositor.RenderBuffer,
+        "copy",
+        lambda self: pytest.fail("output allocation occurred before admission"),
+    )
+    with pytest.raises(ResourceLimitError):
+        composite_blend_layers(base, [BlendLayer(source)], resource_manager=manager)
+    assert manager.reserved_bytes == 0
+
+
+def test_mask_shape_failure_does_not_publish_output() -> None:
+    base = _buffer((0.0, 0.0, 0.0, 1.0))
+    source = _buffer((1.0, 0.0, 0.0, 1.0))
+    invalid_mask = RenderMask.allocate(2, 1, value=1.0)
+    with pytest.raises(ValueError, match="mask shape"):
+        composite_blend_layers(base, [BlendLayer(source, mask=invalid_mask)])
+    np.testing.assert_array_equal(base.data, _buffer((0.0, 0.0, 0.0, 1.0)).data)
+
+
+def test_repeated_composition_does_not_mutate_mask_or_inputs() -> None:
+    base = _buffer((0.2, 0.4, 0.8, 0.5))
+    source = _buffer((0.6, 0.2, 0.4, 0.75))
+    mask = RenderMask.from_array(np.asarray([[0.5]], dtype=np.float32))
+    before_base = base.data.copy()
+    before_source = source.data.copy()
+    before_mask = mask.data.copy()
+    first = composite_blend_layers(base, [BlendLayer(source, mask=mask)])
+    second = composite_blend_layers(base, [BlendLayer(source, mask=mask)])
+    np.testing.assert_array_equal(first.data, second.data)
+    np.testing.assert_array_equal(base.data, before_base)
+    np.testing.assert_array_equal(source.data, before_source)
+    np.testing.assert_array_equal(mask.data, before_mask)
+    assert first.data.base is not second.data.base
