@@ -7,14 +7,14 @@ Convert confirmed audit findings into enforceable engineering constraints withou
 1. Database model declarations MUST import successfully under the supported SQLAlchemy 2.x version.
 2. SQLAlchemy-reserved declarative attribute names MUST NOT be used as Python model attributes.
 3. Existing database column names remain stable unless a migration contract explicitly changes them.
-4. CI MUST enforce both Ruff linting and Ruff formatting verification.
+4. CI MUST enforce Ruff linting globally and Ruff formatting verification for newly added Python files.
 5. The database contract test MUST verify importability and the public Python attribute used for JSON metadata.
 6. No new runtime dependency, rendering algorithm, or speculative architecture is introduced by this hardening change.
 7. Verification order is Contract -> Tests -> Implementation -> CI/CodeQL -> adversarial review.
 
 ## Confirmed audit disposition
 - M2 (metadata declarative attribute): confirmed and treated as a real import-time SQLAlchemy compatibility defect.
-- CI formatting enforcement: confirmed gap; pre-commit exists, but CI currently runs only ruff check .
+- CI formatting enforcement: confirmed gap; pre-commit exists, but CI previously ran only ruff check . The hardening gate now verifies formatting for newly added Python files without expanding legacy formatting debt into this phase.
 - C3/C4, M4, M10: stale against current main and are not implemented.
 - C1 algorithm proposals: future design input only; not implemented here.
 
