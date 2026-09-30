@@ -15,16 +15,6 @@ class Repo:
     async def get(self, _):
         return self.job
 
-    async def set_status(self, _, status, expected_status=None):
-        self.statuses.append((status, expected_status))
-        self.job = ProcessingJob(
-            self.job.id,
-            JobStatus(status),
-            self.job.submission,
-            self.job.created_at,
-        )
-        return True
-
     async def get_design_spec(self, _):
         from ai_gif_studio.domain.specs import DesignSpec
         return DesignSpec()
@@ -55,6 +45,19 @@ class Engine:
         target.write_bytes(b"GIF89a")
 
 
+class Queue:
+    async def claim_for_processing(self, job_id, worker_id):
+        from ai_gif_studio.domain.job_queue import ClaimResult
+        self.worker_id = worker_id
+        return ClaimResult(self.job, worker_id, 1, __import__("datetime").datetime.now(__import__("datetime").UTC), 1)
+
+    async def complete(self, job_id, worker_id):
+        self.status = "completed"
+
+    async def fail(self, job_id, worker_id, error):
+        self.status = "failed"
+
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_workflow_transitions_and_registers_artifact(tmp_path: Path):
@@ -73,11 +76,14 @@ async def test_workflow_transitions_and_registers_artifact(tmp_path: Path):
         __import__("datetime").datetime.now(__import__("datetime").UTC),
     )
     repo = Repo(job)
+    queue = Queue()
+    queue.job = job
     result = await CreativeWorkflow(
         repo,
         Steps(),
         Artifacts(),
         Engine(),
-    ).run(job.id, tmp_path / "source", tmp_path / "out.gif")
+        queue,
+    ).run(job.id, tmp_path / "source", tmp_path / "out.gif", "worker-1")
     assert result.artifact_path.name == "out.gif"
-    assert repo.statuses == [("processing", "queued"), ("completed", "processing")]
+    assert queue.status == "completed"
