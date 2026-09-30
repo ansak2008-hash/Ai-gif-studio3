@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from ai_gif_studio.domain.job_queue import AtomicJobQueue, DuplicateEnqueueError, LostClaimError
+from ai_gif_studio.domain.job_queue import AtomicJobQueue, LostClaimError
 from ai_gif_studio.models import JobStatus, ProcessingJob, ProcessingMode, VideoSubmission
 
 pytestmark = pytest.mark.unit
@@ -59,20 +59,36 @@ def make_job() -> ProcessingJob:
 async def test_enqueue_is_idempotent_for_duplicate_submission() -> None:
     repo = FakeRepository(make_job())
     queue = AtomicJobQueue(repo)
-    job = await queue.enqueue(repo.job)
-    assert job is not None
-    duplicate = await queue.enqueue(repo.job)
-    assert duplicate is None
+    assert await queue.enqueue(repo.job) is not None
+    assert await queue.enqueue(repo.job) is None
     assert repo.job.status is JobStatus.QUEUED
 
 
 @pytest.mark.asyncio
-async def test_duplicate_enqueue_never_regresses_queued_to_created() -> None:
+async def test_dispatch_happens_before_state_claim() -> None:
     repo = FakeRepository(make_job())
-    queue = AtomicJobQueue(repo)
+    calls: list[str] = []
+
+    async def dispatch(job_id: str, **_: object) -> None:
+        calls.append(job_id)
+
+    queue = AtomicJobQueue(repo, dispatch)
     await queue.enqueue(repo.job)
-    assert await queue.enqueue(repo.job) is None
+    assert calls == [str(repo.job.id)]
     assert repo.job.status is JobStatus.QUEUED
+
+
+@pytest.mark.asyncio
+async def test_dispatch_failure_does_not_regress_created_state() -> None:
+    repo = FakeRepository(make_job())
+
+    async def dispatch(_job_id: str, **_: object) -> None:
+        raise RuntimeError("redis unavailable")
+
+    queue = AtomicJobQueue(repo, dispatch)
+    with pytest.raises(RuntimeError):
+        await queue.enqueue(repo.job)
+    assert repo.job.status is JobStatus.CREATED
 
 
 @pytest.mark.asyncio
@@ -80,9 +96,7 @@ async def test_claim_is_single_winner_under_concurrency() -> None:
     repo = FakeRepository(make_job())
     queue = AtomicJobQueue(repo)
     await queue.enqueue(repo.job)
-    results = await asyncio.gather(
-        *(queue.claim_for_processing(repo.job.id, f"worker-{i}") for i in range(32))
-    )
+    results = await asyncio.gather(*(queue.claim_for_processing(repo.job.id, f"worker-{i}") for i in range(32)))
     assert sum(result is not None for result in results) == 1
     assert repo.job.status is JobStatus.PROCESSING
 
@@ -92,10 +106,8 @@ async def test_lost_claim_returns_none() -> None:
     repo = FakeRepository(make_job())
     queue = AtomicJobQueue(repo)
     await queue.enqueue(repo.job)
-    winner = await queue.claim_for_processing(repo.job.id, "winner")
-    loser = await queue.claim_for_processing(repo.job.id, "loser")
-    assert winner is not None
-    assert loser is None
+    assert await queue.claim_for_processing(repo.job.id, "winner") is not None
+    assert await queue.claim_for_processing(repo.job.id, "loser") is None
 
 
 @pytest.mark.asyncio
