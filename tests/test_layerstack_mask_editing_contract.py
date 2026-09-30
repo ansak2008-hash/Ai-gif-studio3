@@ -6,6 +6,7 @@ import pytest
 
 from ai_gif_studio.domain.layer_state import LayerStack, LayerState
 from ai_gif_studio.domain.mask_state import MaskState
+
 pytestmark = pytest.mark.unit
 
 MASK_ID = UUID("00000000-0000-0000-0000-000000000001")
