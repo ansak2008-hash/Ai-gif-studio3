@@ -123,3 +123,41 @@ def test_invalid_metadata_does_not_mutate_graph() -> None:
 
     assert editor.canonical_json == before
     assert editor.revision_count == 1
+
+
+def test_deeply_nested_metadata_fails_as_contract_error() -> None:
+    editor = ProjectEditor.create(_state())
+    nested: dict[str, object] = {}
+    current = nested
+    for _ in range(2000):
+        child: dict[str, object] = {}
+        current["x"] = child
+        current = child
+
+    with pytest.raises(TypeError, match="JSON-compatible"):
+        editor.execute(
+            ReplaceDesignSpecCommand(_design("#222222")),
+            nested,
+        )
+
+    assert editor.revision_count == 1
+
+
+def test_deeply_nested_canonical_revision_fails_as_validation_error() -> None:
+    nested_json = "{" + '"x":{' * 2000 + "null" + "}" * 2000 + "}"
+    payload = (
+        '{"command_metadata":'
+        + nested_json
+        + ',"parent_id":null,"revision_id":"'
+        + "0" * 64
+        + '","state":'
+        + _state().canonical_json.__repr__()
+        + "}"
+    )
+
+    from ai_gif_studio.domain.revisions import RevisionValidationError
+
+    with pytest.raises(RevisionValidationError, match="invalid canonical revision JSON"):
+        from ai_gif_studio.domain.revisions import Revision
+
+        Revision.from_canonical_json(payload)
