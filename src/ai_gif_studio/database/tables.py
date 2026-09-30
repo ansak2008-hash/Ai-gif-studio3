@@ -81,4 +81,4 @@ class AIExecutionRecord(Base):
     model_id: Mapped[str | None] = mapped_column(String(128))
     duration_ms: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
-    metadata: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict, nullable=False)
