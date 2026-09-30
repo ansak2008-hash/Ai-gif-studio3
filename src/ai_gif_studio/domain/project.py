@@ -54,11 +54,11 @@ def _validate_json_payload_bounds(value: str) -> None:
 
 
 def _load_canonical_json(value: str) -> Any:
-    _validate_json_payload_bounds(value)
     try:
+        _validate_json_payload_bounds(value)
         return json.loads(value, object_pairs_hook=_reject_duplicate_keys)
-    except RecursionError as exc:
-        raise ValueError("canonical project state exceeds the maximum JSON nesting depth") from exc
+    except (RecursionError, UnicodeEncodeError) as exc:
+        raise ValueError("canonical project state contains unsupported UTF-8 data") from exc
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -117,7 +117,11 @@ class ProjectState:
             )
         except (TypeError, ValueError) as exc:
             raise TypeError("metadata must be JSON-compatible") from exc
-        if len(canonical.encode("utf-8")) > _MAX_CANONICAL_JSON_BYTES:
+        try:
+            encoded_size = len(canonical.encode("utf-8"))
+        except UnicodeEncodeError as exc:
+            raise TypeError("metadata must contain valid UTF-8 text") from exc
+        if encoded_size > _MAX_CANONICAL_JSON_BYTES:
             raise ValueError("canonical project state exceeds the maximum JSON payload size")
         object.__setattr__(self, "_canonical_json", canonical)
 
