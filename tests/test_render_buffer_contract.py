@@ -99,12 +99,10 @@ def test_render_buffer_rejects_storage_replacement() -> None:
         buffer._rgba_linear = np.zeros((1, 1, 4), dtype=np.float32)
 
 
-def test_reflective_attribute_replacement_cannot_swap_canonical_storage() -> None:
+def test_reflective_attribute_replacement_cannot_create_identity_slot() -> None:
     buffer = RenderBuffer.allocate(1, 1)
-    before = buffer.data.copy()
-
-    object.__setattr__(buffer, "_identity", object())
-    np.testing.assert_array_equal(buffer.data, before)
+    with pytest.raises(AttributeError):
+        object.__setattr__(buffer, "_identity", object())
 
 
 def test_raw_ndarray_construction_requires_explicit_color_space_boundary() -> None:
