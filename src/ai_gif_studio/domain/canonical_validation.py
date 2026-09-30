@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
 import math
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 DEFAULT_MAX_DEPTH = 128
@@ -56,9 +56,9 @@ def _validate_value(
         try:
             items = list(value.items())
             for key, item in items:
-            if not isinstance(key, str):
-                raise TypeError(f"{context} keys must be strings")
-            validate_string(key, context=f"{context}.key")
+                if not isinstance(key, str):
+                    raise TypeError(f"{context} keys must be strings")
+                validate_string(key, context=f"{context}.key")
                 _validate_value(
                     item,
                     context=f"{context}[{key!r}]",
