@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer
+from ai_gif_studio.temporal_engine.render_buffer import RenderBuffer, _STORAGE
 
 pytestmark = pytest.mark.unit
 
@@ -132,3 +132,41 @@ def test_clear_replaces_storage_without_exposing_writable_alias() -> None:
     with pytest.raises(ValueError, match="WRITEABLE"):
         buffer.data.setflags(write=True)
     np.testing.assert_array_equal(buffer.data, [[[1.0, 0.0, 0.0, 1.0]]])
+
+
+def test_render_buffer_data_base_is_immutable_bytes() -> None:
+    buffer = RenderBuffer.allocate(2, 2)
+    data = buffer.data
+    assert isinstance(data.base, bytes)
+    assert data.flags.writeable is False
+    with pytest.raises(ValueError):
+        data.setflags(write=True)
+
+
+def test_render_buffer_internal_storage_cannot_be_escalated() -> None:
+    buffer = RenderBuffer.allocate(1, 1)
+    raw_bytes, shape, view = _STORAGE[buffer]
+    assert shape == buffer.shape
+    assert isinstance(raw_bytes, bytes)
+    assert view.flags.writeable is False
+    with pytest.raises(ValueError):
+        view.setflags(write=True)
+    with pytest.raises(ValueError):
+        view[0, 0, 0] = 1.0
+
+
+def test_render_buffer_base_mutation_cannot_change_canonical_storage() -> None:
+    buffer = RenderBuffer.allocate(1, 1)
+    base = buffer.data.base
+    assert isinstance(base, bytes)
+    with pytest.raises(TypeError):
+        base[0] = 1
+    np.testing.assert_array_equal(buffer.data, 0.0)
+
+
+def test_render_buffer_reflection_cannot_create_internal_storage_slot() -> None:
+    buffer = RenderBuffer.allocate(1, 1)
+    with pytest.raises(AttributeError):
+        object.__setattr__(buffer, "_identity", object())
+    with pytest.raises(AttributeError):
+        object.__delattr__(buffer, "_identity")
