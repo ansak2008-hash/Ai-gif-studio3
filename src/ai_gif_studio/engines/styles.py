@@ -59,9 +59,11 @@ def animated_background_filters(spec: dict[str, Any], bounds, duration: float) -
             f"y={y}:w={max(2,int(w*0.08))}:h={h}:color={accent}@0.16:t=fill"
         )
     elif mode == "gradient":
+        color = _color(spec.get("color", "#111111"), "background color")
+        second = _color(spec.get("secondary", "#202020"), "background secondary color")
         filters.extend([
-            f"drawbox=x={x}:y={y}:w={w}:h={max(1,h//2)}:color={_color(spec.get("color", "#111111"), "background color")}:t=fill",
-            f"drawbox=x={x}:y={y + max(1,h//2)}:w={w}:h={max(1,h-max(1,h//2))}:color={_color(spec.get("secondary", "#202020"), "background secondary color")}:t=fill"
+            f"drawbox=x={x}:y={y}:w={w}:h={max(1,h//2)}:color={color}:t=fill",
+            f"drawbox=x={x}:y={y + max(1,h//2)}:w={w}:h={max(1,h-max(1,h//2))}:color={second}:t=fill"
         ])
     else:
         raise ValueError(f"unsupported background animation: {mode}")
