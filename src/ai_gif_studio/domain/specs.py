@@ -11,9 +11,23 @@ HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
 
 
 def _validate_color(value: str, label: str = "color") -> str:
-    if not HEX_COLOR.fullmatch(value):
+    if not isinstance(value, str) or not HEX_COLOR.fullmatch(value):
         raise ValueError(f"{label} must be a 3- or 6-digit hex color")
     return value
+
+
+def _validate_bounded_int(value: Any, label: str, low: int, high: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise TypeError(f"{label} must be numeric")
+    try:
+        normalized = int(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(f"{label} must be an integer") from exc
+    if isinstance(value, float) and value != normalized:
+        raise ValueError(f"{label} must be an integer")
+    if not low <= normalized <= high:
+        raise ValueError(f"{label} must be between {low} and {high}")
+    return normalized
 
 
 class DesignSpec(BaseModel):
@@ -45,9 +59,19 @@ class DesignSpec(BaseModel):
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"crop focus {axis} must be between 0 and 1")
         _validate_color(str(self.background.get("color", "#111111")), "background color")
+        if "secondary" in self.background:
+            _validate_color(str(self.background["secondary"]), "background secondary color")
+        if "accent" in self.background:
+            _validate_color(str(self.background["accent"]), "background accent color")
+        if str(self.background.get("mode", "solid")) not in {
+            "solid", "duotone", "stripes", "luxury", "sunset"
+        }:
+            raise ValueError("unsupported background mode")
         if str(self.background.get("animation", "none")) not in {"none", "pulse", "sweep", "gradient"}:
             raise ValueError("unsupported background animation")
         _validate_color(str(self.frame.get("color", "#ffffff")), "frame color")
+        if "secondary" in self.frame:
+            _validate_color(str(self.frame["secondary"]), "frame secondary color")
         if str(self.frame.get("shape", "rounded")) not in {"rect", "rounded", "rounded-rect", "circle"}:
             raise ValueError("unsupported frame shape")
         if not 0 <= float(self.frame.get("radius", 24)) <= 160:
@@ -67,12 +91,18 @@ class DesignSpec(BaseModel):
                 raise ValueError("layer opacity must be between 0 and 1")
             if not 1 <= int(layer.get("thickness", 3)) <= 20:
                 raise ValueError("layer thickness must be between 1 and 20")
+            _validate_bounded_int(layer.get("x", 0), "layer x", -320, 320)
+            _validate_bounded_int(layer.get("y", 0), "layer y", -320, 320)
+            _validate_bounded_int(layer.get("width", 32), "layer width", 1, 320)
+            _validate_bounded_int(layer.get("height", 32), "layer height", 1, 320)
         if self.text is not None:
             if len(str(self.text.get("content", ""))) > 160:
                 raise ValueError("text content must be at most 160 characters")
             if not 10 <= int(self.text.get("size", 24)) <= 72:
                 raise ValueError("text size must be between 10 and 72")
             _validate_color(str(self.text.get("color", "#ffffff")), "text color")
+            _validate_bounded_int(self.text.get("x", 16), "text x", -320, 320)
+            _validate_bounded_int(self.text.get("y", 280), "text y", -320, 320)
         if self.typography is not None:
             if len(str(self.typography.get("content", ""))) > 160:
                 raise ValueError("typography content must be at most 160 characters")
@@ -84,6 +114,8 @@ class DesignSpec(BaseModel):
                 raise ValueError("typography size must be between 10 and 120")
             if not 0 <= int(self.typography.get("depth", 6)) <= 16:
                 raise ValueError("typography depth must be between 0 and 16")
+            _validate_bounded_int(self.typography.get("x", 24), "typography x", -320, 320)
+            _validate_bounded_int(self.typography.get("y", 240), "typography y", -320, 320)
             if str(self.typography.get("animation", "none")) not in {"none", "fade", "slide", "pulse", "shine"}:
                 raise ValueError("unsupported typography animation")
 
