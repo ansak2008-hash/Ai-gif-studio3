@@ -9,6 +9,15 @@ MAX_MASK_FEATHER_RADIUS = 4096.0
 MAX_MASK_BLUR_RADIUS = 4096.0
 
 
+def _reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON object key: {key!r}")
+        result[key] = value
+    return result
+
+
 def _unit_interval(value: float, name: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise TypeError(f"{name} must be numeric")
@@ -124,7 +133,7 @@ class MaskState:
         if not isinstance(value, str):
             raise TypeError("canonical mask state must be a string")
         try:
-            payload = json.loads(value)
+            payload = json.loads(value, object_pairs_hook=_reject_duplicate_keys)
         except (json.JSONDecodeError, RecursionError) as exc:
             raise ValueError("invalid canonical mask state JSON") from exc
         if not isinstance(payload, dict):
