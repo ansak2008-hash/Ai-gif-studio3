@@ -40,6 +40,11 @@ class AtomicJobQueue:
         self._dispatcher = dispatcher
 
     async def enqueue(self, job: ProcessingJob) -> ProcessingJob | None:
+        current = await self._repository.get(job.id)
+        if current is None:
+            raise KeyError(f"job not found: {job.id}")
+        if current.status is not JobStatus.CREATED:
+            return None
         if self._dispatcher is not None:
             await self._dispatcher(str(job.id))
         changed = await self._repository.set_status(
