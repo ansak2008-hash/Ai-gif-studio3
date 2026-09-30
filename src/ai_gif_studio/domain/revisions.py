@@ -37,7 +37,7 @@ def _canonical_metadata(metadata: Mapping[str, Any]) -> str:
             sort_keys=True,
             separators=(",", ":"),
         )
-    except (TypeError, ValueError, RecursionError) as exc:
+    except (TypeError, ValueError, RecursionError, UnicodeEncodeError) as exc:
         raise TypeError("command_metadata must be JSON-compatible") from exc
 
 
@@ -58,14 +58,18 @@ def _revision_identity(
         "state": state.canonical_json,
         "command_metadata": json.loads(command_metadata),
     }
-    canonical = json.dumps(
-        envelope,
-        ensure_ascii=False,
-        allow_nan=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    try:
+        canonical = json.dumps(
+            envelope,
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        digest_input = canonical.encode("utf-8")
+    except (TypeError, ValueError, RecursionError, UnicodeEncodeError) as exc:
+        raise RevisionValidationError("revision content is not canonically UTF-8 JSON") from exc
+    return hashlib.sha256(digest_input).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
