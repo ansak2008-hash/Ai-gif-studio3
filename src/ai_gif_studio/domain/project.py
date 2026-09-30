@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
+from .canonical_validation import validate_mapping
 from .layer_state import LayerStack
 from .specs import DesignSpec, ProcessingSettings
 from .transforms import TransformState
@@ -34,7 +35,7 @@ def _validate_json_payload_bounds(value: str) -> None:
         if in_string:
             if escaped:
                 escaped = False
-            elif char == "\\\\":
+            elif char == "\\":
                 escaped = True
             elif char == '"':
                 in_string = False
@@ -89,6 +90,7 @@ class ProjectState:
             raise TypeError("processing must be a ProcessingSettings")
         if not isinstance(metadata, dict):
             raise TypeError("metadata must be a dictionary")
+        validate_mapping(metadata, context="ProjectState.metadata")
         if transform is not None and not isinstance(transform, TransformState):
             raise TypeError("transform must be a TransformState or None")
         if layer_stack is not None and not isinstance(layer_stack, LayerStack):
@@ -107,6 +109,7 @@ class ProjectState:
                 payload["transform"]["rotation"] = transform.rotation
         if layer_stack is not None and layer_stack != LayerStack():
             payload["layer_stack"] = json.loads(layer_stack.canonical_json)
+        validate_mapping(payload, context="ProjectState")
         try:
             canonical = json.dumps(
                 payload,
@@ -115,7 +118,7 @@ class ProjectState:
                 sort_keys=True,
                 separators=(",", ":"),
             )
-        except (TypeError, ValueError) as exc:
+        except (TypeError, ValueError, RecursionError) as exc:
             raise TypeError("metadata must be JSON-compatible") from exc
         if len(canonical.encode("utf-8")) > _MAX_CANONICAL_JSON_BYTES:
             raise ValueError("canonical project state exceeds the maximum JSON payload size")
@@ -126,12 +129,16 @@ class ProjectState:
         if not isinstance(value, str):
             raise TypeError("canonical project state must be a string")
         try:
+            value.encode("utf-8", "strict")
             payload = _load_canonical_json(value)
+        except UnicodeEncodeError as exc:
+            raise ValueError("invalid UTF-8 canonical project state") from exc
         except (json.JSONDecodeError, ValueError) as exc:
             raise ValueError("invalid canonical project state JSON") from exc
         if not isinstance(payload, dict):
             raise ValueError("canonical project state must be a JSON object")
         try:
+            validate_mapping(payload, context="loaded_project")
             project_id = UUID(str(payload["project_id"]))
             revision = payload["revision"]
             design = DesignSpec.model_validate(payload["design"])
