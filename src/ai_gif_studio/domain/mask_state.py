@@ -75,6 +75,50 @@ class MaskState:
         if self.threshold is not None:
             object.__setattr__(self, "threshold", _unit_interval(self.threshold, "threshold"))
 
+    def _replace(self, **changes: object) -> MaskState:
+        values = {
+            "mask_id": self.mask_id,
+            "source_asset_id": self.source_asset_id,
+            "enabled": self.enabled,
+            "inverted": self.inverted,
+            "opacity": self.opacity,
+            "feather_radius": self.feather_radius,
+            "blur_radius": self.blur_radius,
+            "levels_low": self.levels_low,
+            "levels_high": self.levels_high,
+            "threshold": self.threshold,
+        }
+        values.update(changes)
+        return type(self)(**values)
+
+    def with_enabled(self, enabled: bool) -> MaskState:
+        """Return a state with mask application enabled or disabled."""
+        return self._replace(enabled=enabled)
+
+    def with_inverted(self, inverted: bool) -> MaskState:
+        """Return a state with mask inversion enabled or disabled."""
+        return self._replace(inverted=inverted)
+
+    def with_opacity(self, opacity: float) -> MaskState:
+        """Return a state with normalized mask opacity."""
+        return self._replace(opacity=opacity)
+
+    def with_feather_radius(self, feather_radius: float) -> MaskState:
+        """Return a state with the requested feather radius."""
+        return self._replace(feather_radius=feather_radius)
+
+    def with_blur_radius(self, blur_radius: float) -> MaskState:
+        """Return a state with the requested blur radius."""
+        return self._replace(blur_radius=blur_radius)
+
+    def with_levels(self, levels_low: float, levels_high: float) -> MaskState:
+        """Return a state with a validated levels interval."""
+        return self._replace(levels_low=levels_low, levels_high=levels_high)
+
+    def with_threshold(self, threshold: float | None) -> MaskState:
+        """Return a state with thresholding enabled or disabled."""
+        return self._replace(threshold=threshold)
+
     @classmethod
     def from_canonical_json(cls, value: str) -> MaskState:
         if not isinstance(value, str):
