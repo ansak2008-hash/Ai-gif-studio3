@@ -62,3 +62,72 @@ def test_forged_reservation_cannot_change_resource_accounting() -> None:
         manager.release(forged)
     assert manager.reserved_bytes == 256
     manager.release(reservation)
+
+
+@pytest.mark.unit
+def test_exact_remaining_budget_is_admitted() -> None:
+    manager = ResourceManager(1024)
+    first = manager.reserve(ResourceRequest(768))
+    second = manager.reserve(ResourceRequest(256))
+    assert manager.reserved_bytes == 1024
+    assert manager.available_bytes == 0
+    manager.release(first)
+    manager.release(second)
+
+
+@pytest.mark.unit
+def test_one_byte_over_remaining_budget_is_rejected_without_accounting_change() -> None:
+    manager = ResourceManager(1024)
+    first = manager.reserve(ResourceRequest(1024))
+    with pytest.raises(ResourceLimitError, match="available budget"):
+        manager.reserve(ResourceRequest(1))
+    assert manager.reserved_bytes == 1024
+    manager.release(first)
+
+
+@pytest.mark.unit
+def test_forged_reservation_with_copied_owner_token_cannot_release_active_reservation() -> None:
+    manager = ResourceManager(1024)
+    reservation = manager.reserve(ResourceRequest(256, model="test"))
+    forged = ResourceReservation(
+        reservation.reservation_id,
+        reservation.memory_bytes,
+        reservation.model,
+        reservation._owner_token,
+    )
+    with pytest.raises(ValueError, match="reservation does not belong"):
+        manager.release(forged)
+    assert manager.reserved_bytes == 256
+    manager.release(reservation)
+    assert manager.reserved_bytes == 0
+
+
+@pytest.mark.unit
+def test_concurrent_admission_never_exceeds_budget() -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    manager = ResourceManager(5)
+
+    def attempt() -> ResourceReservation | None:
+        try:
+            return manager.reserve(ResourceRequest(1))
+        except ResourceLimitError:
+            return None
+
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        reservations = list(executor.map(lambda _: attempt(), range(20)))
+
+    accepted = [reservation for reservation in reservations if reservation is not None]
+    assert len(accepted) == 5
+    assert manager.reserved_bytes == 5
+    assert manager.reserved_bytes <= manager.memory_limit_bytes
+    for reservation in accepted:
+        manager.release(reservation)
+    assert manager.reserved_bytes == 0
+
+
+@pytest.mark.unit
+def test_render_memory_estimate_is_deterministic() -> None:
+    first = ResourceManager.estimate_render_memory_bytes(320, 320, 6)
+    second = ResourceManager.estimate_render_memory_bytes(320, 320, 6)
+    assert first == second

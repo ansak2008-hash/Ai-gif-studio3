@@ -152,3 +152,34 @@ def test_compositor_releases_render_reservation_on_failure(monkeypatch) -> None:
         )
     assert manager.reserved_bytes == 0
     np.testing.assert_array_equal(base.data, _buffer((0.0, 0.0, 0.0, 1.0)).data)
+
+
+def test_compositor_reserves_before_first_output_allocation(monkeypatch) -> None:
+    from ai_gif_studio.resources import ResourceManager
+    from ai_gif_studio.temporal_engine import compositor
+
+    manager = ResourceManager(1024**2)
+    base = _buffer((0.0, 0.0, 0.0, 1.0))
+    source = _buffer((1.0, 0.0, 0.0, 1.0))
+    requested = manager.estimate_render_memory_bytes(
+        base.width,
+        base.height,
+        1,
+        dtype=base.dtype,
+    )
+    observed: list[int] = []
+    original_copy = compositor.RenderBuffer.copy
+
+    def checked_copy(self):
+        observed.append(manager.reserved_bytes)
+        return original_copy(self)
+
+    monkeypatch.setattr(compositor.RenderBuffer, "copy", checked_copy)
+    composite_blend_layers(
+        base,
+        [BlendLayer(source)],
+        resource_manager=manager,
+    )
+    assert observed
+    assert observed[0] == requested
+    assert manager.reserved_bytes == 0

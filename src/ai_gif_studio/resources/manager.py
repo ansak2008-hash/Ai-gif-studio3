@@ -137,6 +137,10 @@ class ResourceManager:
         if reservation._owner_token is not self._owner_token:
             raise ValueError("reservation does not belong to this resource manager")
         with self._lock:
-            active = self._active.pop(reservation.reservation_id, None)
-            if active is not None:
-                self._reserved -= active.memory_bytes
+            active = self._active.get(reservation.reservation_id)
+            if active is None:
+                return
+            if active is not reservation:
+                raise ValueError("reservation does not belong to this resource manager")
+            self._active.pop(reservation.reservation_id)
+            self._reserved -= active.memory_bytes
