@@ -64,7 +64,7 @@ class FakeRepository:
 
             return ClaimResult(self.job, owner_id, self.attempt, lease_expires_at, self.version)
 
-    async def complete_processing(self, job_id: UUID, owner_id: str, now: datetime) -> bool:
+    async def complete_processing(self, job_id: UUID, owner_id: str, version: int, now: datetime) -> bool:
         async with self._lock:
             if not self._owns(job_id, owner_id, now):
                 return False
@@ -76,7 +76,7 @@ class FakeRepository:
             self.version += 1
             return True
 
-    async def fail_processing(self, job_id: UUID, owner_id: str, error: str, now: datetime) -> bool:
+    async def fail_processing(self, job_id: UUID, owner_id: str, version: int, error: str, now: datetime) -> bool:
         async with self._lock:
             if not self._owns(job_id, owner_id, now):
                 return False
@@ -89,7 +89,7 @@ class FakeRepository:
             return True
 
     async def retry_processing(
-        self, job_id: UUID, owner_id: str, error: str, now: datetime
+        self, job_id: UUID, owner_id: str, version: int, error: str, now: datetime
     ) -> bool:
         async with self._lock:
             if not self._owns(job_id, owner_id, now):
@@ -123,11 +123,12 @@ class FakeRepository:
             )
             return [self.job.id]
 
-    def _owns(self, job_id: UUID, owner_id: str, now: datetime) -> bool:
+    def _owns(self, job_id: UUID, owner_id: str, version: int, now: datetime) -> bool:
         return (
             job_id == self.job.id
             and self.job.status is JobStatus.PROCESSING
             and self.owner_id == owner_id
+            and self.version == version
             and self.lease_expires_at is not None
             and self.lease_expires_at > now
         )
@@ -209,8 +210,8 @@ async def test_only_current_owner_can_complete_or_fail() -> None:
     await queue.enqueue(repo.job)
     await queue.claim_for_processing(repo.job.id, "owner-a")
     with pytest.raises(LostClaimError):
-        await queue.complete(repo.job.id, "owner-b")
-    await queue.complete(repo.job.id, "owner-a")
+        await queue.complete(repo.job.id, "owner-b", claim.version)
+    await queue.complete(repo.job.id, "owner-a", claim.version)
     assert repo.job.status is JobStatus.COMPLETED
 
 
@@ -221,7 +222,8 @@ async def test_retry_is_queue_authority_and_increments_on_next_claim() -> None:
     await queue.enqueue(repo.job)
     first = await queue.claim_for_processing(repo.job.id, "owner-a")
     assert first is not None and first.attempt == 1
-    assert await queue.retry(repo.job.id, "owner-a", "temporary failure")
+    assert first is not None
+    assert await queue.retry(repo.job.id, "owner-a", first.version, "temporary failure")
     assert repo.job.status is JobStatus.QUEUED
     second = await queue.claim_for_processing(repo.job.id, "owner-b")
     assert second is not None and second.attempt == 2
@@ -244,7 +246,7 @@ async def test_expired_owner_is_fenced_and_recovered() -> None:
     assert await recovery_queue.recover_expired() == 1
     assert recovered == [str(repo.job.id)]
     with pytest.raises(LostClaimError):
-        await recovery_queue.complete(repo.job.id, "stale")
+        await recovery_queue.complete(repo.job.id, "stale", claim.version)
 
 
 @pytest.mark.asyncio
@@ -265,3 +267,21 @@ async def test_invalid_owner_is_rejected() -> None:
     await queue.enqueue(repo.job)
     with pytest.raises(ValueError):
         await queue.claim_for_processing(repo.job.id, "")
+
+
+@pytest.mark.asyncio
+async def test_stale_version_is_fenced_even_when_owner_id_is_reused() -> None:
+    repo = FakeRepository(make_job())
+    queue = AtomicJobQueue(repo, config=QueueConfig(lease_duration_seconds=1, max_attempts=3))
+    await queue.enqueue(repo.job)
+    first = await queue.claim_for_processing(repo.job.id, "worker")
+    assert first is not None
+    repo.lease_expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    assert await queue.recover_expired() == 1
+    second = await queue.claim_for_processing(repo.job.id, "worker")
+    assert second is not None
+    assert second.version != first.version
+    with pytest.raises(LostClaimError):
+        await queue.complete(repo.job.id, "worker", first.version)
+    await queue.complete(repo.job.id, "worker", second.version)
+    assert repo.job.status is JobStatus.COMPLETED
