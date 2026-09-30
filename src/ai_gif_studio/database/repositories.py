@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Protocol
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select, update
+from sqlalchemy import case, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -191,10 +191,9 @@ class JobRepository(Protocol):
                         ProcessingJobRecord.lease_expires_at <= now,
                     )
                     .values(
-                        status=(
-                            JobStatus.FAILED.value
-                            if ProcessingJobRecord.attempt >= max_attempts
-                            else JobStatus.QUEUED.value
+                        status=case(
+                            (ProcessingJobRecord.attempt >= max_attempts, JobStatus.FAILED.value),
+                            else_=JobStatus.QUEUED.value,
                         ),
                         owner_id=None,
                         lease_expires_at=None,
