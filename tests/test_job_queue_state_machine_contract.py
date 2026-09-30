@@ -66,7 +66,7 @@ class FakeRepository:
 
     async def complete_processing(self, job_id: UUID, owner_id: str, version: int, now: datetime) -> bool:
         async with self._lock:
-            if not self._owns(job_id, owner_id, now):
+            if not self._owns(job_id, owner_id, version, now):
                 return False
             self.job = ProcessingJob(
                 self.job.id, JobStatus.COMPLETED, self.job.submission, self.job.created_at
