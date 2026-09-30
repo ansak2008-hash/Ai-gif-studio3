@@ -1,99 +1,168 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import Protocol
 from uuid import UUID
 
-from ai_gif_studio.models import JobStatus, ProcessingJob
+from ai_gif_studio.models import ProcessingJob
+
+
+class JobQueueError(RuntimeError):
+    """Base error for queue ownership and state failures."""
+
+
+class DuplicateEnqueueError(JobQueueError):
+    """The job is already beyond the CREATED enqueue boundary."""
+
+
+class LostClaimError(JobQueueError):
+    """The caller no longer owns the processing claim."""
+
+
+class LeaseExpiredError(JobQueueError):
+    """The processing lease is no longer valid."""
+
+
+class TransportSendError(JobQueueError):
+    """The durable queue transition succeeded but transport dispatch failed."""
+
+
+@dataclass(frozen=True, slots=True)
+class QueueConfig:
+    lease_duration_seconds: int = 600
+    max_attempts: int = 3
+
+    def __post_init__(self) -> None:
+        if self.lease_duration_seconds <= 0:
+            raise ValueError("lease_duration_seconds must be positive")
+        if self.max_attempts <= 0:
+            raise ValueError("max_attempts must be positive")
+
+
+@dataclass(frozen=True, slots=True)
+class ClaimResult:
+    job: ProcessingJob
+    owner_id: str
+    attempt: int
+    lease_expires_at: datetime
+    version: int
 
 
 class JobQueueRepository(Protocol):
     async def get(self, job_id: UUID) -> ProcessingJob | None: ...
-    async def set_status(
-        self,
-        job_id: UUID,
-        status: str,
-        expected_status: str | None = None,
+
+    async def transition_created_to_queued(self, job_id: UUID) -> bool: ...
+
+    async def rollback_queued_to_created(self, job_id: UUID) -> bool: ...
+
+    async def claim_for_processing(
+        self, job_id: UUID, owner_id: str, lease_expires_at: datetime
+    ) -> ClaimResult | None: ...
+
+    async def complete_processing(
+        self, job_id: UUID, owner_id: str, now: datetime
     ) -> bool: ...
 
+    async def fail_processing(
+        self, job_id: UUID, owner_id: str, error: str, now: datetime
+    ) -> bool: ...
 
-Dispatcher = Callable[..., Awaitable[object]]
+    async def retry_processing(
+        self, job_id: UUID, owner_id: str, error: str, now: datetime
+    ) -> bool: ...
+
+    async def recover_expired_processing(
+        self, now: datetime, max_attempts: int
+    ) -> int: ...
 
 
-class DuplicateEnqueueError(RuntimeError):
-    """The job is already queued or has progressed beyond the enqueue boundary."""
-
-
-class LostClaimError(RuntimeError):
-    """Another worker won the atomic queued-to-processing transition."""
+class JobDispatcher(Protocol):
+    async def __call__(self, job_id: str, **kwargs: object) -> object: ...
 
 
 class AtomicJobQueue:
-    """Persistent CAS-based queue boundary; no process-local state is used."""
+    """Single state authority with CAS, ownership fencing and lease recovery."""
 
     def __init__(
         self,
         repository: JobQueueRepository,
-        dispatcher: Dispatcher | None = None,
+        dispatcher: JobDispatcher | None = None,
+        config: QueueConfig | None = None,
     ) -> None:
         self._repository = repository
         self._dispatcher = dispatcher
+        self._config = config or QueueConfig()
 
     async def enqueue(self, job: ProcessingJob) -> ProcessingJob | None:
         current = await self._repository.get(job.id)
         if current is None:
             raise KeyError(f"job not found: {job.id}")
-        if current.status is not JobStatus.CREATED:
+        if current.status.value != "created":
+            return None
+        if not await self._repository.transition_created_to_queued(job.id):
             return None
         if self._dispatcher is not None:
-            await self._dispatcher(str(job.id))
-        changed = await self._repository.set_status(
-            job.id,
-            JobStatus.QUEUED.value,
-            expected_status=JobStatus.CREATED.value,
-        )
-        if not changed:
-            current = await self._repository.get(job.id)
-            if current is not None and current.status is not JobStatus.CREATED:
-                return None
-            raise DuplicateEnqueueError(f"job {job.id} could not be enqueued atomically")
+            try:
+                await self._dispatcher(job.id.hex)
+            except Exception as exc:
+                rolled_back = await self._repository.rollback_queued_to_created(job.id)
+                if not rolled_back:
+                    raise TransportSendError(
+                        f"dispatch failed and job {job.id} could not be rolled back"
+                    ) from exc
+                raise TransportSendError(f"dispatch failed for job {job.id}") from exc
         return await self._repository.get(job.id)
 
-    async def claim_for_processing(self, job_id: UUID, worker_id: str) -> ProcessingJob | None:
-        if not isinstance(worker_id, str) or not worker_id:
-            raise ValueError("worker_id must be a non-empty string")
-        changed = await self._repository.set_status(
-            job_id,
-            JobStatus.PROCESSING.value,
-            expected_status=JobStatus.QUEUED.value,
-        )
-        if not changed:
-            return None
-        return await self._repository.get(job_id)
+    async def claim_for_processing(
+        self, job_id: UUID, worker_id: str
+    ) -> ClaimResult | None:
+        self._validate_owner(worker_id)
+        now = datetime.now(UTC)
+        lease = now + timedelta(seconds=self._config.lease_duration_seconds)
+        return await self._repository.claim_for_processing(job_id, worker_id, lease)
 
-    async def complete(self, job_id: UUID) -> None:
-        changed = await self._repository.set_status(
-            job_id,
-            JobStatus.COMPLETED.value,
-            expected_status=JobStatus.PROCESSING.value,
-        )
-        if not changed:
-            raise LostClaimError(f"job {job_id} no longer belongs to the processing worker")
+    async def complete(self, job_id: UUID, worker_id: str) -> None:
+        self._validate_owner(worker_id)
+        if not await self._repository.complete_processing(
+            job_id, worker_id, datetime.now(UTC)
+        ):
+            raise LostClaimError(f"job {job_id} is not owned by {worker_id}")
 
-    async def fail(self, job_id: UUID, error: str) -> None:
+    async def fail(self, job_id: UUID, worker_id: str, error: str) -> None:
+        self._validate_owner(worker_id)
         if not isinstance(error, str):
             raise TypeError("error must be a string")
-        changed = await self._repository.set_status(
-            job_id,
-            JobStatus.FAILED.value,
-            expected_status=JobStatus.PROCESSING.value,
+        if not await self._repository.fail_processing(
+            job_id, worker_id, error, datetime.now(UTC)
+        ):
+            raise LostClaimError(f"job {job_id} is not owned by {worker_id}")
+
+    async def retry(
+        self, job_id: UUID, worker_id: str, error: str
+    ) -> bool:
+        self._validate_owner(worker_id)
+        if not isinstance(error, str):
+            raise TypeError("error must be a string")
+        return await self._repository.retry_processing(
+            job_id, worker_id, error, datetime.now(UTC)
         )
-        if not changed:
-            raise LostClaimError(f"job {job_id} no longer belongs to the processing worker")
+
+    async def recover_expired(self) -> int:
+        return await self._repository.recover_expired_processing(
+            datetime.now(UTC), self._config.max_attempts
+        )
 
     async def enqueue_job(self, job_id: str, **_: object) -> ProcessingJob | None:
-        parsed = UUID(job_id)
-        job = await self._repository.get(parsed)
+        return await self.enqueue(await self._require_job(UUID(job_id)))
+
+    async def _require_job(self, job_id: UUID) -> ProcessingJob:
+        job = await self._repository.get(job_id)
         if job is None:
             raise KeyError(f"job not found: {job_id}")
-        return await self.enqueue(job)
+        return job
+
+    @staticmethod
+    def _validate_owner(owner_id: str) -> None:
+        if not isinstance(owner_id, str) or not owner_id:
+            raise ValueError("owner_id must be a non-empty string")
