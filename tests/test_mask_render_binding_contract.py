@@ -37,7 +37,7 @@ def test_binding_materializes_persistent_mask_and_preserves_mask_semantics() -> 
     bindings = bind_layer_stack(
         stack,
         {source_id: buffer()},
-        {mask_id: mask([[0.0, 0.25], [0.75, 1.0]])},
+        masks={mask_id: mask([[0.0, 0.25], [0.75, 1.0]])},
     )
     assert bindings[0].mask is not None
     np.testing.assert_array_equal(
@@ -53,7 +53,7 @@ def test_layer_opacity_multiplies_persistent_mask() -> None:
     binding = bind_layer_stack(
         LayerStack((layer,)),
         {source_id: buffer()},
-        {mask_id: mask([[0.0, 0.25], [0.75, 1.0]])},
+        masks={mask_id: mask([[0.0, 0.25], [0.75, 1.0]])},
     )[0]
     assert binding.mask is not None
     np.testing.assert_array_equal(
@@ -70,7 +70,7 @@ def test_mask_dimensions_must_match_source() -> None:
         bind_layer_stack(
             LayerStack((layer,)),
             {source_id: buffer(2, 2)},
-            {mask_id: mask([[1.0]])},
+            masks={mask_id: mask([[1.0]])},
         )
 
 
@@ -104,7 +104,7 @@ def test_disabled_persistent_mask_resolves_to_identity_before_layer_opacity() ->
     binding = bind_layer_stack(
         LayerStack((layer,)),
         {source_id: buffer()},
-        {mask_id: mask([[0.0, 0.2], [0.8, 1.0]])},
+        masks={mask_id: mask([[0.0, 0.2], [0.8, 1.0]])},
     )[0]
     assert binding.mask is not None
     np.testing.assert_array_equal(
