@@ -66,7 +66,13 @@ async def process_job(ctx, job_id: str, **_):
 
         active_step = await step_repo.start(job.id, steps[2])
         if job.submission.mode.value == "designed":
-            await DesignGifEngine(ff).convert(source, output, design, processing)
+            await DesignGifEngine(
+                ff,
+                max_input_bytes=settings.max_upload_bytes,
+                max_input_width=settings.max_width,
+                max_input_height=settings.max_height,
+                max_input_duration_seconds=settings.max_duration_seconds,
+            ).convert(source, output, design, processing)
         else:
             await CropOnlyEngine(ff).convert(source, output, processing)
         await step_repo.complete(active_step)
