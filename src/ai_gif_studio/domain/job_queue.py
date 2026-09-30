@@ -74,7 +74,7 @@ class JobQueueRepository(Protocol):
 
     async def recover_expired_processing(
         self, now: datetime, max_attempts: int
-    ) -> int: ...
+    ) -> list[UUID]: ...
 
 
 class JobDispatcher(Protocol):
@@ -104,7 +104,7 @@ class AtomicJobQueue:
             return None
         if self._dispatcher is not None:
             try:
-                await self._dispatcher(job.id.hex)
+                await self._dispatcher(str(job.id))
             except Exception as exc:
                 rolled_back = await self._repository.rollback_queued_to_created(job.id)
                 if not rolled_back:
@@ -149,9 +149,21 @@ class AtomicJobQueue:
         )
 
     async def recover_expired(self) -> int:
-        return await self._repository.recover_expired_processing(
+        recovered = await self._repository.recover_expired_processing(
             datetime.now(UTC), self._config.max_attempts
         )
+        if self._dispatcher is None:
+            return len(recovered)
+        dispatched = 0
+        for job_id in recovered:
+            try:
+                await self._dispatcher(str(job_id))
+            except Exception as exc:
+                raise TransportSendError(
+                    f"recovered job {job_id} could not be dispatched"
+                ) from exc
+            dispatched += 1
+        return dispatched
 
     async def enqueue_job(self, job_id: str, **_: object) -> ProcessingJob | None:
         return await self.enqueue(await self._require_job(UUID(job_id)))
