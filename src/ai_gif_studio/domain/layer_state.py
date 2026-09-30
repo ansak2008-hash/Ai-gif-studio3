@@ -8,9 +8,12 @@ from types import MappingProxyType
 from typing import Any
 from uuid import UUID
 
+from .mask_state import MaskState
+
 DEFAULT_MAX_LAYERS = 256
 _TOP_LEVEL_KEYS = frozenset({"layers", "max_layers"})
-_LAYER_KEYS = frozenset({"layer_id", "source_asset_id", "opacity", "visible", "blend_mode"})
+_LAYER_KEYS = frozenset({"layer_id", "source_asset_id", "opacity", "visible", "blend_mode", "mask"})
+_LEGACY_LAYER_KEYS = frozenset({"layer_id", "source_asset_id", "opacity", "visible", "blend_mode"})
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -51,6 +54,7 @@ class LayerState:
     opacity: float = 1.0
     visible: bool = True
     blend_mode: LayerBlendMode = LayerBlendMode.NORMAL
+    mask: MaskState | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.layer_id, UUID):
@@ -62,6 +66,8 @@ class LayerState:
             raise TypeError("visible must be a boolean")
         if not isinstance(self.blend_mode, LayerBlendMode):
             raise TypeError("blend_mode must be a LayerBlendMode")
+        if self.mask is not None and not isinstance(self.mask, MaskState):
+            raise TypeError("mask must be a MaskState or None")
 
     @property
     def metadata(self) -> MappingProxyType:
@@ -71,7 +77,24 @@ class LayerState:
             "opacity": self.opacity,
             "visible": self.visible,
             "blend_mode": self.blend_mode.value,
+            "mask": None if self.mask is None else dict(self.mask.metadata),
         })
+
+    def set_mask(self, layer_id: UUID, mask: MaskState | None) -> LayerStack:
+        if mask is not None and not isinstance(mask, MaskState):
+            raise TypeError("mask must be a MaskState or None")
+        index = self._index(layer_id)
+        values = list(self.layers)
+        layer = values[index]
+        values[index] = LayerState(
+            layer.layer_id,
+            layer.source_asset_id,
+            layer.opacity,
+            layer.visible,
+            layer.blend_mode,
+            mask,
+        )
+        return LayerStack(tuple(values), max_layers=self.max_layers)
 
     @property
     def canonical_json(self) -> str:
@@ -134,14 +157,14 @@ class LayerStack:
         index = self._index(layer_id)
         values = list(self.layers)
         layer = values[index]
-        values[index] = LayerState(layer.layer_id, layer.source_asset_id, layer.opacity, visible, layer.blend_mode)
+        values[index] = LayerState(layer.layer_id, layer.source_asset_id, layer.opacity, visible, layer.blend_mode, layer.mask)
         return LayerStack(tuple(values), max_layers=self.max_layers)
 
     def set_opacity(self, layer_id: UUID, opacity: float) -> LayerStack:
         index = self._index(layer_id)
         values = list(self.layers)
         layer = values[index]
-        values[index] = LayerState(layer.layer_id, layer.source_asset_id, opacity, layer.visible, layer.blend_mode)
+        values[index] = LayerState(layer.layer_id, layer.source_asset_id, opacity, layer.visible, layer.blend_mode, layer.mask)
         return LayerStack(tuple(values), max_layers=self.max_layers)
 
     def set_blend_mode(self, layer_id: UUID, blend_mode: LayerBlendMode) -> LayerStack:
@@ -156,6 +179,7 @@ class LayerStack:
             layer.opacity,
             layer.visible,
             blend_mode,
+            layer.mask,
         )
         return LayerStack(tuple(values), max_layers=self.max_layers)
 
@@ -199,14 +223,25 @@ class LayerStack:
 
     @staticmethod
     def _decode_layer(value: Any) -> LayerState:
-        if not isinstance(value, dict) or set(value) != _LAYER_KEYS:
+        if not isinstance(value, dict):
             raise ValueError("invalid layer keys")
+        keys = set(value)
+        if keys not in (_LEGACY_LAYER_KEYS, _LAYER_KEYS):
+            raise ValueError("invalid layer keys")
+        mask = None
+        if "mask" in value:
+            raw_mask = value["mask"]
+            if raw_mask is not None:
+                mask = MaskState.from_canonical_json(
+                    json.dumps(raw_mask, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":"))
+                )
         return LayerState(
             UUID(value["layer_id"]),
             UUID(value["source_asset_id"]),
             opacity=value["opacity"],
             visible=value["visible"],
             blend_mode=LayerBlendMode(value["blend_mode"]),
+            mask=mask,
         )
 
     def _index(self, layer_id: UUID) -> int:
