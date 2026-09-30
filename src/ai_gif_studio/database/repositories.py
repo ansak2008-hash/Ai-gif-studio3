@@ -360,11 +360,9 @@ class SqlAlchemyJobRepository:
         max_retries: int = 2,
     ) -> int:
         """Compatibility wrapper; queue authority owns job-state recovery."""
-        from ai_gif_studio.domain.job_queue import AtomicJobQueue, QueueConfig
-
-        recovered_ids = await AtomicJobQueue(
-            self, config=QueueConfig(max_attempts=max_retries)
-        ).recover_expired()
+        recovered_ids = await self.recover_expired_processing(
+            datetime.now(UTC), max_retries
+        )
         if not recovered_ids:
             return 0
         recovered = 0
