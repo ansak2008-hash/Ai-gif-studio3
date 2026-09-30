@@ -170,3 +170,11 @@ def test_mask_state_persistence_survives_chained_immutable_edits() -> None:
     assert restored.source_asset_id == ASSET_ID
     assert restored.canonical_json == edited.canonical_json
     assert original == MaskState(MASK_ID, ASSET_ID)
+
+
+def test_mask_state_persistence_rejects_non_string_uuid_payload() -> None:
+    payload = json.loads(MaskState(MASK_ID, ASSET_ID).canonical_json)
+    payload["mask_id"] = 123
+    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    with pytest.raises(ValueError, match="invalid canonical mask state payload"):
+        MaskState.from_canonical_json(encoded)
