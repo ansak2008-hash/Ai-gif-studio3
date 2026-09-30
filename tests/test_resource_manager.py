@@ -39,3 +39,27 @@ def test_4k_50_layer_render_is_rejected_before_execution() -> None:
     with pytest.raises(ResourceLimitError, match="configured limit"):
         manager.reserve(ResourceRequest(requested, model="cpu-render"))
     assert manager.reserved_bytes == 0
+
+@pytest.mark.unit
+def test_reservation_cannot_be_released_by_another_manager() -> None:
+    first = ResourceManager(1024)
+    second = ResourceManager(1024)
+    reservation = first.reserve(ResourceRequest(256))
+    with pytest.raises(ValueError, match="reservation does not belong"):
+        second.release(reservation)
+    assert first.reserved_bytes == 256
+    assert second.reserved_bytes == 0
+    first.release(reservation)
+
+
+@pytest.mark.unit
+def test_forged_reservation_cannot_change_resource_accounting() -> None:
+    manager = ResourceManager(1024)
+    reservation = manager.reserve(ResourceRequest(256))
+    from ai_gif_studio.resources.manager import ResourceReservation
+
+    forged = ResourceReservation(reservation.reservation_id, reservation.memory_bytes)
+    with pytest.raises(ValueError, match="reservation does not belong"):
+        manager.release(forged)
+    assert manager.reserved_bytes == 256
+    manager.release(reservation)
