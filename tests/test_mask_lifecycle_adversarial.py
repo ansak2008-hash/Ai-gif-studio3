@@ -61,7 +61,7 @@ def test_mask_lifecycle_attach_edit_round_trip_and_remove() -> None:
 
 def test_set_mask_replacement_is_immutable_and_preserves_layer_properties() -> None:
     original_mask = _mask()
-    replacement = MaskState(UUID("00000000-0000-0000-0000-000000000007"), UUID("00000000-0000-0000-0000-000000000008"))
+    replacement = MaskState(\n        UUID("00000000-0000-0000-0000-000000000007"),\n        UUID("00000000-0000-0000-0000-000000000008"),\n    )
     original = _stack(original_mask)
     replaced = original.set_mask(LAYER_ID, replacement)
 
@@ -78,7 +78,7 @@ def test_set_mask_replacement_is_immutable_and_preserves_layer_properties() -> N
 
 def test_update_mask_rejects_identity_replacement_but_set_mask_can_attach_new_state() -> None:
     original = _stack(_mask())
-    replacement = MaskState(UUID("00000000-0000-0000-0000-000000000009"), UUID("00000000-0000-0000-0000-00000000000a"))
+    replacement = MaskState(\n        UUID("00000000-0000-0000-0000-000000000009"),\n        UUID("00000000-0000-0000-0000-00000000000a"),\n    )
     with pytest.raises(ValueError, match="mask_id"):
         original.update_mask(LAYER_ID, replacement)
     replaced = original.set_mask(LAYER_ID, replacement)
@@ -99,7 +99,7 @@ def test_mask_lifecycle_legacy_unmasked_json_remains_readable() -> None:
         ],
         "max_layers": 8,
     }
-    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    encoded = json.dumps(\n        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")\n    )
     restored = LayerStack.from_canonical_json(encoded)
     assert restored.layers[0].mask is None
     assert restored.canonical_json == encoded
