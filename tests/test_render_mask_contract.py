@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from ai_gif_studio.temporal_engine.render_mask import RenderMask, _MASK_STORAGE
+from ai_gif_studio.temporal_engine.render_mask import _MASK_STORAGE, RenderMask
 
 pytestmark = pytest.mark.unit
 
