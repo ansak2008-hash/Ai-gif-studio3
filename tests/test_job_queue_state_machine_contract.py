@@ -208,7 +208,8 @@ async def test_only_current_owner_can_complete_or_fail() -> None:
     repo = FakeRepository(make_job())
     queue = AtomicJobQueue(repo)
     await queue.enqueue(repo.job)
-    await queue.claim_for_processing(repo.job.id, "owner-a")
+    claim = await queue.claim_for_processing(repo.job.id, "owner-a")
+    assert claim is not None
     with pytest.raises(LostClaimError):
         await queue.complete(repo.job.id, "owner-b", claim.version)
     await queue.complete(repo.job.id, "owner-a", claim.version)
