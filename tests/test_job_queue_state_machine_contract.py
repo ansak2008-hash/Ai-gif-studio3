@@ -96,7 +96,7 @@ async def test_dispatch_failure_leaves_created_state() -> None:
     queue = AtomicJobQueue(repo, dispatch)
     with pytest.raises(RuntimeError):
         await queue.enqueue(repo.job)
-    assert repo.job.status is JobStatus.QUEUED
+    assert repo.job.status is JobStatus.CREATED
 
 
 @pytest.mark.asyncio
