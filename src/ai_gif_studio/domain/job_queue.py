@@ -118,14 +118,14 @@ class AtomicJobQueue:
 
     async def complete(self, job_id: UUID, worker_id: str, version: int) -> None:
         self._validate_owner(worker_id)
-        if not await self._repository.complete_processing(job_id, worker_id, datetime.now(UTC)):
+        if not await self._repository.complete_processing(job_id, worker_id, version, datetime.now(UTC)):
             raise LostClaimError(f"job {job_id} is not owned by {worker_id}")
 
     async def fail(self, job_id: UUID, worker_id: str, version: int, error: str) -> None:
         self._validate_owner(worker_id)
         if not isinstance(error, str):
             raise TypeError("error must be a string")
-        if not await self._repository.fail_processing(job_id, worker_id, error, datetime.now(UTC)):
+        if not await self._repository.fail_processing(job_id, worker_id, version, error, datetime.now(UTC)):
             raise LostClaimError(f"job {job_id} is not owned by {worker_id}")
 
     async def retry(self, job_id: UUID, worker_id: str, version: int, error: str) -> bool:
