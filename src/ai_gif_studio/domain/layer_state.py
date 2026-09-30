@@ -71,14 +71,16 @@ class LayerState:
 
     @property
     def metadata(self) -> MappingProxyType:
-        return MappingProxyType({
+        value: dict[str, object] = {
             "layer_id": str(self.layer_id),
             "source_asset_id": str(self.source_asset_id),
             "opacity": self.opacity,
             "visible": self.visible,
             "blend_mode": self.blend_mode.value,
-            "mask": None if self.mask is None else dict(self.mask.metadata),
-        })
+        }
+        if self.mask is not None:
+            value["mask"] = dict(self.mask.metadata)
+        return MappingProxyType(value)
 
     def set_mask(self, layer_id: UUID, mask: MaskState | None) -> LayerStack:
         if mask is not None and not isinstance(mask, MaskState):
