@@ -34,7 +34,7 @@ def test_levels_are_applied_before_threshold_inversion_and_opacity() -> None:
     source = render([[0.0, 0.5, 1.0]])
     state = make_state(levels_low=0.25, levels_high=0.75, threshold=0.5, inverted=True, opacity=0.5)
     result = process_mask(source, state)
-    np.testing.assert_array_equal(result.data, np.array([[0.5, 0.5, 0.0]], dtype=np.float32))
+    np.testing.assert_array_equal(result.data, np.array([[0.5, 0.0, 0.0]], dtype=np.float32))
 
 
 def test_threshold_is_lower_exclusive_and_upper_inclusive() -> None:
