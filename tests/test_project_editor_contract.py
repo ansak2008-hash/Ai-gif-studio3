@@ -26,6 +26,11 @@ def _design(color: str) -> DesignSpec:
     return DesignSpec(background={"mode": "solid", "color": color})
 
 
+def test_processing_settings_enforces_hard_gif_byte_ceiling() -> None:
+    with pytest.raises(ValueError):
+        ProcessingSettings(max_bytes=2_400_001)
+
+
 def test_create_starts_at_single_root_revision() -> None:
     editor = ProjectEditor.create(_state())
     assert editor.revision_count == 1
