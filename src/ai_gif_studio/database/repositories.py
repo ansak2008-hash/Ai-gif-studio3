@@ -34,6 +34,183 @@ class JobRepository(Protocol):
     async def get(self, job_id: UUID) -> ProcessingJob | None: ...
     async def get_by_submission_key(self, submitted_by: int, source_message_id: int) -> ProcessingJob | None: ...
     async def count_active(self) -> int: ...
+    async def transition_created_to_queued(self, job_id: UUID) -> bool:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                update(ProcessingJobRecord)
+                .where(
+                    ProcessingJobRecord.id == str(job_id),
+                    ProcessingJobRecord.status == JobStatus.CREATED.value,
+                )
+                .values(
+                    status=JobStatus.QUEUED.value,
+                    version=ProcessingJobRecord.version + 1,
+                    owner_id=None,
+                    lease_expires_at=None,
+                )
+            )
+            await session.commit()
+            return result.rowcount == 1
+
+    async def rollback_queued_to_created(self, job_id: UUID) -> bool:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                update(ProcessingJobRecord)
+                .where(
+                    ProcessingJobRecord.id == str(job_id),
+                    ProcessingJobRecord.status == JobStatus.QUEUED.value,
+                )
+                .values(
+                    status=JobStatus.CREATED.value,
+                    version=ProcessingJobRecord.version + 1,
+                )
+            )
+            await session.commit()
+            return result.rowcount == 1
+
+    async def claim_for_processing(
+        self, job_id: UUID, owner_id: str, lease_expires_at: datetime
+    ):
+        async with self._session_factory() as session:
+            result = await session.execute(
+                update(ProcessingJobRecord)
+                .where(
+                    ProcessingJobRecord.id == str(job_id),
+                    ProcessingJobRecord.status == JobStatus.QUEUED.value,
+                )
+                .values(
+                    status=JobStatus.PROCESSING.value,
+                    owner_id=owner_id,
+                    lease_expires_at=lease_expires_at,
+                    attempt=ProcessingJobRecord.attempt + 1,
+                    version=ProcessingJobRecord.version + 1,
+                )
+                .returning(
+                    ProcessingJobRecord.version,
+                    ProcessingJobRecord.attempt,
+                )
+            )
+            row = result.one_or_none()
+            if row is None:
+                await session.rollback()
+                return None
+            await session.commit()
+        job = await self.get(job_id)
+        if job is None:
+            return None
+        from ai_gif_studio.domain.job_queue import ClaimResult
+        return ClaimResult(job, owner_id, row.attempt, lease_expires_at, row.version)
+
+    async def complete_processing(self, job_id: UUID, owner_id: str, now: datetime) -> bool:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                update(ProcessingJobRecord)
+                .where(
+                    ProcessingJobRecord.id == str(job_id),
+                    ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                    ProcessingJobRecord.owner_id == owner_id,
+                    ProcessingJobRecord.lease_expires_at.is_not(None),
+                    ProcessingJobRecord.lease_expires_at > now,
+                )
+                .values(
+                    status=JobStatus.COMPLETED.value,
+                    owner_id=None,
+                    lease_expires_at=None,
+                    version=ProcessingJobRecord.version + 1,
+                )
+            )
+            await session.commit()
+            return result.rowcount == 1
+
+    async def fail_processing(
+        self, job_id: UUID, owner_id: str, error: str, now: datetime
+    ) -> bool:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                update(ProcessingJobRecord)
+                .where(
+                    ProcessingJobRecord.id == str(job_id),
+                    ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                    ProcessingJobRecord.owner_id == owner_id,
+                    ProcessingJobRecord.lease_expires_at.is_not(None),
+                    ProcessingJobRecord.lease_expires_at > now,
+                )
+                .values(
+                    status=JobStatus.FAILED.value,
+                    owner_id=None,
+                    lease_expires_at=None,
+                    version=ProcessingJobRecord.version + 1,
+                )
+            )
+            await session.commit()
+            return result.rowcount == 1
+
+    async def retry_processing(
+        self, job_id: UUID, owner_id: str, error: str, now: datetime
+    ) -> bool:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                update(ProcessingJobRecord)
+                .where(
+                    ProcessingJobRecord.id == str(job_id),
+                    ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                    ProcessingJobRecord.owner_id == owner_id,
+                    ProcessingJobRecord.lease_expires_at.is_not(None),
+                    ProcessingJobRecord.lease_expires_at > now,
+                )
+                .values(
+                    status=JobStatus.QUEUED.value,
+                    owner_id=None,
+                    lease_expires_at=None,
+                    version=ProcessingJobRecord.version + 1,
+                )
+            )
+            await session.commit()
+            return result.rowcount == 1
+
+    async def recover_expired_processing(
+        self, now: datetime, max_attempts: int
+    ) -> list[UUID]:
+        async with self._session_factory() as session:
+            rows = (
+                await session.scalars(
+                    select(ProcessingJobRecord.id).where(
+                        ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                        ProcessingJobRecord.lease_expires_at.is_not(None),
+                        ProcessingJobRecord.lease_expires_at <= now,
+                    )
+                )
+            ).all()
+            recovered: list[UUID] = []
+            for job_id in rows:
+                result = await session.execute(
+                    update(ProcessingJobRecord)
+                    .where(
+                        ProcessingJobRecord.id == job_id,
+                        ProcessingJobRecord.status == JobStatus.PROCESSING.value,
+                        ProcessingJobRecord.lease_expires_at <= now,
+                    )
+                    .values(
+                        status=(
+                            JobStatus.FAILED.value
+                            if ProcessingJobRecord.attempt >= max_attempts
+                            else JobStatus.QUEUED.value
+                        ),
+                        owner_id=None,
+                        lease_expires_at=None,
+                        version=ProcessingJobRecord.version + 1,
+                    )
+                )
+                if result.rowcount:
+                    if await session.scalar(
+                        select(ProcessingJobRecord.status).where(
+                            ProcessingJobRecord.id == job_id
+                        )
+                    ) == JobStatus.QUEUED.value:
+                        recovered.append(UUID(job_id))
+            await session.commit()
+            return recovered
+
     async def set_status(self, job_id: UUID, status: str, expected_status: str | None = None) -> bool: ...
     async def get_design_spec(self, job_id: UUID) -> DesignSpec: ...
     async def save_design_spec(self, job_id: UUID, spec: DesignSpec) -> None: ...
