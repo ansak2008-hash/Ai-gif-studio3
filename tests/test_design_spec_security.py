@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from ai_gif_studio.domain.specs import DesignSpec
+from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
 
 
 @pytest.mark.unit
@@ -46,7 +46,5 @@ def test_background_mode_is_allowlisted() -> None:
 
 @pytest.mark.unit
 def test_processing_settings_enforces_hard_gif_byte_ceiling() -> None:
-    from ai_gif_studio.domain.specs import ProcessingSettings
-
     with pytest.raises(ValueError):
         ProcessingSettings(max_bytes=2_400_001)
