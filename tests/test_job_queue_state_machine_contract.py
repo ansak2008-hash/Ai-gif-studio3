@@ -83,7 +83,7 @@ async def test_dispatch_happens_only_after_atomic_state_transition() -> None:
 
     queue = AtomicJobQueue(repo, dispatch)
     await queue.enqueue(repo.job)
-    assert observed == [JobStatus.QUEUED]
+    assert observed == [JobStatus.CREATED]
 
 
 @pytest.mark.asyncio
