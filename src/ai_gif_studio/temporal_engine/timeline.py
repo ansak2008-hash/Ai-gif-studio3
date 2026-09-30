@@ -19,6 +19,12 @@ class AnimationTimeline:
     loop: bool = True
 
     def __post_init__(self) -> None:
+        if isinstance(self.total_duration_sec, bool) or not isinstance(
+            self.total_duration_sec, (int, float)
+        ):
+            raise TypeError("total_duration_sec must be a real number")
+        if isinstance(self.fps, bool) or not isinstance(self.fps, (int, float)):
+            raise TypeError("fps must be a real number")
         if not math.isfinite(self.total_duration_sec) or self.total_duration_sec <= 0:
             raise ValueError("total_duration_sec must be finite and > 0")
         if not math.isfinite(self.fps) or self.fps <= 0:
