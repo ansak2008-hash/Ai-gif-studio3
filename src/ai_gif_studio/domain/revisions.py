@@ -37,7 +37,7 @@ def _canonical_metadata(metadata: Mapping[str, Any]) -> str:
             sort_keys=True,
             separators=(",", ":"),
         )
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError, RecursionError) as exc:
         raise TypeError("command_metadata must be JSON-compatible") from exc
 
 
@@ -141,7 +141,7 @@ class Revision:
             return revision
         except RevisionGraphError:
             raise
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        except (KeyError, TypeError, ValueError, RecursionError, json.JSONDecodeError) as exc:
             raise RevisionValidationError("invalid canonical revision JSON") from exc
 
 
