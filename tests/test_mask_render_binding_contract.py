@@ -78,7 +78,7 @@ def test_persistent_mask_requires_explicit_resolution_mapping() -> None:
     source_id = uuid4()
     layer = LayerState(uuid4(), source_id, mask=state(uuid4()))
     with pytest.raises(KeyError, match="mask source_asset_id not found"):
-        bind_layer_stack(LayerStack((layer,)), {source_id: buffer()}, {})
+        bind_layer_stack(LayerStack((layer,)), {source_id: buffer()}, masks={})
 
 
 def test_persistent_mask_is_not_silently_ignored_when_mapping_is_omitted() -> None:
