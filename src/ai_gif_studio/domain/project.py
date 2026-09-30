@@ -57,7 +57,9 @@ def _load_canonical_json(value: str) -> Any:
     try:
         _validate_json_payload_bounds(value)
         return json.loads(value, object_pairs_hook=_reject_duplicate_keys)
-    except (RecursionError, UnicodeEncodeError) as exc:
+    except RecursionError as exc:
+        raise ValueError("canonical project state exceeds the maximum JSON nesting depth") from exc
+    except UnicodeEncodeError as exc:
         raise ValueError("canonical project state contains unsupported UTF-8 data") from exc
 
 
