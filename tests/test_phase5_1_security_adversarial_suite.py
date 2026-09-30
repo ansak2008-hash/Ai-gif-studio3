@@ -59,6 +59,11 @@ class TestDeserializationInjectionAttacks:
         with pytest.raises(TypeError, match="canonical project state must be a string"):
             ProjectState.from_canonical_json(payload)  # type: ignore[arg-type]
 
+    def test_invalid_utf8_surrogate_is_rejected(self) -> None:
+        with pytest.raises(TypeError, match="UTF-8|JSON-compatible"):
+            make_state({"bad": "\ud800"})
+
+
     def test_recursive_depth_attack_is_rejected_before_stack_exhaustion(self) -> None:
         payload = '{"nested":' * 200 + "null" + "}" * 200
         with pytest.raises(ValueError, match="depth|invalid canonical project state"):
