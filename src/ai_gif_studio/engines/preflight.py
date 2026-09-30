@@ -24,6 +24,9 @@ async def preflight_media(
     ffmpeg,
     *,
     max_bytes: int | None = None,
+    max_width: int | None = None,
+    max_height: int | None = None,
+    max_duration_seconds: float | None = None,
 ) -> MediaPreflightResult:
     if not source.is_file():
         raise MediaPreflightError("input file does not exist")
@@ -45,6 +48,10 @@ async def preflight_media(
     width, height = int(video.get("width") or 0), int(video.get("height") or 0)
     if width <= 0 or height <= 0:
         raise MediaPreflightError("input video has invalid dimensions")
+    if max_width is not None and width > max_width:
+        raise MediaPreflightError("input video width exceeds the configured limit")
+    if max_height is not None and height > max_height:
+        raise MediaPreflightError("input video height exceeds the configured limit")
 
     frame_count = int(video.get("nb_read_frames") or video.get("nb_frames") or 0)
     if frame_count <= 0:
@@ -65,6 +72,8 @@ async def preflight_media(
         duration = 0.0
     if duration <= 0:
         raise MediaPreflightError("input video has invalid duration")
+    if max_duration_seconds is not None and duration > max_duration_seconds:
+        raise MediaPreflightError("input video duration exceeds the configured limit")
 
     return MediaPreflightResult(
         probe=probe,
