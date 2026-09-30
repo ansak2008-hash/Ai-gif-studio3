@@ -47,7 +47,15 @@ class FFmpegService:
         return out, err
 
     async def probe(self, path: Path, *, count_frames: bool = False) -> dict:
-        args = [self.ffprobe, "-v", "error"]
+        args = [
+            self.ffprobe,
+            "-v",
+            "error",
+            "-max_streams",
+            "32",
+            "-max_pixels",
+            "33177600",
+        ]
         if count_frames:
             args.append("-count_frames")
         args += ["-show_streams", "-show_format", "-of", "json", str(path)]
