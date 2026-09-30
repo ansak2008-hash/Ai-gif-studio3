@@ -40,6 +40,7 @@ class ProductionDesignGifEngine:
             filters.append(f"drawbox=x=0:y=0:w=320:h=320:color={design.frame.get('color', '#ffffff')}@0.75:t=3")
         for layer in design.layers:
             filters.append(f"drawbox=x=0:y=0:w=320:h=320:color={layer.get('color', '#ffffff')}@{float(layer.get('opacity', 1.0))}:t={int(layer.get('thickness', 3))}")
+        text_file = target.with_name(f"{target.name}.text.txt")
         if design.text is not None and design.text.get("enabled", True):
             text = str(design.text.get("content", ""))
             if text:
@@ -48,7 +49,6 @@ class ProductionDesignGifEngine:
                 filters.append(f"drawtext=textfile={escaped_text_file}:fontsize={int(design.text.get('size', 24))}:fontcolor={design.text.get('color', '#ffffff')}:x={int(design.text.get('x', 16))}:y={int(design.text.get('y', 280))}:box=1:boxcolor=black@0.35:boxborderw=6")
         vf = ",".join(filters)
         palette = target.with_suffix(".palette.png")
-        text_file = target.with_name(f"{target.name}.text.txt")
         try:
             for fps in self.quality.ladder(settings.fps):
                 await self.ffmpeg.run(["-ss", f"{start:.3f}", "-t", f"{duration:.3f}", "-i", str(source), "-vf", f"fps={fps},{vf},palettegen=max_colors={settings.palette_colors}:stats_mode=diff", str(palette)])
