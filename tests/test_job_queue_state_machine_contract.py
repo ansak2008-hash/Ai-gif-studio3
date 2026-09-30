@@ -33,7 +33,9 @@ class FakeRepository:
         async with self._lock:
             if job_id != self.job.id or self.job.status is not JobStatus.CREATED:
                 return False
-            self.job = ProcessingJob(self.job.id, JobStatus.QUEUED, self.job.submission, self.job.created_at)
+            self.job = ProcessingJob(
+                self.job.id, JobStatus.QUEUED, self.job.submission, self.job.created_at
+            )
             self.version += 1
             return True
 
@@ -41,7 +43,9 @@ class FakeRepository:
         async with self._lock:
             if job_id != self.job.id or self.job.status is not JobStatus.QUEUED:
                 return False
-            self.job = ProcessingJob(self.job.id, JobStatus.CREATED, self.job.submission, self.job.created_at)
+            self.job = ProcessingJob(
+                self.job.id, JobStatus.CREATED, self.job.submission, self.job.created_at
+            )
             self.version += 1
             return True
 
@@ -51,7 +55,9 @@ class FakeRepository:
         async with self._lock:
             if job_id != self.job.id or self.job.status is not JobStatus.QUEUED:
                 return None
-            self.job = ProcessingJob(self.job.id, JobStatus.PROCESSING, self.job.submission, self.job.created_at)
+            self.job = ProcessingJob(
+                self.job.id, JobStatus.PROCESSING, self.job.submission, self.job.created_at
+            )
             self.owner_id = owner_id
             self.lease_expires_at = lease_expires_at
             self.attempt += 1
@@ -63,7 +69,9 @@ class FakeRepository:
         async with self._lock:
             if not self._owns(job_id, owner_id, now):
                 return False
-            self.job = ProcessingJob(self.job.id, JobStatus.COMPLETED, self.job.submission, self.job.created_at)
+            self.job = ProcessingJob(
+                self.job.id, JobStatus.COMPLETED, self.job.submission, self.job.created_at
+            )
             self.owner_id = None
             self.lease_expires_at = None
             self.version += 1
@@ -73,17 +81,23 @@ class FakeRepository:
         async with self._lock:
             if not self._owns(job_id, owner_id, now):
                 return False
-            self.job = ProcessingJob(self.job.id, JobStatus.FAILED, self.job.submission, self.job.created_at)
+            self.job = ProcessingJob(
+                self.job.id, JobStatus.FAILED, self.job.submission, self.job.created_at
+            )
             self.owner_id = None
             self.lease_expires_at = None
             self.version += 1
             return True
 
-    async def retry_processing(self, job_id: UUID, owner_id: str, error: str, now: datetime) -> bool:
+    async def retry_processing(
+        self, job_id: UUID, owner_id: str, error: str, now: datetime
+    ) -> bool:
         async with self._lock:
             if not self._owns(job_id, owner_id, now):
                 return False
-            self.job = ProcessingJob(self.job.id, JobStatus.QUEUED, self.job.submission, self.job.created_at)
+            self.job = ProcessingJob(
+                self.job.id, JobStatus.QUEUED, self.job.submission, self.job.created_at
+            )
             self.owner_id = None
             self.lease_expires_at = None
             self.version += 1
@@ -101,7 +115,9 @@ class FakeRepository:
             self.lease_expires_at = None
             self.version += 1
             if self.attempt >= max_attempts:
-                self.job = ProcessingJob(self.job.id, JobStatus.FAILED, self.job.submission, self.job.created_at)
+                self.job = ProcessingJob(
+                    self.job.id, JobStatus.FAILED, self.job.submission, self.job.created_at
+                )
                 return []
             self.job = ProcessingJob(self.job.id, JobStatus.QUEUED, self.job.submission, self.job.created_at)
             return [self.job.id]
