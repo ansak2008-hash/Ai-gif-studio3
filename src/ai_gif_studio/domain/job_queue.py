@@ -60,7 +60,7 @@ class JobQueueRepository(Protocol):
         self, job_id: UUID, owner_id: str, lease_expires_at: datetime
     ) -> ClaimResult | None: ...
 
-    async def complete_processing(self, job_id: UUID, owner_id: str, version: int, now: datetime) -> bool: ...
+    async def complete_processing(\n        self, job_id: UUID, owner_id: str, version: int, now: datetime\n    ) -> bool: ...
 
     async def fail_processing(
         self, job_id: UUID, owner_id: str, version: int, error: str, now: datetime
@@ -118,22 +118,19 @@ class AtomicJobQueue:
 
     async def complete(self, job_id: UUID, worker_id: str, version: int) -> None:
         self._validate_owner(worker_id)
-        if not await self._repository.complete_processing(job_id, worker_id, version, datetime.now(UTC)):
-            raise LostClaimError(f"job {job_id} is not owned by {worker_id}")
+        if not await self._repository.complete_processing(\n            job_id, worker_id, version, datetime.now(UTC)\n        ):\n            raise LostClaimError(f"job {job_id} is not owned by {worker_id}")
 
     async def fail(self, job_id: UUID, worker_id: str, version: int, error: str) -> None:
         self._validate_owner(worker_id)
         if not isinstance(error, str):
             raise TypeError("error must be a string")
-        if not await self._repository.fail_processing(job_id, worker_id, version, error, datetime.now(UTC)):
-            raise LostClaimError(f"job {job_id} is not owned by {worker_id}")
+        if not await self._repository.fail_processing(\n            job_id, worker_id, version, error, datetime.now(UTC)\n        ):\n            raise LostClaimError(f"job {job_id} is not owned by {worker_id}")
 
     async def retry(self, job_id: UUID, worker_id: str, version: int, error: str) -> bool:
         self._validate_owner(worker_id)
         if not isinstance(error, str):
             raise TypeError("error must be a string")
-        return await self._repository.retry_processing(job_id, worker_id, version, error, datetime.now(UTC))
-
+        return await self._repository.retry_processing(\n            job_id, worker_id, version, error, datetime.now(UTC)\n        )\n
     async def recover_expired(self) -> int:
         recovered = await self._repository.recover_expired_processing(
             datetime.now(UTC), self._config.max_attempts
