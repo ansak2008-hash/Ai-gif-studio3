@@ -15,7 +15,9 @@ def validate_string(value: str, *, context: str = "value") -> str:
         raise TypeError(f"{context} must be a string")
     for index, char in enumerate(value):
         if 0xD800 <= ord(char) <= 0xDFFF:
-            raise UTF8ValidationError(f"{context} contains an invalid UTF-8 surrogate at index {index}")
+            raise UTF8ValidationError(
+                f"{context} contains an invalid UTF-8 surrogate at index {index}"
+            )
     try:
         value.encode("utf-8", "strict")
     except UnicodeEncodeError as exc:
@@ -23,7 +25,9 @@ def validate_string(value: str, *, context: str = "value") -> str:
     return value
 
 
-def validate_value(value: Any, *, context: str = "value", max_depth: int = DEFAULT_MAX_DEPTH) -> Any:
+def validate_value(
+    value: Any, *, context: str = "value", max_depth: int = DEFAULT_MAX_DEPTH
+) -> Any:
     if max_depth < 0:
         raise ValueError("max_depth must be non-negative")
     _validate_value(value, context=context, depth=0, max_depth=max_depth)
@@ -41,11 +45,15 @@ def _validate_value(value: Any, *, context: str, depth: int, max_depth: int) -> 
             if not isinstance(key, str):
                 raise TypeError(f"{context} keys must be strings")
             validate_string(key, context=f"{context}.key")
-            _validate_value(item, context=f"{context}[{key!r}]", depth=depth + 1, max_depth=max_depth)
+            _validate_value(
+                item, context=f"{context}[{key!r}]", depth=depth + 1, max_depth=max_depth
+            )
         return
     if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray, str)):
         for index, item in enumerate(value):
-            _validate_value(item, context=f"{context}[{index}]", depth=depth + 1, max_depth=max_depth)
+            _validate_value(
+                item, context=f"{context}[{index}]", depth=depth + 1, max_depth=max_depth
+            )
         return
     if value is None or isinstance(value, (bool, int, float)):
         return
