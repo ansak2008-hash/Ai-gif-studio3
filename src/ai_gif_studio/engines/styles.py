@@ -1,12 +1,22 @@
 from __future__ import annotations
 
+import re
 from typing import Any
+
+_HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
+
+
+def _color(value: Any, label: str) -> str:
+    if not isinstance(value, str) or not _HEX_COLOR.fullmatch(value):
+        raise ValueError(f"{label} must be a 3- or 6-digit hex color")
+    return value
+
 
 
 def background_filters(spec: dict[str, Any], bounds=None) -> list[str]:
     mode = str(spec.get("mode", "solid"))
-    color = str(spec.get("color", "#111111"))
-    second = str(spec.get("secondary", "#202020"))
+    color = _color(spec.get("color", "#111111"), "background color")
+    second = _color(spec.get("secondary", "#202020"), "background secondary color")
     if bounds is None:
         return []
     x, y, w, h = int(bounds.x), int(bounds.y), int(bounds.width), int(bounds.height)
@@ -41,17 +51,17 @@ def animated_background_filters(spec: dict[str, Any], bounds, duration: float) -
     x, y, w, h = int(bounds.x), int(bounds.y), int(bounds.width), int(bounds.height)
     if mode == "pulse":
         filters.append(
-            f"drawbox=x={x}:y={y}:w={w}:h={h}:color={spec.get('accent', '#ffffff')}@0.12:t=" "2+3*(0.5+0.5*sin(2*PI*t/2))"
+            f"drawbox=x={x}:y={y}:w={w}:h={h}:color={_color(spec.get('accent', '#ffffff'), "background accent color")}@0.12:t=" "2+3*(0.5+0.5*sin(2*PI*t/2))"
         )
     elif mode == "sweep":
         filters.append(
             f"drawbox=x='({x}-w)+({w}+{x})*mod(t/{max(duration,0.1):.3f},1)':"
-            f"y={y}:w={max(2,int(w*0.08))}:h={h}:color={spec.get('accent', '#ffffff')}@0.16:t=fill"
+            f"y={y}:w={max(2,int(w*0.08))}:h={h}:color={_color(spec.get('accent', '#ffffff'), "background accent color")}@0.16:t=fill"
         )
     elif mode == "gradient":
         filters.extend([
-            f"drawbox=x={x}:y={y}:w={w}:h={max(1,h//2)}:color={spec.get('color', '#111111')}:t=fill",
-            f"drawbox=x={x}:y={y + max(1,h//2)}:w={w}:h={max(1,h-max(1,h//2))}:color={spec.get('secondary', '#202020')}:t=fill"
+            f"drawbox=x={x}:y={y}:w={w}:h={max(1,h//2)}:color={_color(spec.get('color', '#111111'), "background color")}:t=fill",
+            f"drawbox=x={x}:y={y + max(1,h//2)}:w={w}:h={max(1,h-max(1,h//2))}:color={_color(spec.get('secondary', '#202020'), "background secondary color")}:t=fill"
         ])
     else:
         raise ValueError(f"unsupported background animation: {mode}")
@@ -59,7 +69,9 @@ def animated_background_filters(spec: dict[str, Any], bounds, duration: float) -
 
 
 def frame_filters(spec: dict[str, Any], animated: bool = False) -> list[str]:
-    style, color, second = str(spec.get("style", "rounded")), str(spec.get("color", "#ffffff")), str(spec.get("secondary", "#ffffff"))
+    style = str(spec.get("style", "rounded"))
+    color = _color(spec.get("color", "#ffffff"), "frame color")
+    second = _color(spec.get("secondary", "#ffffff"), "frame secondary color")
     thickness = max(1, min(int(spec.get("thickness", 3)), 16))
     if style in {"none", "transparent"}:
         return []
