@@ -165,7 +165,7 @@ class MaskState:
                 levels_high=payload["levels_high"],
                 threshold=payload["threshold"],
             )
-        except (KeyError, TypeError, ValueError) as exc:
+        except (AttributeError, KeyError, TypeError, ValueError) as exc:
             raise ValueError("invalid canonical mask state payload") from exc
         if state.canonical_json != value:
             raise ValueError("canonical mask state is not normalized")
