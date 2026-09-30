@@ -101,7 +101,7 @@ class JobRepository(Protocol):
         from ai_gif_studio.domain.job_queue import ClaimResult
         return ClaimResult(job, owner_id, row.attempt, lease_expires_at, row.version)
 
-    async def complete_processing(self, job_id: UUID, owner_id: str, now: datetime) -> bool:
+    async def complete_processing(self, job_id: UUID, owner_id: str, version: int, now: datetime) -> bool:
         async with self._session_factory() as session:
             result = await session.execute(
                 update(ProcessingJobRecord)
@@ -109,6 +109,7 @@ class JobRepository(Protocol):
                     ProcessingJobRecord.id == str(job_id),
                     ProcessingJobRecord.status == JobStatus.PROCESSING.value,
                     ProcessingJobRecord.owner_id == owner_id,
+                    ProcessingJobRecord.version == version,
                     ProcessingJobRecord.lease_expires_at.is_not(None),
                     ProcessingJobRecord.lease_expires_at > now,
                 )
@@ -123,7 +124,7 @@ class JobRepository(Protocol):
             return result.rowcount == 1
 
     async def fail_processing(
-        self, job_id: UUID, owner_id: str, error: str, now: datetime
+        self, job_id: UUID, owner_id: str, version: int, error: str, now: datetime
     ) -> bool:
         async with self._session_factory() as session:
             result = await session.execute(
@@ -132,6 +133,7 @@ class JobRepository(Protocol):
                     ProcessingJobRecord.id == str(job_id),
                     ProcessingJobRecord.status == JobStatus.PROCESSING.value,
                     ProcessingJobRecord.owner_id == owner_id,
+                    ProcessingJobRecord.version == version,
                     ProcessingJobRecord.lease_expires_at.is_not(None),
                     ProcessingJobRecord.lease_expires_at > now,
                 )
@@ -146,7 +148,7 @@ class JobRepository(Protocol):
             return result.rowcount == 1
 
     async def retry_processing(
-        self, job_id: UUID, owner_id: str, error: str, now: datetime
+        self, job_id: UUID, owner_id: str, version: int, error: str, now: datetime
     ) -> bool:
         async with self._session_factory() as session:
             result = await session.execute(
@@ -155,6 +157,7 @@ class JobRepository(Protocol):
                     ProcessingJobRecord.id == str(job_id),
                     ProcessingJobRecord.status == JobStatus.PROCESSING.value,
                     ProcessingJobRecord.owner_id == owner_id,
+                    ProcessingJobRecord.version == version,
                     ProcessingJobRecord.lease_expires_at.is_not(None),
                     ProcessingJobRecord.lease_expires_at > now,
                 )
