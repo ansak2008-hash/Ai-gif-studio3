@@ -219,6 +219,7 @@ async def test_admission_sequence_has_no_duplicates_under_concurrency() -> None:
     assert sequences == list(range(1, 11))
     assert editor.revision_count == 11
 
+
 @pytest.mark.asyncio
 async def test_release_failure_after_success_is_observable() -> None:
     editor = ProjectEditor.create(_state())
