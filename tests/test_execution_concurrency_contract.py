@@ -103,7 +103,9 @@ async def test_cancellation_before_command_start_creates_no_revision() -> None:
         await blocker.wait()
 
     first = asyncio.create_task(
-        coordinator.execute(editor, _command("#111111"), {"operation": "first"}, before_commit=first_hook)
+        coordinator.execute(
+            editor, _command("#111111"), {"operation": "first"}, before_commit=first_hook
+        )
     )
     await first_started.wait()
 
