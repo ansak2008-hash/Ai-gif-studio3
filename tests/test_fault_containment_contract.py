@@ -132,3 +132,27 @@ async def test_process_job_preserves_primary_error_when_cleanup_also_fails(
 
     with pytest.raises(RuntimeError, match="primary processing failure"):
         await worker.process_job(None, "00000000-0000-0000-0000-000000000001")
+
+
+async def test_process_job_preserves_configuration_error_when_database_cleanup_fails(
+    monkeypatch,
+) -> None:
+    import ai_gif_studio.worker as worker
+
+    class _Settings:
+        database_url = "unused"
+        telegram_bot_token = ""
+
+    class _FailingDb(_Db):
+        session_factory = object()
+
+    db = _FailingDb(RuntimeError("database cleanup failure"))
+
+    monkeypatch.setattr(worker, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(worker, "Database", lambda _url: db)
+
+    with pytest.raises(
+        RuntimeError,
+        match="TELEGRAM_BOT_TOKEN must be configured",
+    ):
+        await worker.process_job(None, "00000000-0000-0000-0000-000000000002")
