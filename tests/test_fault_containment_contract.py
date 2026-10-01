@@ -99,3 +99,34 @@ async def test_cleanup_captures_cancellation_from_cleanup_without_losing_the_err
     assert isinstance(errors[0], asyncio.CancelledError)
     assert bot.session.closed == 1
     assert db.disposed == 1
+
+async def test_process_job_preserves_primary_error_when_cleanup_also_fails(monkeypatch, tmp_path: Path) -> None:
+    import ai_gif_studio.worker as worker
+
+    class _Settings:
+        database_url = "unused"
+        telegram_bot_token = "token"
+
+    class _FailingDb(_Db):
+        pass
+
+    class _FailingBot(_Bot):
+        pass
+
+    class _Repo:
+        def __init__(self, _session_factory):
+            pass
+
+        async def get(self, _job_id):
+            raise RuntimeError("primary processing failure")
+
+    db = _FailingDb(RuntimeError("database cleanup failure"))
+    bot = _FailingBot(RuntimeError("telegram cleanup failure"))
+
+    monkeypatch.setattr(worker, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(worker, "Database", lambda _url: db)
+    monkeypatch.setattr(worker, "Bot", lambda _token: bot)
+    monkeypatch.setattr(worker, "SqlAlchemyJobRepository", _Repo)
+
+    with pytest.raises(RuntimeError, match="primary processing failure"):
+        await worker.process_job(None, "00000000-0000-0000-0000-000000000001")
