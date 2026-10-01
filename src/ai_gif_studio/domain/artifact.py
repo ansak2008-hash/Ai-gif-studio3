@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from uuid import UUID, uuid4, uuid5
 
-
 ARTIFACT_ID_NAMESPACE = UUID("a1e2b3c4-d5e6-7890-abcd-ef1234567890")
 
 
