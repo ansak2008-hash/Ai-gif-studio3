@@ -1,6 +1,4 @@
 import asyncio
-from pathlib import Path
-
 import pytest
 
 from ai_gif_studio.worker import _cleanup_resources
