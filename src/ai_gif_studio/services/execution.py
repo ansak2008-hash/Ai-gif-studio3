@@ -16,11 +16,12 @@ class AdmissionRejectedError(RuntimeError):
 
 
 class _OwnershipToken:
-    __slots__ = ("coordinator", "sequence")
+    __slots__ = ("coordinator", "sequence", "released")
 
     def __init__(self, coordinator: object, sequence: int) -> None:
         self.coordinator = coordinator
         self.sequence = sequence
+        self.released = False
 
 
 BeforeCommit = Callable[[int], Awaitable[None] | None]
@@ -85,10 +86,13 @@ class ProjectExecutionCoordinator:
             raise ValueError("ownership token does not belong to this coordinator")
         active = self._owners.get(id(token))
         if active is None:
-            return
+            if token.released:
+                return
+            raise ValueError("ownership token is not active")
         if active is not token:
             raise ValueError("ownership token identity mismatch")
         self._owners.pop(id(token))
+        token.released = True
         self._active -= 1
         if self._active < 0:
             self._active = 0
