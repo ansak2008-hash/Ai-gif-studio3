@@ -27,9 +27,7 @@ def _state() -> ProjectState:
 
 
 def _command(color: str) -> ReplaceDesignSpecCommand:
-    return ReplaceDesignSpecCommand(
-        DesignSpec(background={"mode": "solid", "color": color})
-    )
+    return ReplaceDesignSpecCommand(DesignSpec(background={"mode": "solid", "color": color}))
 
 
 @pytest.mark.asyncio
@@ -49,11 +47,15 @@ async def test_same_editor_commands_are_serialized_in_submission_order() -> None
         started.append(sequence)
 
     first = asyncio.create_task(
-        coordinator.execute(editor, _command("#111111"), {"operation": "first"}, before_commit=first_hook)
+        coordinator.execute(
+            editor, _command("#111111"), {"operation": "first"}, before_commit=first_hook
+        )
     )
     await first_started.wait()
     second = asyncio.create_task(
-        coordinator.execute(editor, _command("#222222"), {"operation": "second"}, before_commit=second_hook)
+        coordinator.execute(
+            editor, _command("#222222"), {"operation": "second"}, before_commit=second_hook
+        )
     )
 
     await asyncio.sleep(0)
