@@ -11,6 +11,7 @@ from sqlalchemy import case, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from ai_gif_studio.domain.artifact import make_artifact_id
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
 from ai_gif_studio.models import (
     JobStatus,
@@ -521,11 +522,32 @@ class ArtifactRepository:
 
             expires_at = (datetime.now(UTC) + timedelta(seconds=retention_seconds)) if retention_seconds is not None else None
             row = ArtifactRecord(
-                artifact_id=str(uuid4()), job_id=str(job_id), type=artifact_type,
+                artifact_id=str(make_artifact_id(job_id, artifact_type, str(path))), job_id=str(job_id), type=artifact_type,
                 storage_path=str(path), mime_type=mime_type, size_bytes=size,
                 sha256=sha256, created_at=datetime.now(UTC), expires_at=expires_at, metadata_json=metadata or {},
             )
             session.add(row)
-            await session.commit()
+            try:
+                await session.commit()
+            except IntegrityError:
+                await session.rollback()
+                existing = await session.scalar(
+                    select(ArtifactRecord)
+                    .where(
+                        ArtifactRecord.job_id == str(job_id),
+                        ArtifactRecord.type == artifact_type,
+                        ArtifactRecord.storage_path == str(path),
+                    )
+                    .order_by(ArtifactRecord.created_at.desc())
+                )
+                if existing is None:
+                    raise
+                if (
+                    existing.sha256 != sha256
+                    or existing.size_bytes != size
+                    or existing.mime_type != mime_type
+                ):
+                    raise ValueError("artifact path already registered with different content")
+                return existing
             await session.refresh(row)
             return row
