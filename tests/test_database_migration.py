@@ -16,7 +16,9 @@ def test_alembic_foundation_migration_creates_runtime_tables(tmp_path: Path) -> 
 
     engine = create_engine(f"sqlite:///{database}")
     try:
-        tables = set(inspect(engine).get_table_names())
+        inspector = inspect(engine)
+        tables = set(inspector.get_table_names())
+        constraints = inspector.get_unique_constraints("artifacts")
     finally:
         engine.dispose()
 
@@ -32,3 +34,8 @@ def test_alembic_foundation_migration_creates_runtime_tables(tmp_path: Path) -> 
         "workflows",
     }
     assert expected <= tables
+    assert any(
+        constraint["name"] == "uq_artifacts_identity"
+        and constraint["column_names"] == ["job_id", "type", "storage_path"]
+        for constraint in constraints
+    )
