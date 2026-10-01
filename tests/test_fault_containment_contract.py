@@ -110,7 +110,7 @@ async def test_process_job_preserves_primary_error_when_cleanup_also_fails(
         telegram_bot_token = "token"
 
     class _FailingDb(_Db):
-        pass
+        session_factory = object()
 
     class _FailingBot(_Bot):
         pass
