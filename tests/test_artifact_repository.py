@@ -46,7 +46,7 @@ async def test_concurrent_artifact_registration_is_single_record(tmp_path: Path)
     finally:
         await database.dispose()
 
-async def test_artifact_registration_rejects_changed_content_at_same_path(tmp_path: Path) -> None:
+async def test_artifact_id_is_unambiguous_for_delimited_fields() -> None:\n    job_id = uuid4()\n    first = make_artifact_id(job_id, "output|gif", "/tmp/artifact")\n    second = make_artifact_id(job_id, "output", "/tmp/artifact|gif")\n    assert first != second\n\nasync def test_artifact_registration_rejects_changed_content_at_same_path(tmp_path: Path) -> None:
     database = Database(f"sqlite+aiosqlite:///{tmp_path / 'artifacts.db'}")
     await database.create_schema()
     try:
