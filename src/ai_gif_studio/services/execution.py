@@ -42,7 +42,7 @@ class ProjectExecutionCoordinator:
         self._limit = max_concurrent
         self._active = 0
         self._next_sequence = 1
-        self._owners: set[_OwnershipToken] = set()
+        self._owners: dict[int, _OwnershipToken] = {}
         self._condition = asyncio.Condition()
         self._locks: WeakKeyDictionary[ProjectEditor, asyncio.Lock] = WeakKeyDictionary()
 
@@ -58,7 +58,7 @@ class ProjectExecutionCoordinator:
     def _new_token(self) -> _OwnershipToken:
         token = _OwnershipToken(self, self._next_sequence)
         self._next_sequence += 1
-        self._owners.add(token)
+        self._owners[id(token)] = token
         self._active += 1
         return token
 
@@ -83,9 +83,12 @@ class ProjectExecutionCoordinator:
     def release(self, token: _OwnershipToken) -> None:
         if not isinstance(token, _OwnershipToken) or token.coordinator is not self:
             raise ValueError("ownership token does not belong to this coordinator")
-        if token not in self._owners:
+        active = self._owners.get(id(token))
+        if active is None:
             return
-        self._owners.remove(token)
+        if active is not token:
+            raise ValueError("ownership token identity mismatch")
+        self._owners.pop(id(token))
         self._active -= 1
         if self._active < 0:
             self._active = 0
