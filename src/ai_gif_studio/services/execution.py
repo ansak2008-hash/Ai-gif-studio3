@@ -4,8 +4,8 @@ import asyncio
 import inspect
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
-from weakref import WeakKeyDictionary
 from typing import Any
+from weakref import WeakKeyDictionary
 
 from ai_gif_studio.domain.commands import ProjectCommand
 from ai_gif_studio.domain.project import ProjectState
