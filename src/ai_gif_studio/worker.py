@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import socket
+import sys
 from pathlib import Path
 from uuid import UUID
 
@@ -26,15 +27,54 @@ from ai_gif_studio.observability import stage
 logger = logging.getLogger(__name__)
 
 
+async def _cleanup_resources(
+    *,
+    source: Path | None,
+    bot: Bot | None,
+    db: Database,
+) -> list[BaseException]:
+    errors: list[BaseException] = []
+
+    if source is not None:
+        try:
+            source.unlink(missing_ok=True)
+        except BaseException as exc:
+            errors.append(exc)
+
+    if bot is not None:
+        try:
+            await bot.session.close()
+        except BaseException as exc:
+            errors.append(exc)
+
+    try:
+        await db.dispose()
+    except BaseException as exc:
+        errors.append(exc)
+
+    return errors
+
+
+def _log_cleanup_errors(errors: list[BaseException], job_id: str | None) -> None:
+    for error in errors:
+        logger.error(
+            "resource_cleanup_failed job_id=%s error=%s",
+            job_id,
+            type(error).__name__,
+        )
+
+
 async def process_job(ctx, job_id: str):
     settings = get_settings()
     db = Database(settings.database_url)
     if not settings.telegram_bot_token:
         await db.dispose()
         raise RuntimeError("TELEGRAM_BOT_TOKEN must be configured for Telegram delivery")
-    bot = Bot(settings.telegram_bot_token)
+
+    bot: Bot | None = None
     source: Path | None = None
     try:
+        bot = Bot(settings.telegram_bot_token)
         repo = SqlAlchemyJobRepository(db.session_factory)
         queue = AtomicJobQueue(repo)
         job = await repo.get(UUID(job_id))
@@ -76,10 +116,12 @@ async def process_job(ctx, job_id: str):
             )
         return {"status": "completed", "job_id": job_id, "size_bytes": result.size_bytes}
     finally:
-        if source is not None:
-            source.unlink(missing_ok=True)
-        await bot.session.close()
-        await db.dispose()
+        primary_error = sys.exc_info()[1]
+        errors = await _cleanup_resources(source=source, bot=bot, db=db)
+        if errors:
+            _log_cleanup_errors(errors, job_id)
+            if primary_error is None:
+                raise errors[0]
 
 
 class WorkerSettings:
