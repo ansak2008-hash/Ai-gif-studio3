@@ -526,6 +526,27 @@ class ArtifactRepository:
                 sha256=sha256, created_at=datetime.now(UTC), expires_at=expires_at, metadata_json=metadata or {},
             )
             session.add(row)
-            await session.commit()
+            try:
+                await session.commit()
+            except IntegrityError:
+                await session.rollback()
+                existing = await session.scalar(
+                    select(ArtifactRecord)
+                    .where(
+                        ArtifactRecord.job_id == str(job_id),
+                        ArtifactRecord.type == artifact_type,
+                        ArtifactRecord.storage_path == str(path),
+                    )
+                    .order_by(ArtifactRecord.created_at.desc())
+                )
+                if existing is None:
+                    raise
+                if (
+                    existing.sha256 != sha256
+                    or existing.size_bytes != size
+                    or existing.mime_type != mime_type
+                ):
+                    raise ValueError("artifact path already registered with different content")
+                return existing
             await session.refresh(row)
             return row
