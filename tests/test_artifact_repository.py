@@ -5,8 +5,8 @@ from uuid import uuid4
 import pytest
 
 from ai_gif_studio.database.repositories import ArtifactRepository
-from ai_gif_studio.domain.artifact import make_artifact_id
 from ai_gif_studio.database.session import Database
+from ai_gif_studio.domain.artifact import make_artifact_id
 
 pytestmark = pytest.mark.unit
 async def test_artifact_registration_is_retry_safe(tmp_path: Path) -> None:
