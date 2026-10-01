@@ -159,9 +159,12 @@ async def test_ownership_release_is_scoped_and_idempotent() -> None:
     coordinator = ProjectExecutionCoordinator(max_concurrent=1)
     owner = coordinator.acquire()
     forged = object()
+    copied = type(owner)(owner.coordinator, owner.sequence)
 
     with pytest.raises(ValueError, match="ownership"):
         coordinator.release(forged)
+    with pytest.raises(ValueError, match="ownership"):
+        coordinator.release(copied)
 
     coordinator.release(owner)
     coordinator.release(owner)
