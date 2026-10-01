@@ -67,13 +67,11 @@ def _log_cleanup_errors(errors: list[BaseException], job_id: str | None) -> None
 async def process_job(ctx, job_id: str):
     settings = get_settings()
     db = Database(settings.database_url)
-    if not settings.telegram_bot_token:
-        await db.dispose()
-        raise RuntimeError("TELEGRAM_BOT_TOKEN must be configured for Telegram delivery")
-
     bot: Bot | None = None
     source: Path | None = None
     try:
+        if not settings.telegram_bot_token:
+            raise RuntimeError("TELEGRAM_BOT_TOKEN must be configured for Telegram delivery")
         bot = Bot(settings.telegram_bot_token)
         repo = SqlAlchemyJobRepository(db.session_factory)
         queue = AtomicJobQueue(repo)
