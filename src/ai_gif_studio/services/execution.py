@@ -32,7 +32,7 @@ class ProjectExecutionCoordinator:
     on ProjectEditor and therefore cannot become process-global project state.
     """
 
-    def __init__(self, *, max_concurrent: int | None = 1) -> None:
+    def __init__(self, *, max_concurrent: int | None = None) -> None:
         if max_concurrent is not None:
             if isinstance(max_concurrent, bool) or not isinstance(max_concurrent, int):
                 raise TypeError("max_concurrent must be an integer or None")
