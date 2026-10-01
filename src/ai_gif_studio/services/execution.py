@@ -16,7 +16,7 @@ class AdmissionRejectedError(RuntimeError):
     """Raised when execution cannot be admitted under the configured limit."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class _OwnershipToken:
     coordinator: object
     sequence: int
