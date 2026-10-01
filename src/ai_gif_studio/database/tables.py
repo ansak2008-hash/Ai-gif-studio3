@@ -36,6 +36,11 @@ class ProcessingJobRecord(Base):
 
 class ArtifactRecord(Base):
     __tablename__ = "artifacts"
+    __table_args__ = (
+        UniqueConstraint(
+            "job_id", "type", "storage_path", name="uq_artifacts_identity"
+        ),
+    )
     artifact_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     job_id: Mapped[str] = mapped_column(String(36), ForeignKey("processing_jobs.id"), index=True, nullable=False)
     type: Mapped[str] = mapped_column(String(64), nullable=False)
