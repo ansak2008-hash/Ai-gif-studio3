@@ -5,10 +5,10 @@ from uuid import uuid4
 import pytest
 
 from ai_gif_studio.database.repositories import ArtifactRepository
+from ai_gif_studio.domain.artifact import make_artifact_id
 from ai_gif_studio.database.session import Database
 
 pytestmark = pytest.mark.unit
-
 async def test_artifact_registration_is_retry_safe(tmp_path: Path) -> None:
     database = Database(f"sqlite+aiosqlite:///{tmp_path / 'artifacts.db'}")
     await database.create_schema()
@@ -34,12 +34,14 @@ async def test_concurrent_artifact_registration_is_single_record(tmp_path: Path)
         job_id = uuid4()
         output = tmp_path / "output.gif"
         output.write_bytes(b"GIF89a-concurrent-artifact")
-        repositories = [ArtifactRepository(database.session_factory) for _ in range(2)]
+        repository = ArtifactRepository(database.session_factory)
         results = await asyncio.gather(
-            *(repository.register(job_id, output, "output_gif", "image/gif") for repository in repositories)
+            *(repository.register(job_id, output, "output_gif", "image/gif") for _ in range(32))
         )
-        assert results[0].artifact_id == results[1].artifact_id
-        artifacts = await repositories[0].get_for_job(job_id, "output_gif")
+        assert len({result.artifact_id for result in results}) == 1
+        expected_id = make_artifact_id(job_id, "output_gif", str(output))
+        assert results[0].artifact_id == str(expected_id)
+        artifacts = await repository.get_for_job(job_id, "output_gif")
         assert len(artifacts) == 1
     finally:
         await database.dispose()
