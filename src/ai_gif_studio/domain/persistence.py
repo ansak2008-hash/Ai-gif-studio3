@@ -124,6 +124,7 @@ class RevisionGraphPersistence:
             raise PersistenceValidationError("persisted graph must contain exactly one declared root")
         try:
             graph = RevisionGraph(roots[0], max_nodes=max_revisions)
+            loaded_ids = {root_id}
             pending = {
                 revision.revision_id: revision
                 for revision in revisions
@@ -134,11 +135,7 @@ class RevisionGraphPersistence:
                     (
                         revision
                         for revision in pending.values()
-                        if revision.parent_id is not None
-                        and any(
-                            existing.revision_id == revision.parent_id
-                            for existing in graph.revisions
-                        )
+                        if revision.parent_id in loaded_ids
                     ),
                     key=lambda item: item.revision_id,
                 )
@@ -148,6 +145,7 @@ class RevisionGraphPersistence:
                     )
                 for revision in ready:
                     graph.add(revision)
+                    loaded_ids.add(revision.revision_id)
                     pending.pop(revision.revision_id)
             graph.checkout(current_id)
             graph.validate()
