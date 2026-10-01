@@ -167,7 +167,13 @@ async def test_ownership_release_is_scoped_and_idempotent() -> None:
 async def test_release_failure_does_not_mask_primary_command_failure() -> None:
     editor = ProjectEditor.create(_state())
     coordinator = ProjectExecutionCoordinator()
-    coordinator.fail_next_release()
+    original_release = coordinator.release
+
+    def failing_release(token):
+        original_release(token)
+        raise RuntimeError("release failure")
+
+    coordinator.release = failing_release
 
     async def fail(_sequence: int) -> None:
         raise RuntimeError("primary command failure")
