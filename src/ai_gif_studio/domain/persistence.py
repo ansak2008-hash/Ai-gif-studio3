@@ -124,9 +124,29 @@ class RevisionGraphPersistence:
             raise PersistenceValidationError("persisted graph must contain exactly one declared root")
         try:
             graph = RevisionGraph(roots[0], max_nodes=max_revisions)
-            for revision in sorted(revisions, key=lambda item: item.revision_id):
-                if revision.revision_id != root_id:
+            loaded_ids = {root_id}
+            pending = {
+                revision.revision_id: revision
+                for revision in revisions
+                if revision.revision_id != root_id
+            }
+            while pending:
+                ready = sorted(
+                    (
+                        revision
+                        for revision in pending.values()
+                        if revision.parent_id in loaded_ids
+                    ),
+                    key=lambda item: item.revision_id,
+                )
+                if not ready:
+                    raise PersistenceValidationError(
+                        "persisted graph contains an unreachable revision"
+                    )
+                for revision in ready:
                     graph.add(revision)
+                    loaded_ids.add(revision.revision_id)
+                    pending.pop(revision.revision_id)
             graph.checkout(current_id)
             graph.validate()
         except (RevisionGraphError, ValueError, TypeError) as exc:
