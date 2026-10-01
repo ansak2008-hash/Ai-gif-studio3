@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import json
 from datetime import UTC, datetime
 from uuid import UUID, uuid4, uuid5
 
@@ -14,7 +15,14 @@ def make_artifact_id(job_id: UUID, artifact_type: str, storage_path: str) -> UUI
         raise ValueError("artifact_type must be non-empty string")
     if not isinstance(storage_path, str) or not storage_path:
         raise ValueError("storage_path must be non-empty string")
-    return uuid5(\n        ARTIFACT_ID_NAMESPACE,\n        json.dumps(\n            [str(job_id), artifact_type, storage_path],\n            ensure_ascii=False,\n            separators=(",", ":"),\n        ),\n    )
+    return uuid5(
+        ARTIFACT_ID_NAMESPACE,
+        json.dumps(
+            [str(job_id), artifact_type, storage_path],
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ),
+    )
 
 
 @dataclass(frozen=True, slots=True)
