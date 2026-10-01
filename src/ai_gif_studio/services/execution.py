@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import inspect
 from collections.abc import Awaitable, Callable, Mapping
-from dataclasses import dataclass
 from typing import Any
 from weakref import WeakKeyDictionary
 
@@ -16,10 +15,12 @@ class AdmissionRejectedError(RuntimeError):
     """Raised when execution cannot be admitted under the configured limit."""
 
 
-@dataclass(frozen=True, slots=True, eq=False)
 class _OwnershipToken:
-    coordinator: object
-    sequence: int
+    __slots__ = ("coordinator", "sequence")
+
+    def __init__(self, coordinator: object, sequence: int) -> None:
+        self.coordinator = coordinator
+        self.sequence = sequence
 
 
 BeforeCommit = Callable[[int], Awaitable[None] | None]
