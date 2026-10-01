@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Mapping
 from typing import Any, Literal
 from weakref import WeakKeyDictionary
 
@@ -24,9 +24,6 @@ class _OwnershipToken:
         self.coordinator = coordinator
         self.sequence = sequence
         self.released = False
-
-
-BeforeSubmit = Callable[[], Awaitable[None] | None]
 
 
 class SubmissionHandle:
