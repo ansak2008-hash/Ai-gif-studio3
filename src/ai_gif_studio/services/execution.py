@@ -32,6 +32,7 @@ class SubmissionHandle:
     __slots__ = (
         "_cancel_requested",
         "_future",
+        "_ownership_token",
         "_sequence",
         "_state",
     )
@@ -41,8 +42,10 @@ class SubmissionHandle:
         *,
         future: asyncio.Future[ProjectState],
         sequence: int,
+        ownership_token: object,
     ) -> None:
         self._future = future
+        self._ownership_token = ownership_token
         self._sequence = sequence
         self._state: ExecutionState = "pending"
         self._cancel_requested = False
@@ -54,6 +57,10 @@ class SubmissionHandle:
     @property
     def state(self) -> ExecutionState:
         return self._state
+
+    @property
+    def ownership_token(self) -> object:
+        return self._ownership_token
 
     def cancel(self) -> bool:
         """Cancel the submission if it has not started executing."""
@@ -149,9 +156,11 @@ class ProjectExecutionCoordinator:
         sequence = self._next_submission_sequence
         self._next_submission_sequence += 1
 
+        ownership_token = object()
         handle = SubmissionHandle(
             future=loop.create_future(),
             sequence=sequence,
+            ownership_token=ownership_token,
         )
         submission = _Submission(command, handle, command_metadata)
         queue = self._editor_queues.get(editor)
