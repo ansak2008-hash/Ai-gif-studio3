@@ -231,7 +231,7 @@ def test_timeline_fractional_frame_boundary_is_stable() -> None:
 
 
 def test_timeline_rejects_sub_centisecond_total_duration() -> None:
-    with pytest.raises(ValueError, match="centisecond"):
+    with pytest.raises(ValueError, match="too short"):
         AnimationTimeline(0.001, 1.0).centisecond_delays()
 
 
