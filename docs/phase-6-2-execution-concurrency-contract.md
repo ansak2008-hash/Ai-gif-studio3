@@ -2,75 +2,90 @@
 
 ## Goal
 
-Define the execution boundary around the immutable ProjectEditor so concurrent editor operations are deterministic, isolated, cancellable at explicit boundaries, and bounded by admission policy without introducing a global registry, plugin framework, or rendering dependency.
+Define the execution boundary around the immutable ProjectEditor so concurrent editor operations are deterministic, isolated, cancellable at explicit boundaries, and bounded by explicit admission policy without introducing a global registry, plugin framework, rendering dependency, or scheduler framework.
 
 ## Contract
 
-1. **Single logical owner per editor instance**
-   - A ProjectEditor instance has exactly one active execution owner at a time.
-   - No two commands may mutate the same editor graph concurrently.
-   - Ownership is explicit at the execution boundary; callers must not coordinate by reaching into ProjectEditor internals.
+1. **Synchronous submission boundary**
+   - `ProjectExecutionCoordinator.submit()` is the authoritative submission boundary.
+   - `submit()` is synchronous and allocates the command's monotonic sequence before any await, task scheduling, queue wait, admission wait, or editor execution.
+   - Submission order is the order in which successful `submit()` calls return from the coordinator on its bound event-loop thread.
+   - The coordinator is event-loop-affine. `submit()` MUST be called from the running event-loop thread associated with the coordinator.
+   - The sequence is immutable and available on the returned `SubmissionHandle` immediately.
 
 2. **Deterministic per-editor serialization**
-   - Commands admitted to the same editor execute in a single deterministic order.
-   - The execution boundary assigns a monotonic admission sequence before execution.
-   - Sequence order, not task scheduling or completion timing, determines command order.
-   - Independent editor instances may execute concurrently without sharing mutable editor state.
+   - Commands submitted to the same editor execute in strictly increasing submission sequence.
+   - A per-editor FIFO queue is the serialization mechanism; await order, task scheduling after submission, admission completion timing, and command completion timing MUST NOT reorder commands.
+   - Independent editor instances may execute concurrently.
+   - A queued command cannot skip an earlier non-cancelled command for the same editor.
 
-3. **Atomic command boundary**
-   - A command is either not started, or completes as one editor transition.
-   - A command failure must leave the revision graph and current pointer unchanged.
-   - A cancellation observed before command start prevents execution and produces no revision.
-   - Cancellation is not injected into the middle of ProjectEditor graph mutation.
-   - If cancellation arrives after command execution has crossed the mutation boundary, the completed command remains committed and cancellation is reported only at the next explicit cancellation boundary.
+3. **SubmissionHandle**
+   - `submit()` returns a handle immediately.
+   - The handle exposes its immutable submission sequence, ownership token identity, execution state, `wait()`, and `cancel()`.
+   - `await handle` is equivalent to `await handle.wait()`.
+   - Cancelling a handle is cooperative and only succeeds while the command is still pending. A running or committed command is not interrupted by handle cancellation.
+   - Cancelling the task that is merely waiting on a handle MUST NOT cancel the underlying submission.
 
-4. **Admission control**
+4. **Atomic command boundary**
+   - A command is either not started or completes as one ProjectEditor transition.
+   - A command failure leaves the revision graph and current pointer unchanged.
+   - Cancellation before command start prevents execution and produces no revision.
+   - Cancellation is never injected into the synchronous ProjectEditor mutation itself.
+   - Once ProjectEditor.execute() crosses the mutation boundary successfully, the revision remains committed even if the caller subsequently stops waiting.
+
+5. **Admission control**
    - Admission limits are explicit configuration, not implicit memory heuristics.
-   - Per-editor concurrency is exactly one.
-   - Global concurrency/admission limits, when enabled, reject or defer work deterministically according to the configured policy.
-   - Rejected work must not mutate editor state and must be distinguishable from command failure.
+   - Per-editor execution concurrency is exactly one.
+   - A global admission limit, when configured, bounds concurrently admitted executions. A zero limit rejects submissions before mutation.
+   - Admission rejection is represented by `AdmissionRejectedError` and never mutates editor state.
+   - Admission accounting is released in a guaranteed cleanup path.
    - No fixed percentage-of-RAM threshold is used as an admission rule.
 
-5. **Ownership and release**
-   - Every admitted execution obtains an ownership token/lease at the execution boundary.
-   - The ownership token is released in a guaranteed cleanup path.
-   - Release is idempotent for the same owner and must not release another owner's admission.
-   - A failed release is observable and must not silently convert a successful command into a false success.
+6. **Ownership and release**
+   - Every admitted execution obtains an internal ownership token.
+   - A token is unique to one admission and cannot be forged by copying its visible fields.
+   - Release is idempotent for the same active token and cannot release another owner.
+   - A cleanup/release failure after successful mutation is observable.
+   - When a primary command or cancellation error already exists, cleanup failure MUST NOT replace the primary error; the cleanup failure remains observable through exception chaining.
 
-6. **Isolation**
+7. **Isolation**
    - ProjectState, Revision, command metadata, and revision graph data remain immutable at the execution boundary.
-   - No mutable state is shared between independent editor instances unless explicitly synchronized by the execution boundary.
-   - One project's cancellation, failure, or admission rejection must not corrupt or cancel another project's execution.
+   - No mutable state is shared between independent editor instances unless synchronized by the coordinator.
+   - One project's cancellation, failure, or admission rejection cannot mutate or cancel another project's execution.
 
-7. **Failure taxonomy**
+8. **Failure taxonomy**
    - Admission rejection, cancellation, command failure, ownership loss, and infrastructure failure remain distinguishable.
-   - Programming/contract errors are not swallowed by a broad exception handler.
-   - Cleanup/release errors must not mask an active primary command or cancellation error.
+   - Programming/contract errors are not swallowed by broad exception handling.
+   - Command failure is raised to the handle waiter.
+   - Cleanup/release failure does not silently convert a successful command into a false success.
 
-8. **Persistence interaction**
-   - Execution serialization applies before persistence serialization; concurrent saves of the same editor are serialized through the same ownership boundary.
+9. **Persistence interaction**
+   - Execution serialization applies before persistence serialization for the same editor.
    - Canonical save/load remains deterministic and preserves the selected current revision.
    - No new database transaction or persistence framework is introduced by this phase.
 
-9. **Compatibility and scope**
-   - Existing ProjectEditor synchronous semantics remain valid for single-owner callers.
-   - No registry, plugin system, scheduler framework, rendering dependency, or provider integration is introduced.
-   - The execution boundary must remain usable by future editor tools, timeline operations, and render requests without changing ProjectEditor invariants.
+10. **Compatibility and scope**
+   - Existing ProjectEditor synchronous semantics remain unchanged.
+   - The coordinator adds ordering/admission at the service boundary; it does not modify ProjectEditor invariants.
+   - No registry, plugin system, scheduler framework, rendering dependency, provider integration, or process-global project state is introduced.
 
 ## Required adversarial tests
 
-- two concurrent commands against one editor are serialized and produce deterministic revision order;
-- commands against independent editors execute concurrently without cross-talk;
-- cancellation before admission creates no revision;
-- cancellation after admission but before command start creates no revision;
-- cancellation after the mutation boundary does not roll back a committed revision;
-- command failure leaves current revision and graph unchanged;
+- submit #1 then #2 and await #2 before #1; execution remains #1 → #2;
+- submit three commands and await them in reverse order;
+- sequence is allocated and observable before the first await;
+- high concurrent submission produces unique, contiguous sequences;
+- pending cancellation removes a command without creating a revision;
+- cancellation of a waiter does not cancel the underlying submission;
+- cancellation after commit preserves the committed revision;
+- command failure leaves the revision graph and current pointer unchanged;
 - admission rejection leaves editor state unchanged;
-- stale/wrong ownership token cannot release another execution;
-- duplicate release is harmless and observable only according to the defined release contract;
-- release failure does not replace an active command failure;
-- high concurrency does not produce duplicate or skipped admission sequence numbers;
-- canonical save/load after serialized execution preserves graph identity and current revision.
+- stale or forged ownership tokens cannot release another execution;
+- duplicate release is harmless;
+- cleanup failure does not replace a primary command failure;
+- cleanup failure after success is observable;
+- independent editors execute concurrently;
+- queued commands on one editor remain isolated from commands on another editor.
 
 ## Non-goals
 
@@ -79,4 +94,5 @@ Define the execution boundary around the immutable ProjectEditor so concurrent e
 - no rendering or timeline algorithm changes;
 - no speculative distributed lock service;
 - no process-global mutable project state;
-- no implicit retry policy.
+- no implicit retry policy;
+- no thread-safe cross-event-loop submission API.
