@@ -218,3 +218,24 @@ async def test_admission_sequence_has_no_duplicates_under_concurrency() -> None:
 
     assert sequences == list(range(1, 11))
     assert editor.revision_count == 11
+
+@pytest.mark.asyncio
+async def test_release_failure_after_success_is_observable() -> None:
+    editor = ProjectEditor.create(_state())
+    coordinator = ProjectExecutionCoordinator()
+    original_release = coordinator.release
+
+    def failing_release(token):
+        original_release(token)
+        raise RuntimeError("release failure")
+
+    coordinator.release = failing_release
+
+    with pytest.raises(RuntimeError, match="release failure"):
+        await coordinator.execute(
+            editor,
+            _command("#111111"),
+            {"operation": "successful-command"},
+        )
+
+    assert editor.revision_count == 2
