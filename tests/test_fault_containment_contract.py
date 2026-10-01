@@ -100,7 +100,9 @@ async def test_cleanup_captures_cancellation_from_cleanup_without_losing_the_err
     assert bot.session.closed == 1
     assert db.disposed == 1
 
-async def test_process_job_preserves_primary_error_when_cleanup_also_fails(monkeypatch, tmp_path: Path) -> None:
+async def test_process_job_preserves_primary_error_when_cleanup_also_fails(
+    monkeypatch,
+) -> None:
     import ai_gif_studio.worker as worker
 
     class _Settings:
