@@ -14,7 +14,7 @@ def make_artifact_id(job_id: UUID, artifact_type: str, storage_path: str) -> UUI
         raise ValueError("artifact_type must be non-empty string")
     if not isinstance(storage_path, str) or not storage_path:
         raise ValueError("storage_path must be non-empty string")
-    return uuid5(ARTIFACT_ID_NAMESPACE, f"{job_id}|{artifact_type}|{storage_path}")
+    return uuid5(\n        ARTIFACT_ID_NAMESPACE,\n        json.dumps(\n            [str(job_id), artifact_type, storage_path],\n            ensure_ascii=False,\n            separators=(",", ":"),\n        ),\n    )
 
 
 @dataclass(frozen=True, slots=True)
