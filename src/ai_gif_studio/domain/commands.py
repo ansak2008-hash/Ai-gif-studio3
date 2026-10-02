@@ -138,7 +138,7 @@ class DuplicateLayerCommand:
     def apply(self, state: ProjectState) -> ProjectState:
         _require_project_state(state)
         stack = state.layer_stack
-        for index, layer in enumerate(stack.layers):
+        for layer in stack.layers:
             if layer.layer_id == self.layer_id:
                 source = layer
                 break
@@ -156,6 +156,7 @@ class DuplicateLayerCommand:
             source.blend_mode,
             source.mask,
         )
+        index = stack.layers.index(source)
         layers = list(stack.layers)
         layers.insert(index + 1, duplicate)
         return _replace_layer_stack(
