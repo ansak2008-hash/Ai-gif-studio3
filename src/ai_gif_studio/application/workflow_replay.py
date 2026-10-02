@@ -115,6 +115,8 @@ class Workflow:
         if not self.id.strip():
             raise ValueError("id must be a non-empty identifier")
         _validate_version(self.contract_version, "contract_version")
+        if self.contract_version != WORKFLOW_SCHEMA_VERSION:
+            raise ValueError("unsupported workflow schema version")
         if not isinstance(self.operations, tuple):
             object.__setattr__(self, "operations", tuple(self.operations))
         if any(not isinstance(item, WorkflowOperation) for item in self.operations):
