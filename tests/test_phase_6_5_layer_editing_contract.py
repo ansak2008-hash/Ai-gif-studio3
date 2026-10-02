@@ -9,8 +9,8 @@ from ai_gif_studio.domain.commands import (
     AddLayerCommand,
     CommandHistory,
     DuplicateLayerCommand,
-    ReorderLayerCommand,
     RemoveLayerCommand,
+    ReorderLayerCommand,
     SetLayerBlendModeCommand,
     SetLayerOpacityCommand,
     SetLayerVisibilityCommand,
@@ -36,7 +36,13 @@ def _state(stack: LayerStack | None = None) -> ProjectState:
 
 
 def _layer(*, source_asset_id: UUID | None = None) -> LayerState:
-    return LayerState(uuid4(), source_asset_id or uuid4(), opacity=0.25, visible=False, blend_mode=LayerBlendMode.SCREEN)
+    return LayerState(
+        uuid4(),
+        source_asset_id or uuid4(),
+        opacity=0.25,
+        visible=False,
+        blend_mode=LayerBlendMode.SCREEN,
+    )
 
 
 def _editor(stack: LayerStack | None = None) -> ProjectEditor:
