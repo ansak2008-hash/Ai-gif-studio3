@@ -43,6 +43,7 @@ Expose explicit application editing commands over the existing immutable LayerSt
 
 - rendering algorithm changes;
 - timeline orchestration;
+- per-layer transform state; existing transform primitives are not yet represented as persistent LayerState data, so transform integration is deferred to its own contract;
 - typography/layout primitives;
 - persistence schema changes;
 - AI providers;
