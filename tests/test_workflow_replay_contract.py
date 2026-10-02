@@ -57,6 +57,7 @@ def test_invalid_versions_are_rejected() -> None:
         with pytest.raises(ValueError, match="version"):
             Workflow("workflow", version, ())
 
+
 def test_unsupported_workflow_contract_version_is_rejected() -> None:
     with pytest.raises(ValueError, match="unsupported workflow schema version"):
         Workflow("workflow", 2, ())
