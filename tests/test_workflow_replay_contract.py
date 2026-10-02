@@ -44,9 +44,7 @@ def _workflow(*operations: WorkflowOperation) -> Workflow:
 
 def _resolver(operation: WorkflowOperation):
     color = operation.payload["color"]
-    return ReplaceDesignSpecCommand(
-        DesignSpec(background={"mode": "solid", "color": color})
-    )
+    return ReplaceDesignSpecCommand(DesignSpec(background={"mode": "solid", "color": color}))
 
 
 def test_empty_identifiers_are_rejected() -> None:
@@ -253,7 +251,7 @@ def test_executable_looking_strings_remain_inert_data() -> None:
     operation = WorkflowOperation(
         "safe",
         1,
-        {"value": "python -c \"raise RuntimeError()\""},
+        {"value": \'python -c "raise RuntimeError()"\'},
         {"provider": "import os; os.system('x')"},
     )
     workflow = _workflow(operation)
