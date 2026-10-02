@@ -27,6 +27,18 @@ def make_available(**overrides):
     return Capability(**values)
 
 
+def test_legacy_positional_constructor_remains_compatible():
+    capability = Capability(
+        "legacy",
+        CapabilityState.PLANNED,
+        ("provider",),
+        "Legacy capability",
+    )
+    assert capability.id == "legacy"
+    assert capability.requirements == ("provider",)
+    assert capability.description == "Legacy capability"
+
+
 def test_empty_identifier_is_rejected():
     with pytest.raises(CapabilityValidationError):
         make_available(id="   ")

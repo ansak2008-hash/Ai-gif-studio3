@@ -9,6 +9,7 @@ from types import MappingProxyType
 class CapabilityValidationError(ValueError):
     """Raised when a capability contract is invalid or incompatible."""
 
+
 class CapabilityState(StrEnum):
     AVAILABLE = "available"
     PLANNED = "planned"
@@ -62,14 +63,14 @@ def _normalize_resources(
 class Capability:
     id: str
     state: CapabilityState
+    requirements: tuple[str, ...] = ()
+    description: str = ""
     input_domain: str = ""
     output_domain: str = ""
     execution_boundary: str = ""
     contract_version: int = 1
     deterministic: bool = True
-    requirements: tuple[str, ...] = ()
     resource_requirements: tuple[tuple[str, int], ...] = ()
-    description: str = ""
 
     def __post_init__(self) -> None:
         _validate_text(self.id, "id")
@@ -195,11 +196,11 @@ def _available(
     return Capability(
         id=name,
         state=CapabilityState.AVAILABLE,
+        requirements=requirements,
+        description=description,
         input_domain="project.image",
         output_domain="project.image",
         execution_boundary=execution_boundary,
-        requirements=requirements,
-        description=description,
     )
 
 CAPABILITIES = CapabilityCollection(
