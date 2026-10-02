@@ -13,18 +13,14 @@ from ai_gif_studio.services.project_editor import ProjectEditor
 WORKFLOW_SCHEMA_VERSION = 1
 
 _TOP_LEVEL_KEYS = frozenset({"contract_version", "id", "operations"})
-_OPERATION_KEYS = frozenset(
-    {"capability_id", "capability_version", "metadata", "payload"}
-)
+_OPERATION_KEYS = frozenset({"capability_id", "capability_version", "metadata", "payload"})
 
 
 class WorkflowReplayError(RuntimeError):
     """Raised when workflow replay fails at a specific operation."""
 
     def __init__(self, operation_index: int, committed_operations: int) -> None:
-        super().__init__(
-            f"workflow replay failed at operation {operation_index}"
-        )
+        super().__init__(f"workflow replay failed at operation {operation_index}")
         self.operation_index = operation_index
         self.committed_operations = committed_operations
 
@@ -81,12 +77,8 @@ class WorkflowOperation:
         _validate_version(capability_version, "capability_version")
         object.__setattr__(self, "capability_id", capability_id)
         object.__setattr__(self, "capability_version", capability_version)
-        object.__setattr__(
-            self, "_payload_json", _canonical_json(payload, context="payload")
-        )
-        object.__setattr__(
-            self, "_metadata_json", _canonical_json(metadata, context="metadata")
-        )
+        object.__setattr__(self, "_payload_json", _canonical_json(payload, context="payload"))
+        object.__setattr__(self, "_metadata_json", _canonical_json(metadata, context="metadata"))
 
     @property
     def payload(self) -> dict[str, Any]:
@@ -135,8 +127,7 @@ class Workflow:
                 "contract_version": self.contract_version,
                 "id": self.id,
                 "operations": [
-                    json.loads(operation.canonical_json)
-                    for operation in self.operations
+                    json.loads(operation.canonical_json) for operation in self.operations
                 ],
             },
             ensure_ascii=False,
