@@ -63,9 +63,14 @@ class ReplaceProcessingSettingsCommand:
         )
 
 
-def _replace_layer_stack(state: ProjectState, layer_stack: LayerStack) -> ProjectState:
+def _require_project_state(state: ProjectState) -> ProjectState:
     if not isinstance(state, ProjectState):
         raise TypeError("state must be a ProjectState")
+    return state
+
+
+def _replace_layer_stack(state: ProjectState, layer_stack: LayerStack) -> ProjectState:
+    _require_project_state(state)
     return ProjectState(
         state.project_id,
         state.revision + 1,
@@ -86,6 +91,7 @@ class AddLayerCommand:
             raise TypeError("layer must be a LayerState")
 
     def apply(self, state: ProjectState) -> ProjectState:
+        _require_project_state(state)
         return _replace_layer_stack(state, state.layer_stack.add(self.layer))
 
 
@@ -98,6 +104,7 @@ class RemoveLayerCommand:
             raise TypeError("layer_id must be a UUID")
 
     def apply(self, state: ProjectState) -> ProjectState:
+        _require_project_state(state)
         return _replace_layer_stack(state, state.layer_stack.remove(self.layer_id))
 
 
@@ -113,6 +120,7 @@ class ReorderLayerCommand:
             raise TypeError("target must be an integer")
 
     def apply(self, state: ProjectState) -> ProjectState:
+        _require_project_state(state)
         return _replace_layer_stack(state, state.layer_stack.move(self.source, self.target))
 
 
@@ -128,6 +136,7 @@ class DuplicateLayerCommand:
             raise ValueError("new_layer_id must differ from layer_id")
 
     def apply(self, state: ProjectState) -> ProjectState:
+        _require_project_state(state)
         stack = state.layer_stack
         index = stack._index(self.layer_id)
         source = stack.layers[index]
@@ -163,6 +172,7 @@ class SetLayerVisibilityCommand:
             raise TypeError("visible must be a boolean")
 
     def apply(self, state: ProjectState) -> ProjectState:
+        _require_project_state(state)
         return _replace_layer_stack(
             state,
             state.layer_stack.set_visibility(self.layer_id, self.visible),
@@ -185,6 +195,7 @@ class SetLayerOpacityCommand:
         object.__setattr__(self, "opacity", normalized)
 
     def apply(self, state: ProjectState) -> ProjectState:
+        _require_project_state(state)
         return _replace_layer_stack(
             state,
             state.layer_stack.set_opacity(self.layer_id, self.opacity),
@@ -203,6 +214,7 @@ class SetLayerBlendModeCommand:
             raise TypeError("blend_mode must be a LayerBlendMode")
 
     def apply(self, state: ProjectState) -> ProjectState:
+        _require_project_state(state)
         return _replace_layer_stack(
             state,
             state.layer_stack.set_blend_mode(self.layer_id, self.blend_mode),
