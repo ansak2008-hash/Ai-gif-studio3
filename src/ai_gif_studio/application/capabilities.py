@@ -3,17 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 from types import MappingProxyType
-from typing import Any
-
+from typing import Iterator
 
 class CapabilityValidationError(ValueError):
     """Raised when a capability contract is invalid or incompatible."""
 
-
 class CapabilityState(StrEnum):
     AVAILABLE = "available"
     PLANNED = "planned"
-
 
 VALID_DOMAINS = frozenset(
     {
@@ -31,12 +28,10 @@ VALID_EXECUTION_BOUNDARIES = frozenset(
     }
 )
 
-
 def _validate_text(value: str, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise CapabilityValidationError(f"{field} must be a non-empty string")
     return value
-
 
 def _normalize_requirements(requirements: tuple[str, ...] | list[str]) -> tuple[str, ...]:
     normalized = tuple(requirements)
@@ -44,19 +39,23 @@ def _normalize_requirements(requirements: tuple[str, ...] | list[str]) -> tuple[
         raise CapabilityValidationError("requirements must contain non-empty strings")
     return normalized
 
-
 def _normalize_resources(
     resource_requirements: dict[str, int] | tuple[tuple[str, int], ...],
 ) -> tuple[tuple[str, int], ...]:
-    items = tuple(resource_requirements.items()) if isinstance(resource_requirements, dict) else tuple(resource_requirements)
+    items = (
+        tuple(resource_requirements.items())
+        if isinstance(resource_requirements, dict)
+        else tuple(resource_requirements)
+    )
     normalized: list[tuple[str, int]] = []
     for name, value in items:
         _validate_text(name, "resource requirement name")
         if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-            raise CapabilityValidationError("resource requirement values must be non-negative integers")
+            raise CapabilityValidationError(
+                "resource requirement values must be non-negative integers"
+            )
         normalized.append((name, value))
     return tuple(normalized)
-
 
 @dataclass(frozen=True, slots=True)
 class Capability:
@@ -75,7 +74,11 @@ class Capability:
         _validate_text(self.id, "id")
         if not isinstance(self.state, CapabilityState):
             raise CapabilityValidationError("state must be a CapabilityState")
-        if isinstance(self.contract_version, bool) or not isinstance(self.contract_version, int) or self.contract_version < 1:
+        if (
+            isinstance(self.contract_version, bool)
+            or not isinstance(self.contract_version, int)
+            or self.contract_version < 1
+        ):
             raise CapabilityValidationError("contract_version must be a positive integer")
         if not isinstance(self.deterministic, bool):
             raise CapabilityValidationError("deterministic must be a boolean")
@@ -110,7 +113,7 @@ class Capability:
         if boundary not in VALID_EXECUTION_BOUNDARIES:
             raise CapabilityValidationError(f"unknown execution_boundary: {boundary}")
 
-    def validate_input(self, domain: str, *, contract_version: int | None = None, mutation_target: Any = None) -> None:
+    def validate_input(self, domain: str, *, contract_version: int | None = None) -> None:
         if self.state is not CapabilityState.AVAILABLE:
             raise CapabilityValidationError("planned capabilities are not executable")
         self._validate_domain(domain, "input_domain")
@@ -119,9 +122,12 @@ class Capability:
                 f"incompatible input domain: expected {self.input_domain}, received {domain}"
             )
         if contract_version is not None:
-            if isinstance(contract_version, bool) or not isinstance(contract_version, int) or contract_version != self.contract_version:
+            if (
+                isinstance(contract_version, bool)
+                or not isinstance(contract_version, int)
+                or contract_version != self.contract_version
+            ):
                 raise CapabilityValidationError("incompatible contract version")
-        _ = mutation_target
 
     def validate_output(self, domain: str, *, contract_version: int | None = None) -> None:
         if self.state is not CapabilityState.AVAILABLE:
@@ -132,12 +138,15 @@ class Capability:
                 f"incompatible output domain: expected {self.output_domain}, received {domain}"
             )
         if contract_version is not None:
-            if isinstance(contract_version, bool) or not isinstance(contract_version, int) or contract_version != self.contract_version:
+            if (
+                isinstance(contract_version, bool)
+                or not isinstance(contract_version, int)
+                or contract_version != self.contract_version
+            ):
                 raise CapabilityValidationError("incompatible contract version")
 
-
 class CapabilityCollection:
-    __slots__ = ("_items", "_by_id")
+    __slots__ = ("_items", "_by_id", "_locked")
 
     def __init__(self, capabilities: tuple[Capability, ...]) -> None:
         items = tuple(capabilities)
@@ -146,10 +155,18 @@ class CapabilityCollection:
         by_id: dict[str, Capability] = {}
         for capability in items:
             if capability.id in by_id:
-                raise CapabilityValidationError(f"duplicate capability identifier: {capability.id}")
+                raise CapabilityValidationError(
+                    f"duplicate capability identifier: {capability.id}"
+                )
             by_id[capability.id] = capability
-        self._items = items
-        self._by_id = MappingProxyType(by_id)
+        object.__setattr__(self, "_items", items)
+        object.__setattr__(self, "_by_id", MappingProxyType(by_id))
+        object.__setattr__(self, "_locked", True)
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if getattr(self, "_locked", False):
+            raise AttributeError("CapabilityCollection is immutable")
+        object.__setattr__(self, name, value)
 
     def get(self, capability_id: str) -> Capability:
         _validate_text(capability_id, "capability_id")
@@ -158,90 +175,88 @@ class CapabilityCollection:
         except KeyError as exc:
             raise CapabilityValidationError(f"unknown capability: {capability_id}") from exc
 
-    def __iter__(self):
+    def items(self) -> tuple[tuple[str, Capability], ...]:
+        return tuple((capability.id, capability) for capability in self._items)
+
+    def __iter__(self) -> Iterator[Capability]:
         return iter(self._items)
 
     def __len__(self) -> int:
         return len(self._items)
 
+def _available(
+    name: str,
+    requirements: tuple[str, ...],
+    description: str = "",
+    *,
+    execution_boundary: str = "project_editor",
+) -> Capability:
+    return Capability(
+        id=name,
+        state=CapabilityState.AVAILABLE,
+        input_domain="project.image",
+        output_domain="project.image",
+        execution_boundary=execution_boundary,
+        requirements=requirements,
+        description=description,
+    )
 
 CAPABILITIES = CapabilityCollection(
     (
-        Capability(
+        _available(
             "crop",
-            CapabilityState.AVAILABLE,
-            "project.image",
-            "project.image",
-            "project_editor",
-            1,
-            True,
             ("opencv", "numpy"),
-            (),
             "Deterministic center/fill/fit crop with focus control.",
         ),
-        Capability(
-            "resize",
-            CapabilityState.AVAILABLE,
-            "project.image",
-            "project.image",
-            "project_editor",
-            1,
-            True,
-            ("ffmpeg",),
-        ),
-        Capability(
+        _available("resize", ("ffmpeg",)),
+        _available(
             "transform",
-            CapabilityState.AVAILABLE,
-            "project.image",
-            "project.image",
-            "project_editor",
-            1,
-            True,
             ("opencv", "numpy"),
-            (),
             "Deterministic bounded image/frame transformation chains.",
         ),
-        Capability(
+        _available(
             "warp",
-            CapabilityState.AVAILABLE,
-            "project.image",
-            "project.image",
-            "project_editor",
-            1,
-            True,
             ("opencv", "numpy"),
-            (),
             "Deterministic affine and four-point perspective transforms.",
         ),
-        Capability(
+        _available(
             "blend",
-            CapabilityState.AVAILABLE,
-            "project.image",
-            "project.image",
-            "render",
-            1,
-            True,
             ("opencv", "numpy"),
-            (),
             "Masked normal, multiply, screen, and additive compositing.",
+            execution_boundary="render",
         ),
-        Capability(
+        _available(
             "color_grade",
-            CapabilityState.AVAILABLE,
-            "project.image",
-            "project.image",
-            "render",
-            1,
-            True,
             ("numpy",),
-            (),
-            "Deterministic color grading.",
+            "Deterministic LUT-style brightness, contrast, saturation, temperature, tint, levels, and gamma grading.",
+            execution_boundary="render",
+        ),
+        _available("compose", ("composition-engine",)),
+        _available("motion", ("ffmpeg",), "Bounded float/pan motion."),
+        _available("layers", ("ffmpeg",), "Bounded decorative layers."),
+        _available("text", ("ffmpeg-drawtext",), "Bounded text overlay."),
+        _available(
+            "typography",
+            ("ffmpeg-drawtext",),
+            "Arabic/Latin typography with bounded materials and depth.",
+        ),
+        _available("frames", ("ffmpeg-drawbox",), "Deterministic decorative frame presets."),
+        _available("backgrounds", ("ffmpeg",), "Deterministic background presets."),
+        _available(
+            "presets",
+            ("design-spec-v3",),
+            "Eight deterministic, allowlisted design presets.",
+        ),
+        _available(
+            "quality_gate",
+            ("ffmpeg",),
+            "Adaptive FPS and output validation.",
         ),
     )
     + tuple(
         Capability(
-            name,
-            CapabilityState.PLANNED,
+            id=name,
+            state=CapabilityState.PLANNED,
             requirements=("ai-provider", "verified-weights"),
         )
         for name in (
