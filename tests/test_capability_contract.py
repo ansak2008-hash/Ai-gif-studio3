@@ -10,6 +10,7 @@ from ai_gif_studio.application.capabilities import (
     CapabilityValidationError,
 )
 
+
 def make_available(**overrides):
     values = {
         "id": "resize",
