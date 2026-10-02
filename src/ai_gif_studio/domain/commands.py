@@ -179,6 +179,10 @@ class SetLayerOpacityCommand:
             raise TypeError("layer_id must be a UUID")
         if isinstance(self.opacity, bool) or not isinstance(self.opacity, (int, float)):
             raise TypeError("opacity must be numeric")
+        normalized = float(self.opacity)
+        if not math.isfinite(normalized) or not 0.0 <= normalized <= 1.0:
+            raise ValueError("opacity must be finite and between 0 and 1")
+        object.__setattr__(self, "opacity", normalized)
 
     def apply(self, state: ProjectState) -> ProjectState:
         return _replace_layer_stack(
