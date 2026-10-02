@@ -8,7 +8,7 @@ import pytest
 from ai_gif_studio.domain.commands import (
     AddLayerCommand,
     DuplicateLayerCommand,
-    MoveLayerCommand,
+    ReorderLayerCommand,
     RemoveLayerCommand,
     SetLayerBlendModeCommand,
     SetLayerOpacityCommand,
@@ -85,7 +85,7 @@ def test_move_layer_command_preserves_layer_identities() -> None:
     second = _layer()
     third = _layer()
     editor = _editor(LayerStack().add(first).add(second).add(third))
-    result = editor.execute(MoveLayerCommand(2, 0), {"operation": "move_layer"})
+    result = editor.execute(ReorderLayerCommand(2, 0), {"operation": "move_layer"})
     assert result.layer_stack.layers == (third, first, second)
 
 
@@ -152,7 +152,7 @@ def test_move_rejects_out_of_range_indices_without_revision(source: int, target:
     layer = _layer()
     editor = _editor(LayerStack().add(layer))
     with pytest.raises(IndexError):
-        editor.execute(MoveLayerCommand(source, target), {"operation": "move_layer"})
+        editor.execute(ReorderLayerCommand(source, target), {"operation": "move_layer"})
     assert editor.revision_count == 1
 
 
