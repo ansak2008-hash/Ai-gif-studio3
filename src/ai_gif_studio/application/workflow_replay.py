@@ -155,7 +155,7 @@ class Workflow:
                 object_pairs_hook=_reject_duplicate_keys,
                 parse_constant=_reject_non_finite,
             )
-        except (json.JSONDecodeError, ValueError, TypeError, RecursionError) as exc:
+        except (json.JSONDecodeError, TypeError, RecursionError) as exc:
             raise ValueError("invalid canonical workflow JSON") from exc
         if not isinstance(payload, dict) or set(payload) != _TOP_LEVEL_KEYS:
             raise ValueError("workflow JSON has invalid top-level fields")
