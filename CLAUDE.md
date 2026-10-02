@@ -37,6 +37,64 @@ Historical phases below describe the earlier project foundation. They do not ove
 | 5 | Implemented / CI-verified | Linear-light color and GIF export expansion |
 | 6 | Implemented / CI-verified | End-to-end manuscript pipeline |
 
+## Core Product Output Requirements
+
+The following requirements are adopted from the Photo/GIF product specification only where they strengthen or clarify the existing Ai GIF Studio contracts. They are product requirements, not permission to copy the old Photo architecture or dependency stack.
+
+### Canonical output invariants
+
+- Final design GIF canvas MUST be exactly 320x320.
+- Hard output size MUST remain <= 2,400,000 bytes.
+- Final GIF palette MUST contain no more than 256 colors.
+- Lanczos remains the required resize filter where resizing is performed.
+- Final GIF output MUST loop indefinitely (loop=0).
+- Final delivery MUST not rely on GIF transparency; transparent intermediate assets may exist only when an explicit layer/render contract requires them.
+- Default design background target is #0A0A0A unless an explicit background specification overrides it.
+- Output admission MUST validate actual artifact properties after encoding; configuration values alone are not proof.
+- Size, dimensions, palette, duration, frame-rate, loop metadata, and format constraints are artifact invariants whenever the active export contract requires them.
+
+### Input boundary requirements
+
+- User image inputs MUST be validated before entering the rendering domain.
+- The design product target requires a minimum usable image size of 100x100 pixels; smaller inputs MUST be rejected explicitly rather than silently upscaled into an apparently valid source.
+- Video inputs MUST be bounded by an explicit maximum input size and duration at the Telegram boundary. The current product target is 20 MB maximum input size and a 6-second processing window; longer video content MUST be clipped according to the active processing contract rather than allowed to expand unbounded work.
+- Corrupt, unsupported, or malformed media MUST fail with a typed/explicit validation outcome and MUST NOT reach deep rendering stages as if valid.
+
+### Composition model
+
+The product composition model is layered and non-destructive. The intended conceptual order is:
+
+1. background
+2. avatar/image
+3. frame
+4. typography/manuscript
+5. effects
+6. particles/sparkles
+
+The ordering is a product composition target, not a reason to introduce a generic layer registry. Existing typed LayerState, Effect, mask, compositor, and project/revision contracts remain authoritative.
+
+### Visual quality invariants
+
+When a feature claims professional GIF output, verification SHOULD cover, where objectively testable:
+
+- no unexpected frame dimension changes;
+- no malformed/empty frames;
+- no abrupt timing discontinuities introduced by the renderer;
+- source content is not unintentionally stretched or distorted;
+- background behavior remains within the declared background contract;
+- avatar/image framing remains within the declared geometry contract;
+- final artifact is reusable independently of Telegram delivery success.
+
+### Motion contract boundary
+
+Motion behavior is part of the product contract but MUST remain explicit and deterministic. Supported motion families may include fade, scale, rotation, translation, pulse/glow, writing/reveal, character bounce, glow text, and shimmer when individually contracted. Easing families may include linear, ease-in, ease-out, ease-in-out, bounce, elastic, and back. Do not introduce all of these as an uncontracted batch; each implemented family requires its own domain contract, boundary tests, determinism semantics, and resource analysis.
+
+### Reconciliation rule
+
+The Photo specification is a product reference, not a replacement for existing Ai GIF Studio contracts. If it conflicts with an existing verified contract, the existing verified contract wins unless a deliberate change contract is approved.
+
+In particular, do NOT copy its dependency versions, Telegram/Railway folder layout, Flask architecture, 10 FPS default, or any other implementation detail merely because it appears in the reference specification. Extract product invariants and useful boundary requirements only.
+
 ## Hard Rules
 
 1. NEVER use `from X import *`.
