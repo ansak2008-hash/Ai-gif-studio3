@@ -200,8 +200,7 @@ def analyze_gif_bytes(
         width = first_frame.width
         height = first_frame.height
         corner_color = tuple(
-            round(sum(point[channel] for point in corner_points) / 4)
-            for channel in range(3)
+            round(sum(point[channel] for point in corner_points) / 4) for channel in range(3)
         )
         duration_values = tuple(durations)
         motion_percentiles = _percentile_values(motions)
