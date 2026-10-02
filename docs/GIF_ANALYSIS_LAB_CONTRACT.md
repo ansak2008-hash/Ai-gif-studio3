@@ -15,19 +15,20 @@ The tool is an analysis instrument, not a renderer, optimizer, encoder, or desig
 5. Frame count is the number of successfully decoded frames.
 6. Frame durations are preserved in milliseconds and total duration is their sum.
 7. Effective FPS is reported as `1000 / mean_frame_duration_ms`; zero or missing durations are a validation failure.
-8. File size is measured from the original source bytes when bytes are available.
-9. Adjacent-frame motion is the mean absolute per-channel pixel difference over the full RGB frame.
-10. First-to-last difference is reported as a loop-boundary signal only. It is not declared to be a loop-quality score.
-11. Corner samples are reported individually and their arithmetic mean is reported as a background-color heuristic. This value must be labeled heuristic because corners can contain foreground content, gradients, shadows, or effects.
-12. The analyzer reports palette cardinality for each decoded frame and the maximum observed cardinality.
-13. The analyzer reports timing uniformity and an exact duration histogram so variable-frame-rate GIFs are visible.
-14. The analyzer reports per-frame motion statistics and their aggregate mean, maximum, and percentile values (P25/P50/P75/P90/P95/P99).
-15. The analyzer is deterministic for identical input bytes and configuration.
-16. Analysis failures are explicit typed errors; partial fabricated reports are forbidden.
-17. The core analyzer must not require network access. URL retrieval belongs only to the bounded URL adapter.
-18. No new runtime dependency may be introduced. Existing Pillow and NumPy dependencies are sufficient.
-19. The analyzer must not introduce registries, plugins, schedulers, rendering abstractions, or persistence changes.
-20. The output schema is versioned and JSON-serializable.
+8. The `loop_count` field reports the raw GIF loop-extension value; `0` means infinite looping and does not mean zero playback loops.
+9. File size is measured from the original source bytes when bytes are available.
+10. Adjacent-frame motion is the mean absolute per-channel pixel difference over the full RGB frame.
+11. First-to-last difference is reported as a loop-boundary signal only. It is not declared to be a loop-quality score.
+12. Corner samples are reported individually and their arithmetic mean is reported as a background-color heuristic. This value must be labeled heuristic because corners can contain foreground content, gradients, shadows, or effects.
+13. The analyzer reports palette cardinality for each decoded frame and the maximum observed cardinality.
+14. The analyzer reports timing uniformity and an exact duration histogram so variable-frame-rate GIFs are visible.
+15. The analyzer reports per-frame motion statistics and their aggregate mean, maximum, and percentile values (P25/P50/P75/P90/P95/P99).
+16. The analyzer is deterministic for identical input bytes and configuration.
+17. Analysis failures are explicit typed errors; partial fabricated reports are forbidden.
+18. The core analyzer must not require network access. URL retrieval belongs only to the bounded URL adapter.
+19. No new runtime dependency may be introduced. Existing Pillow and NumPy dependencies are sufficient.
+20. The analyzer must not introduce registries, plugins, schedulers, rendering abstractions, or persistence changes.
+21. The output schema is versioned and JSON-serializable.
 
 ## Security and resource boundaries
 
