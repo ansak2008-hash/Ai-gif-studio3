@@ -138,8 +138,12 @@ class DuplicateLayerCommand:
     def apply(self, state: ProjectState) -> ProjectState:
         _require_project_state(state)
         stack = state.layer_stack
-        index = stack._index(self.layer_id)
-        source = stack.layers[index]
+        for index, layer in enumerate(stack.layers):
+            if layer.layer_id == self.layer_id:
+                source = layer
+                break
+        else:
+            raise KeyError(f"unknown layer_id: {self.layer_id}")
         if len(stack.layers) >= stack.max_layers:
             raise ValueError("maximum layer count reached")
         if self.new_layer_id in {layer.layer_id for layer in stack.layers}:
