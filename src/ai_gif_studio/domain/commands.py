@@ -191,7 +191,7 @@ class SetLayerOpacityCommand:
     def __post_init__(self) -> None:
         if not isinstance(self.layer_id, UUID):
             raise TypeError("layer_id must be a UUID")
-        if isinstance(self.opacity, bool) or not isinstance(self.opacity, (int, float)):
+        if isinstance(self.opacity, bool) or not isinstance(self.opacity, int | float):
             raise TypeError("opacity must be numeric")
         normalized = float(self.opacity)
         if not math.isfinite(normalized) or not 0.0 <= normalized <= 1.0:
