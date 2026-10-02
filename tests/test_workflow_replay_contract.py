@@ -144,8 +144,7 @@ def test_non_finite_json_numbers_are_rejected() -> None:
         Workflow.from_canonical_json(document)
 
 
-@pytest.mark.asyncio
-async def test_replay_resolves_and_commits_in_workflow_order() -> None:
+def test_replay_resolves_and_commits_in_workflow_order() -> None:
     workflow = _workflow(
         _operation("#111111", 1),
         _operation("#222222", 2),
