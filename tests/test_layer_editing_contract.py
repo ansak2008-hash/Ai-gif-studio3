@@ -102,3 +102,69 @@ def test_failed_command_does_not_change_revision() -> None:
         SetLayerVisibilityCommand(uuid4(), False).apply(initial)
     assert initial.layer_stack.layers == (original,)
     assert initial.revision == 0
+
+
+def test_add_rejects_duplicate_identity_and_maximum_boundary() -> None:
+    from ai_gif_studio.domain.project import ProjectState
+
+    original = _layer()
+    initial = ProjectState(layer_stack=LayerStack((original,), max_layers=1))
+    with pytest.raises(ValueError):
+        AddLayerCommand(original).apply(initial)
+    with pytest.raises(ValueError):
+        AddLayerCommand(_layer()).apply(initial)
+    assert initial.revision == 0
+
+
+def test_duplicate_preserves_mask_and_inserts_adjacent_to_source() -> None:
+    from ai_gif_studio.domain.mask_state import MaskState
+    from ai_gif_studio.domain.project import ProjectState
+
+    first = _layer()
+    second = _layer()
+    mask = MaskState(uuid4(), uuid4())
+    first = LayerState(
+        first.layer_id,
+        first.source_asset_id,
+        first.opacity,
+        first.visible,
+        first.blend_mode,
+        mask,
+    )
+    initial = ProjectState(layer_stack=LayerStack((first, second)))
+    duplicate_id = uuid4()
+    result = DuplicateLayerCommand(first.layer_id, duplicate_id).apply(initial)
+    assert tuple(layer.layer_id for layer in result.layer_stack.layers) == (
+        first.layer_id,
+        duplicate_id,
+        second.layer_id,
+    )
+    assert result.layer_stack.layers[1].mask == first.mask
+
+
+def test_invalid_blend_mode_is_rejected_before_state_change() -> None:
+    from ai_gif_studio.domain.project import ProjectState
+
+    original = _layer()
+    initial = ProjectState(layer_stack=LayerStack((original,)))
+    with pytest.raises(TypeError):
+        SetLayerBlendModeCommand(original.layer_id, "screen").apply(initial)
+    assert initial.layer_stack.layers == (original,)
+    assert initial.revision == 0
+
+
+def test_commands_are_immutable() -> None:
+    command = ReorderLayerCommand(0, 1)
+    with pytest.raises(AttributeError):
+        command.source = 1
+
+
+def test_failed_reorder_does_not_change_state() -> None:
+    from ai_gif_studio.domain.project import ProjectState
+
+    original = _layer()
+    initial = ProjectState(layer_stack=LayerStack((original,)))
+    with pytest.raises(IndexError):
+        ReorderLayerCommand(0, 1).apply(initial)
+    assert initial.layer_stack.layers == (original,)
+    assert initial.revision == 0
