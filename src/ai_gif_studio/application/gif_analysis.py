@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import io
 import json
-from collections.abc import Iterator
 from dataclasses import asdict, dataclass
 from urllib.request import Request, urlopen
 
@@ -67,7 +66,10 @@ def _validate_limits(
         "max_decoded_frames": max_decoded_frames,
         "max_total_pixels": max_total_pixels,
     }
-    if any(not isinstance(value, int) or isinstance(value, bool) or value <= 0 for value in limits.values()):
+    if any(
+        not isinstance(value, int) or isinstance(value, bool) or value <= 0
+        for value in limits.values()
+    ):
         raise GifAnalysisError("resource limits must be positive integers")
 
 
@@ -91,50 +93,6 @@ def _open_gif(payload: bytes, *, max_canvas_pixels: int) -> Image.Image:
         image.close()
         raise GifAnalysisError("GIF canvas exceeds configured pixel limit")
     return image
-
-
-def _decode_frames(
-    payload: bytes,
-    *,
-    max_canvas_pixels: int,
-    max_decoded_frames: int,
-    max_total_pixels: int,
-) -> tuple[
-    tuple[Image.Image, ...],
-    tuple[int, ...],
-    int | None,
-]:
-    image = _open_gif(payload, max_canvas_pixels=max_canvas_pixels)
-    frames: list[Image.Image] = []
-    durations: list[int] = []
-    total_pixels = 0
-    loop_count = image.info.get("loop")
-    try:
-        while True:
-            if len(frames) >= max_decoded_frames:
-                raise GifAnalysisError("GIF exceeds configured frame limit")
-            duration = image.info.get("duration", 0)
-            if not isinstance(duration, int) or isinstance(duration, bool) or duration <= 0:
-                raise GifAnalysisError("GIF frame duration must be positive")
-            frame = image.convert("RGB").copy()
-            total_pixels += frame.width * frame.height
-            if total_pixels > max_total_pixels:
-                frame.close()
-                raise GifAnalysisError("GIF exceeds configured decoded pixel budget")
-            frames.append(frame)
-            durations.append(duration)
-            image.seek(image.tell() + 1)
-    except EOFError:
-        pass
-    except GifAnalysisError:
-        raise
-    except (OSError, ValueError) as exc:
-        raise GifAnalysisError("GIF frame decoding failed") from exc
-    finally:
-        image.close()
-    if not frames:
-        raise GifAnalysisError("GIF contains no frames")
-    return tuple(frames), tuple(durations), loop_count if isinstance(loop_count, int) else None
 
 
 def _palette_size(frame: Image.Image) -> int:
@@ -176,51 +134,81 @@ def analyze_gif_bytes(
         raise GifAnalysisError("input must be bytes")
     if len(payload) > max_input_bytes:
         raise GifAnalysisError("input exceeds configured size limit")
-    frames, durations, loop_count = _decode_frames(
-        payload,
-        max_canvas_pixels=max_canvas_pixels,
-        max_decoded_frames=max_decoded_frames,
-        max_total_pixels=max_total_pixels,
-    )
-    first = frames[0]
-    previous = first
+    image = _open_gif(payload, max_canvas_pixels=max_canvas_pixels)
+    first_frame: Image.Image | None = None
+    previous_frame: Image.Image | None = None
     motions: list[float] = []
     palette_sizes: list[int] = []
+    durations: list[int] = []
+    total_pixels = 0
+    loop_count = image.info.get("loop")
     try:
-        for frame in frames:
+        while True:
+            if len(durations) >= max_decoded_frames:
+                raise GifAnalysisError("GIF exceeds configured frame limit")
+            duration = image.info.get("duration", 0)
+            if not isinstance(duration, int) or isinstance(duration, bool) or duration <= 0:
+                raise GifAnalysisError("GIF frame duration must be positive")
+            frame = image.convert("RGB").copy()
+            total_pixels += frame.width * frame.height
+            if total_pixels > max_total_pixels:
+                frame.close()
+                raise GifAnalysisError("GIF exceeds configured decoded pixel budget")
             palette_sizes.append(_palette_size(frame))
-            if frame is not first:
-                previous_array = np.asarray(previous, dtype=np.int16)
+            durations.append(duration)
+            if first_frame is None:
+                first_frame = frame
+                previous_frame = frame
+            else:
+                assert previous_frame is not None
+                previous_array = np.asarray(previous_frame, dtype=np.int16)
                 current_array = np.asarray(frame, dtype=np.int16)
                 motions.append(float(np.abs(current_array - previous_array).mean()))
-                previous = frame
-        first_array = np.asarray(first, dtype=np.int16)
-        last_array = np.asarray(frames[-1], dtype=np.int16)
+                previous_frame.close()
+                previous_frame = frame
+            image.seek(image.tell() + 1)
+    except EOFError:
+        pass
+    except GifAnalysisError:
+        raise
+    except (OSError, ValueError) as exc:
+        raise GifAnalysisError("GIF frame decoding failed") from exc
+    finally:
+        image.close()
+    if first_frame is None or previous_frame is None:
+        raise GifAnalysisError("GIF contains no frames")
+    try:
+        first_array = np.asarray(first_frame, dtype=np.int16)
+        last_array = np.asarray(previous_frame, dtype=np.int16)
         first_last = float(np.abs(first_array - last_array).mean())
         corner_points = (
-            first.getpixel((0, 0)),
-            first.getpixel((first.width - 1, 0)),
-            first.getpixel((0, first.height - 1)),
-            first.getpixel((first.width - 1, first.height - 1)),
+            first_frame.getpixel((0, 0)),
+            first_frame.getpixel((first_frame.width - 1, 0)),
+            first_frame.getpixel((0, first_frame.height - 1)),
+            first_frame.getpixel((first_frame.width - 1, first_frame.height - 1)),
         )
+        width = first_frame.width
+        height = first_frame.height
     finally:
-        for frame in frames:
-            frame.close()
+        if previous_frame is not first_frame:
+            previous_frame.close()
+        first_frame.close()
     corner_color = tuple(
         round(sum(point[channel] for point in corner_points) / 4) for channel in range(3)
     )
+    duration_values = tuple(durations)
     motion_percentiles = _percentile_values(motions)
-    duration_ms = sum(durations)
-    mean_duration = duration_ms / len(durations)
+    duration_ms = sum(duration_values)
+    mean_duration = duration_ms / len(duration_values)
     return GifAnalysisReport(
         schema_version=ANALYSIS_SCHEMA_VERSION,
-        width=first.width,
-        height=first.height,
-        frame_count=len(frames),
+        width=width,
+        height=height,
+        frame_count=len(duration_values),
         duration_ms=duration_ms,
         effective_fps=1000.0 / mean_duration,
         file_size_bytes=len(payload),
-        loop_count=loop_count,
+        loop_count=loop_count if isinstance(loop_count, int) else None,
         frame_motion=tuple(motions),
         motion_mean=float(np.mean(motions)) if motions else 0.0,
         motion_max=float(np.max(motions)) if motions else 0.0,
@@ -235,10 +223,10 @@ def analyze_gif_bytes(
         corner_color_is_heuristic=True,
         frame_palette_colors=tuple(palette_sizes),
         max_palette_colors=max(palette_sizes),
-        duration_min_ms=min(durations),
-        duration_max_ms=max(durations),
-        duration_histogram=_duration_histogram(durations),
-        timing_is_uniform=len(set(durations)) == 1,
+        duration_min_ms=min(duration_values),
+        duration_max_ms=max(duration_values),
+        duration_histogram=_duration_histogram(duration_values),
+        timing_is_uniform=len(set(duration_values)) == 1,
     )
 
 
@@ -259,7 +247,11 @@ def analyze_gif_url(
     )
     if not isinstance(url, str) or not url.startswith(("http://", "https://")):
         raise GifAnalysisError("URL must use HTTP or HTTPS")
-    if not isinstance(timeout_seconds, (int, float)) or isinstance(timeout_seconds, bool) or timeout_seconds <= 0:
+    if (
+        not isinstance(timeout_seconds, (int, float))
+        or isinstance(timeout_seconds, bool)
+        or timeout_seconds <= 0
+    ):
         raise GifAnalysisError("timeout_seconds must be positive")
     request = Request(url, headers={"User-Agent": "AiGifStudio-GifAnalysis/1"})
     chunks: list[bytes] = []
@@ -275,7 +267,8 @@ def analyze_gif_url(
                 if declared_length > max_input_bytes:
                     raise GifAnalysisError("response exceeds configured size limit")
             while True:
-                chunk = response.read(min(_URL_READ_CHUNK_BYTES, max_input_bytes - total + 1))
+                remaining = max_input_bytes - total
+                chunk = response.read(min(_URL_READ_CHUNK_BYTES, remaining + 1))
                 if not chunk:
                     break
                 total += len(chunk)
