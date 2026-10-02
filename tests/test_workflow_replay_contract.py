@@ -251,7 +251,7 @@ def test_executable_looking_strings_remain_inert_data() -> None:
     operation = WorkflowOperation(
         "safe",
         1,
-        {"value": "python -c \\"raise RuntimeError()\\""},
+        {"value": "python -c \"raise RuntimeError()\"},
         {"provider": "import os; os.system('x')"},
     )
     workflow = _workflow(operation)
