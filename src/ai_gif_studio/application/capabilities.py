@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 from enum import StrEnum
 from types import MappingProxyType
-from typing import Iterator
+
 
 class CapabilityValidationError(ValueError):
     """Raised when a capability contract is invalid or incompatible."""
