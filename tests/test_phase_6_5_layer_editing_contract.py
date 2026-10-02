@@ -174,3 +174,41 @@ def test_layer_editing_is_canonically_deterministic() -> None:
     result_b = editor_b.execute(command, {"operation": "set_opacity"})
     assert result_a.canonical_json == result_b.canonical_json
     assert editor_a.canonical_json == editor_b.canonical_json
+
+
+def test_layer_commands_preserve_undo_redo_semantics() -> None:
+    layer = _layer()
+    editor = _editor()
+    editor.execute(AddLayerCommand(layer), {"operation": "add_layer"})
+    assert editor.checkout(editor.current_revision_id).layer_stack.layers == (layer,)
+    root_id = editor.current_revision.parent_id
+    assert root_id is not None
+    assert editor.checkout(root_id).layer_stack == LayerStack()
+    assert editor.checkout(editor.current_revision_id).layer_stack.layers == (layer,)
+
+
+def test_blend_mode_command_rejects_invalid_value_before_execution() -> None:
+    with pytest.raises(TypeError):
+        SetLayerBlendModeCommand(uuid4(), "multiply")
+
+
+def test_commands_reject_invalid_project_state_before_layer_access() -> None:
+    layer = _layer()
+    commands = (
+        AddLayerCommand(layer),
+        RemoveLayerCommand(layer.layer_id),
+        ReorderLayerCommand(0, 0),
+        DuplicateLayerCommand(layer.layer_id, uuid4()),
+        SetLayerVisibilityCommand(layer.layer_id, True),
+        SetLayerOpacityCommand(layer.layer_id, 0.5),
+        SetLayerBlendModeCommand(layer.layer_id, LayerBlendMode.NORMAL),
+    )
+    for command in commands:
+        with pytest.raises(TypeError, match="ProjectState"):
+            command.apply(None)
+
+
+def test_command_objects_are_immutable() -> None:
+    command = SetLayerOpacityCommand(uuid4(), 0.5)
+    with pytest.raises((AttributeError, TypeError)):
+        command.opacity = 0.25
