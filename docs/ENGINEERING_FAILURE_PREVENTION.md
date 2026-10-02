@@ -567,6 +567,40 @@ A phase is complete only when all are true:
 
 "Tests pass" is not equivalent to "phase complete".
 
+## 27. Engineering Sizing Is Based on Proof Obligations
+
+Implementation size MUST NOT be used as a hard correctness metric.
+
+The companion standard `docs/ENGINEERING_SIZING_AND_PROOF_OBLIGATIONS.md` is normative for deciding whether a component has sufficient engineering depth.
+
+Future work MUST size a component from:
+
+- contract scope;
+- invariant count and criticality;
+- state transitions;
+- public/external boundaries;
+- ownership and resource lifecycle;
+- concurrency;
+- serialization;
+- security exposure;
+- compatibility surface;
+- determinism requirements;
+- failure modes;
+- adversarial test obligations.
+
+LOC, test/code ratios, file counts, and class counts MAY be used only as diagnostic signals.
+
+A component MUST NOT be expanded artificially to satisfy a numeric LOC target.
+
+A component that appears unusually small MUST trigger a proof-obligation audit. The required response is to add missing contract coverage, tests, failure handling, or documentation only when the audit identifies a real gap.
+
+For R2-R4 components, every applicable proof obligation MUST be explicitly covered by tests or another documented verification method before phase completion.
+
+The governing question is:
+
+> What must be true, how can it fail, how can we try to break it, and what evidence proves that it survives?
+
+
 ## Historical Failure Index
 
 The following incidents are preserved as engineering lessons:
