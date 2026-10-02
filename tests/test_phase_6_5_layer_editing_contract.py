@@ -7,6 +7,7 @@ import pytest
 
 from ai_gif_studio.domain.commands import (
     AddLayerCommand,
+    CommandHistory,
     DuplicateLayerCommand,
     ReorderLayerCommand,
     RemoveLayerCommand,
@@ -178,13 +179,12 @@ def test_layer_editing_is_canonically_deterministic() -> None:
 
 def test_layer_commands_preserve_undo_redo_semantics() -> None:
     layer = _layer()
-    editor = _editor()
-    editor.execute(AddLayerCommand(layer), {"operation": "add_layer"})
-    assert editor.checkout(editor.current_revision_id).layer_stack.layers == (layer,)
-    root_id = editor.current_revision.parent_id
-    assert root_id is not None
-    assert editor.checkout(root_id).layer_stack == LayerStack()
-    assert editor.checkout(editor.current_revision_id).layer_stack.layers == (layer,)
+    initial = _state()
+    history = CommandHistory(initial)
+    current = history.execute(AddLayerCommand(layer))
+    assert current.layer_stack.layers == (layer,)
+    assert history.undo().layer_stack == LayerStack()
+    assert history.redo().layer_stack.layers == (layer,)
 
 
 def test_blend_mode_command_rejects_invalid_value_before_execution() -> None:
