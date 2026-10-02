@@ -125,6 +125,15 @@ def test_input_and_resource_limits_are_enforced() -> None:
         analyze_gif_bytes(payload, max_input_bytes=0)
 
 
+def test_truncated_gif_fails_closed() -> None:
+    payload = make_gif(
+        durations=[100, 100],
+        colors=[(0, 0, 0), (255, 255, 255)],
+    )
+    with pytest.raises(GifAnalysisError):
+        analyze_gif_bytes(payload[: len(payload) // 2])
+
+
 def test_source_bytes_are_not_mutated() -> None:
     payload = make_gif(durations=[100], colors=[(0, 0, 0)])
     original = bytes(payload)
