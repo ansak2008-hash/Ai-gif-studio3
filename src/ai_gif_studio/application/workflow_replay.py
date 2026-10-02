@@ -113,7 +113,7 @@ class Workflow:
     def __post_init__(self) -> None:
         validate_string(self.id, context="id")
         if not self.id.strip():
-            raise ValueError("id must be a non-empty string")
+            raise ValueError("id must be a non-empty identifier")
         _validate_version(self.contract_version, "contract_version")
         if not isinstance(self.operations, tuple):
             object.__setattr__(self, "operations", tuple(self.operations))
