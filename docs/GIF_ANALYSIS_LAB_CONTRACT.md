@@ -20,21 +20,23 @@ The tool is an analysis instrument, not a renderer, optimizer, encoder, or desig
 10. First-to-last difference is reported as a loop-boundary signal only. It is not declared to be a loop-quality score.
 11. Corner samples are reported individually and their arithmetic mean is reported as a background-color heuristic. This value must be labeled heuristic because corners can contain foreground content, gradients, shadows, or effects.
 12. The analyzer reports palette cardinality for each decoded frame and the maximum observed cardinality.
-13. The analyzer reports timing uniformity and a duration histogram so variable-frame-rate GIFs are visible.
-14. The analyzer reports per-frame motion statistics and their aggregate mean, maximum, and percentile values.
+13. The analyzer reports timing uniformity and an exact duration histogram so variable-frame-rate GIFs are visible.
+14. The analyzer reports per-frame motion statistics and their aggregate mean, maximum, and percentile values (P25/P50/P75/P90/P95/P99).
 15. The analyzer is deterministic for identical input bytes and configuration.
 16. Analysis failures are explicit typed errors; partial fabricated reports are forbidden.
-17. The core analyzer must not require network access. URL retrieval belongs only to the CLI adapter and uses bounded HTTP retrieval.
+17. The core analyzer must not require network access. URL retrieval belongs only to the bounded URL adapter.
 18. No new runtime dependency may be introduced. Existing Pillow and NumPy dependencies are sufficient.
 19. The analyzer must not introduce registries, plugins, schedulers, rendering abstractions, or persistence changes.
 20. The output schema is versioned and JSON-serializable.
 
 ## Security and resource boundaries
 
-- Maximum input bytes are bounded by the caller.
-- URL retrieval has a finite timeout and maximum response size.
+- Maximum source bytes are bounded by the caller.
+- Canvas pixels, decoded frame count, and cumulative decoded pixels are bounded by the caller.
+- Decoding is streaming with bounded retained frame memory rather than retaining the entire animation as decoded images.
+- URL retrieval has a finite timeout and bounded chunked response size.
 - The core analyzer does not execute external commands.
-- Malformed GIFs must fail closed.
+- Malformed GIFs and invalid resource limits must fail closed.
 - Reports must not embed raw frame data or source bytes.
 
 ## Non-goals
@@ -52,16 +54,18 @@ Tests must cover:
 - valid single and multi-frame GIFs;
 - exact duration accounting;
 - deterministic repeated analysis;
-- motion calculations;
+- motion calculations and percentiles;
 - loop-boundary signal semantics;
-- palette cardinality;
-- variable timing;
+- per-frame and maximum decoded palette cardinality;
+- variable timing and exact duration histogram;
 - corner-color heuristic;
 - malformed/empty input rejection;
-- input size limits;
-- URL adapter bounds;
+- input and decoded-resource size limits;
+- invalid configuration rejection;
+- bounded URL adapter behavior and over-limit response rejection;
 - JSON serialization;
-- no source mutation.
+- no source mutation;
+- no frame-array leakage in the report.
 
 ## Extension boundary
 
