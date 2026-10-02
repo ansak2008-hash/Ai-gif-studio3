@@ -98,7 +98,7 @@ class DesignSpec(BaseModel):
 class ProcessingSettings(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     schema_version: int = PROCESSING_SETTINGS_VERSION
-    fps: int = Field(20, ge=1, le=30)
+    fps: int = Field(30, ge=1, le=30)
     max_duration_seconds: float = Field(6.0, gt=0, le=6.0)
     max_bytes: int = Field(2_400_000, gt=0)
     encoder: str = "ffmpeg-gif"
