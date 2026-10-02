@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
-from .layer_state import LayerBlendMode, LayerState, LayerStack
+from .layer_state import LayerBlendMode, LayerStack, LayerState
 from .project import ProjectState
 from .specs import DesignSpec, ProcessingSettings
 
