@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from ai_gif_studio.configuration.render import DEFAULT_FPS_LADDER
+
 
 @dataclass(frozen=True, slots=True)
 class QualityReport:
@@ -22,9 +24,17 @@ class QualityReport:
 
 
 class QualityEngine:
-    def ladder(self, preferred: int, current_size: int | None = None, max_bytes: int = 2_400_000) -> tuple[int, ...]:
-        candidates = tuple(dict.fromkeys((preferred, 20, 16, 12, 10, 8, 6)))
-        return tuple(fps for fps in candidates if fps > 0)
+    def ladder(
+        self,
+        preferred: int,
+        current_size: int | None = None,
+        max_bytes: int = 2_400_000,
+    ) -> tuple[int, ...]:
+        del current_size, max_bytes
+        lower_or_equal = tuple(fps for fps in DEFAULT_FPS_LADDER if fps <= preferred)
+        if lower_or_equal:
+            return lower_or_equal
+        return (preferred,)
 
     async def inspect(
         self,
