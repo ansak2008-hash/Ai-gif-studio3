@@ -51,6 +51,7 @@ def test_encode_gif_preserves_canonical_six_second_30fps_timing(tmp_path):
     assert report.duration_min_ms >= 30
     assert report.duration_max_ms <= 40
 
+
 def test_encode_gif_preserves_canonical_fps_ladder_timing(tmp_path):
     for fps in (30, 27, 24, 20, 18, 15):
         frame_count = AnimationTimeline(6.0, fps).total_frames
