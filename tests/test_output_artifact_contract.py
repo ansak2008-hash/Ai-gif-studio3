@@ -10,6 +10,7 @@ from ai_gif_studio.application.gif_analysis import analyze_gif_bytes
 from ai_gif_studio.configuration.render import RenderConfiguration
 from ai_gif_studio.domain.specs import ProcessingSettings
 from ai_gif_studio.quality_engine import QualityEngine
+from ai_gif_studio.database.repositories import ArtifactRepository
 
 pytestmark = pytest.mark.unit
 
@@ -106,3 +107,32 @@ def test_quality_inspection_defaults_match_canonical_output() -> None:
     parameters = inspect.signature(QualityEngine.inspect).parameters
     assert parameters["selected_fps"].default == 30
     assert parameters["expected_duration"].default == 6.0
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_registered_artifact_size_uses_actual_file_bytes(tmp_path, monkeypatch) -> None:
+    artifact = tmp_path / "artifact.gif"
+    payload = _make_contract_gif()
+    artifact.write_bytes(payload)
+
+    class _FakeSession:
+        async def execute(self, *args, **kwargs):
+            return type("_Result", (), {"scalar_one_or_none": lambda self: None})()
+        async def add(self, *args, **kwargs):
+            return None
+        async def commit(self):
+            return None
+        async def rollback(self):
+            return None
+        async def refresh(self, obj):
+            obj.size_bytes = len(payload)
+
+    class _FakeFactory:
+        def __call__(self):
+            return _FakeSession()
+
+    repository = ArtifactRepository(_FakeFactory())
+    monkeypatch.setattr(repository, "_mime_type", lambda path: "image/gif")
+    result = await repository.register(job_id="job", artifact_type="gif", path=artifact)
+    assert result.size_bytes == len(payload)
