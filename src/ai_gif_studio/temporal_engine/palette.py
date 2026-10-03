@@ -23,6 +23,13 @@ def build_global_palette(
     side = max(1, int(np.ceil(np.sqrt(len(sample)))))
     tiled = np.zeros((side * side, 3), dtype=np.uint8)
     tiled[: len(sample)] = sample
+    sampled = tiled[: len(sample)].reshape(-1, 3)
+    unique = np.unique(sampled, axis=0)
+    if len(unique) <= colors:
+        exact = Image.fromarray(unique.reshape(1, len(unique), 3), "RGB")
+        return exact.quantize(
+            colors=len(unique), method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE
+        )
     return Image.fromarray(tiled.reshape(side, side, 3), "RGB").quantize(
         colors=colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE
     )
@@ -33,9 +40,20 @@ def quantize_frames_global(
 ) -> list[Image.Image]:
     if palette.palette is None:
         raise ValueError("palette must contain an RGB color table")
+    colors = sorted(palette.palette.colors.items(), key=lambda item: item[1])
+    if not colors:
+        raise ValueError("palette must contain an RGB color table")
+    pal = np.asarray([color for color, _index in colors], dtype=np.int32)
     result = []
     for frame in frames:
         rgb = np.asarray(frame, dtype=np.uint8)
-        image = Image.fromarray(rgb, "RGB")
-        result.append(image.quantize(palette=palette, dither=Image.Dither.NONE))
+        flat = rgb.reshape(-1, 3).astype(np.int32)
+        idx = np.empty(len(flat), np.uint8)
+        for start in range(0, len(flat), 16384):
+            block = flat[start : start + 16384]
+            dist = ((block[:, None, :] - pal[None, :, :]) ** 2).sum(axis=2)
+            idx[start : start + len(block)] = np.argmin(dist, axis=1).astype(np.uint8)
+        out = Image.fromarray(idx.reshape(rgb.shape[:2]), "P")
+        out.putpalette(palette.getpalette())
+        result.append(out)
     return result
