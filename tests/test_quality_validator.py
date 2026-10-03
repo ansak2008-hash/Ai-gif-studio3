@@ -68,6 +68,22 @@ async def test_validates_real_gif_geometry(tmp_path: Path):
 
 
 
+class _Probe:
+    async def probe(self, path: Path, *, count_frames: bool = False) -> dict:
+        return {
+            "format": {"duration": "1.0"},
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "width": 320,
+                    "height": 320,
+                    "avg_frame_rate": "2/1",
+                    "nb_read_frames": "2",
+                }
+            ],
+        }
+
+
 class _ProbeRaiser:
     def __init__(self, error: BaseException) -> None:
         self.error = error
