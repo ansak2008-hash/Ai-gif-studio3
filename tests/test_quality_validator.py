@@ -426,3 +426,19 @@ def test_gif_preflight_rejects_height_above_budget() -> None:
 def test_gif_preflight_rejects_zero_canvas_dimension() -> None:
     with pytest.raises(GifAnalysisError):
         preflight_gif_budget(_gif_header(0, 320), max_width=320, max_height=320)
+
+
+@pytest.mark.unit
+def test_validator_accepts_exact_output_byte_boundary(tmp_path: Path) -> None:
+    output = tmp_path / "output.gif"
+    payload = b"GIF89a" + b"\x40\x01\x40\x01" + b"\x00\x00\x00"
+    output.write_bytes(payload + b"x" * (2_400_000 - len(payload)))
+    assert OutputValidator().validate_basic_gif(output, 2_400_000)
+
+
+@pytest.mark.unit
+def test_validator_rejects_one_byte_over_output_limit(tmp_path: Path) -> None:
+    output = tmp_path / "output.gif"
+    payload = b"GIF89a" + b"\x40\x01\x40\x01" + b"\x00\x00\x00"
+    output.write_bytes(payload + b"x" * (2_400_001 - len(payload)))
+    assert not OutputValidator().validate_basic_gif(output, 2_400_000)
