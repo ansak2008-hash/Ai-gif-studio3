@@ -4,8 +4,9 @@ Revision ID: 0005_delivery_log_recovery
 Revises: 0004_artifact_idempotency
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "0005_delivery_log_recovery"
 down_revision = "0004_artifact_idempotency"
