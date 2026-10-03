@@ -9,6 +9,7 @@ TARGETS = {
     "src/ai_gif_studio/infrastructure/ffmpeg.py": 0,
     "src/ai_gif_studio/engines/validator.py": 0,
     "src/ai_gif_studio/infrastructure/worker.py": 1,
+    "src/ai_gif_studio/infrastructure/recovery.py": 0,
 }
 
 
