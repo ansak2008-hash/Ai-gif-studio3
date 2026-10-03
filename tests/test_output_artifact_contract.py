@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import io
 
-import pytest
 from PIL import Image
+import pytest
 
 from ai_gif_studio.application.gif_analysis import analyze_gif_bytes
 from ai_gif_studio.configuration.render import RenderConfiguration
