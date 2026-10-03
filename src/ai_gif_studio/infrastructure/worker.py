@@ -25,7 +25,6 @@ from ai_gif_studio.engines.validator import OutputValidator
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 from ai_gif_studio.infrastructure.storage import ArtifactStorage
 
-
 logger = logging.getLogger(__name__)
 
 
