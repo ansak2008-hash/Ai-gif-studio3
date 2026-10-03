@@ -31,20 +31,11 @@ def build_global_palette(
 def quantize_frames_global(
     frames: list[np.ndarray], palette: Image.Image
 ) -> list[Image.Image]:
-    raw_palette = np.asarray(palette.getpalette(), dtype=np.uint8)
-    if raw_palette.size % 3 != 0 or raw_palette.size == 0:
+    if palette.palette is None:
         raise ValueError("palette must contain an RGB color table")
-    pal = raw_palette.reshape(-1, 3).astype(np.int16)
     result = []
     for frame in frames:
         rgb = np.asarray(frame, dtype=np.uint8)
-        flat = rgb.reshape(-1, 3).astype(np.int16)
-        idx = np.empty(len(flat), np.uint8)
-        for start in range(0, len(flat), 16384):
-            block = flat[start : start + 16384]
-            dist = ((block[:, None, :] - pal[None, :, :]) ** 2).sum(axis=2)
-            idx[start : start + len(block)] = np.argmin(dist, axis=1).astype(np.uint8)
-        out = Image.fromarray(idx.reshape(rgb.shape[:2]), "P")
-        out.putpalette(palette.getpalette())
-        result.append(out)
+        image = Image.fromarray(rgb, "RGB")
+        result.append(image.quantize(palette=palette, dither=Image.Dither.NONE))
     return result
