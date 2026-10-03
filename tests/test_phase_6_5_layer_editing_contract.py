@@ -133,7 +133,6 @@ def test_visibility_command_rejects_non_boolean_values(value) -> None:
         SetLayerVisibilityCommand(uuid4(), value)
 
 
-
 def test_each_successful_layer_command_increments_revision_once() -> None:
     first = _layer()
     second = _layer()
