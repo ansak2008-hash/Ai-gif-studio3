@@ -54,9 +54,7 @@ def test_terminal_states_are_immutable() -> None:
     rec = DeliveryRecord(identity(), DeliveryState.SENT, 1, external_ref="msg-1")
     with pytest.raises(ValueError):
         mark_sent(rec, "msg-2")
-    unknown = next_state_on_reobserve(
-        DeliveryRecord(identity(), DeliveryState.INTENT, 1)
-    )
+    unknown = next_state_on_reobserve(DeliveryRecord(identity(), DeliveryState.INTENT, 1))
     with pytest.raises(ValueError):
         mark_failed(unknown, "late")
 
@@ -115,12 +113,15 @@ def test_deterministic_redispatch_selection() -> None:
 
 def test_fresh_queued_job_is_not_selected() -> None:
     now = datetime.now(UTC)
-    assert select_redispatch_candidates(
-        [QueuedSnapshot(uuid4(), "queued", now)],
-        now,
-        timedelta(seconds=10),
-        50,
-    ) == []
+    assert (
+        select_redispatch_candidates(
+            [QueuedSnapshot(uuid4(), "queued", now)],
+            now,
+            timedelta(seconds=10),
+            50,
+        )
+        == []
+    )
 
 
 class FakeRecoveryRepository:
@@ -132,10 +133,7 @@ class FakeRecoveryRepository:
         return self.recovered
 
     async def get_stale_queued(self, cutoff, limit):
-        return [
-            (job_id, cutoff - timedelta(seconds=1))
-            for job_id in self.stale_ids[:limit]
-        ]
+        return [(job_id, cutoff - timedelta(seconds=1)) for job_id in self.stale_ids[:limit]]
 
 
 class FakeLock:
