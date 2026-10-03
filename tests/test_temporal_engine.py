@@ -242,3 +242,25 @@ def test_timeline_progress_is_deterministic_at_loop_and_clamp_boundaries() -> No
     non_looping = AnimationTimeline(2.0, 4.0, loop=False)
     assert non_looping.progress(-1.0) == 0.0
     assert non_looping.progress(3.0) == 1.0
+
+
+
+def test_timeline_canonical_fps_delays_sum_exactly_to_six_seconds():
+    for fps in (30, 27, 24, 20, 18, 15):
+        timeline = AnimationTimeline(6.0, fps)
+        delays = timeline.centisecond_delays()
+        assert len(delays) == timeline.total_frames
+        assert sum(delays) == 600
+        assert min(delays) >= 1
+        assert max(delays) - min(delays) <= 1
+
+
+def test_timeline_centisecond_allocation_preserves_arbitrary_duration():
+    for duration_sec, fps in ((1.01, 30), (1.37, 23), (2.015, 17), (6.01, 27)):
+        timeline = AnimationTimeline(duration_sec, fps)
+        total_cs = round(duration_sec * 100)
+        delays = timeline.centisecond_delays()
+        assert len(delays) == timeline.total_frames
+        assert sum(delays) == total_cs
+        assert min(delays) >= 1
+        assert max(delays) - min(delays) <= 1
