@@ -49,6 +49,7 @@ async def process_job(ctx, job_id: str, **_):
     source, output = work / "input.bin", work / "output.gif"
     steps = ("download", "probe", "render", "quality", "artifact_register", "delivery")
     active_step = None
+    failure_reason = "internal_error"
     try:
         active_step = await step_repo.start(job.id, steps[0])
         await bot.download(job.submission.telegram_file_id, destination=source)
@@ -83,6 +84,7 @@ async def process_job(ctx, job_id: str, **_):
         from ai_gif_studio.quality_engine import QualityEngine
         report = await QualityEngine().inspect(output, ff, processing.max_bytes, selected_fps=processing.fps)
         if not report.valid:
+            failure_reason = "invalid_media"
             raise ValueError(f"quality gate failed: {report.as_dict()}")
         await step_repo.complete(active_step)
 
@@ -107,14 +109,17 @@ async def process_job(ctx, job_id: str, **_):
         await step_repo.complete(active_step)
         await queue.complete(job.id, worker_id, claimed.version)
     except Exception as error:
+        failure = f"{failure_reason}: {error}"
+        if failure_reason == "internal_error":
+            logger.exception("internal error during job processing job_id=%s", job_id)
         if active_step is not None:
-            await step_repo.fail(active_step, str(error), max(0, int(ctx.get("job_try", 1)) - 1))
+            await step_repo.fail(active_step, failure, max(0, int(ctx.get("job_try", 1)) - 1))
         job_try = int(ctx.get("job_try", 1))
         if job_try < 2:
-            if not await queue.retry(job.id, worker_id, claimed.version, str(error)):
+            if not await queue.retry(job.id, worker_id, claimed.version, failure):
                 raise RuntimeError("job claim was lost before retry") from error
             raise Retry(defer=job_try * 5) from error
-        await queue.fail(job.id, worker_id, claimed.version, str(error))
+        await queue.fail(job.id, worker_id, claimed.version, failure)
         raise
     finally:
         await bot.session.close()
