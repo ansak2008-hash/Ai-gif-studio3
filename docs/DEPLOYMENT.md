@@ -53,3 +53,25 @@ The HTTP adapter exposes `GET /health` for liveness and `GET /ready` for the rea
 ## Licensing gate
 
 Do not enable an AI model in production until its code license, exact weight source, weight hash, redistribution terms and commercial-use terms are recorded in `docs/MODEL_REGISTRY.md`.
+
+
+## Docker Compose production runtime
+
+The repository includes a production-oriented Compose topology with four services:
+
+- **telegram**: Telegram polling intake only; it does not render media.
+- **worker**: Arq worker with FFmpeg; media processing is isolated from Telegram update handling.
+- **redis**: queue transport only.
+- **postgres**: durable production database.
+
+Before startup, copy `.env.production.example` to `.env`, set `TELEGRAM_BOT_TOKEN` and a strong `POSTGRES_PASSWORD`, and keep `.env` out of version control.
+
+Build and start:
+
+```bash
+docker compose up -d --build
+```
+
+The Telegram and worker containers run as the unprivileged `app` user, use read-only root filesystems, and receive dedicated writable artifact/temp volumes. Redis and PostgreSQL remain internal to the Compose network.
+
+For a first deployment, verify the worker and Telegram service logs, then send a small test video through the bot and confirm the resulting GIF is delivered. Do not expose Redis or PostgreSQL ports publicly.
