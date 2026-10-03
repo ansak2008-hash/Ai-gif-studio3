@@ -4,6 +4,8 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
 from ai_gif_studio.domain.delivery_contract import (
     DeliveryConfig,
@@ -22,6 +24,8 @@ from ai_gif_studio.domain.recovery_contract import (
     RecoveryDispatchError,
     select_redispatch_candidates,
 )
+from ai_gif_studio.database.repositories import SqlAlchemyDeliveryLog
+from ai_gif_studio.database.tables import ArtifactRecord, Base, ProcessingJobRecord
 from ai_gif_studio.infrastructure.recovery import RecoveryScheduler
 
 pytestmark = pytest.mark.unit
@@ -180,3 +184,55 @@ async def test_repeated_scan_retries_stale_queued_job() -> None:
     assert first.dispatch_failures == 1
     assert second.redispatched == 1
     assert attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_delivery_log_atomic_identity() -> None:
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    job_id, artifact_id = uuid4(), uuid4()
+    now = datetime.now(UTC)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    async with session_factory() as session:
+        session.add(
+            ProcessingJobRecord(
+                id=str(job_id),
+                status="queued",
+                telegram_file_id="file",
+                file_size_bytes=1,
+                submitted_by=1,
+                mode="crop_only",
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        session.add(
+            ArtifactRecord(
+                artifact_id=str(artifact_id),
+                job_id=str(job_id),
+                type="output_gif",
+                storage_path="/tmp/output.gif",
+                mime_type="image/gif",
+                size_bytes=1,
+                sha256="0" * 64,
+                created_at=now,
+            )
+        )
+        await session.commit()
+
+    log = SqlAlchemyDeliveryLog(session_factory)
+    delivery_identity = DeliveryIdentity(job_id, artifact_id, "telegram")
+    first, second = await __import__("asyncio").gather(
+        log.begin_delivery(delivery_identity),
+        log.begin_delivery(delivery_identity),
+    )
+
+    assert first == second
+    assert first.state is DeliveryState.INTENT
+    assert first.attempt == 1
+    await engine.dispose()
