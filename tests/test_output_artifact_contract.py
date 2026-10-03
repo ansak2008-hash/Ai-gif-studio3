@@ -19,6 +19,25 @@ def _make_contract_gif(*, duration: int = 6000) -> bytes:
     return output.getvalue()
 
 
+def _make_canonical_30fps_gif() -> bytes:
+    frames = [
+        Image.new("RGB", (320, 320), (10, 20, 30) if index % 2 == 0 else (30, 20, 10))
+        for index in range(180)
+    ]
+    durations = [30] * 120 + [40] * 60
+    output = io.BytesIO()
+    frames[0].save(
+        output,
+        format="GIF",
+        save_all=True,
+        append_images=frames[1:],
+        duration=durations,
+        loop=0,
+        optimize=False,
+    )
+    return output.getvalue()
+
+
 def test_default_render_configuration_matches_canonical_contract() -> None:
     configuration = RenderConfiguration()
     assert configuration.canvas_width == 320
@@ -50,12 +69,13 @@ def test_render_configuration_rejects_non_descending_custom_ladder() -> None:
 
 
 def test_produced_gif_artifact_is_measured_against_canonical_contract() -> None:
-    payload = _make_contract_gif()
+    payload = _make_canonical_30fps_gif()
     report = analyze_gif_bytes(payload)
     assert report.width == 320
     assert report.height == 320
     assert report.duration_ms == 6000
-    assert report.frame_count == 1
+    assert report.frame_count == 180
+    assert report.effective_fps == pytest.approx(30.0)
     assert report.max_palette_colors <= 256
     assert report.file_size_bytes <= 2_400_000
 
