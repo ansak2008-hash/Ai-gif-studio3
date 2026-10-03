@@ -133,6 +133,59 @@ def test_visibility_command_rejects_non_boolean_values(value) -> None:
         SetLayerVisibilityCommand(uuid4(), value)
 
 
+
+def test_each_successful_layer_command_increments_revision_once() -> None:
+    first = _layer()
+    second = _layer()
+    editor = _editor(LayerStack().add(first).add(second))
+    cases = (
+        RemoveLayerCommand(second.layer_id),
+        ReorderLayerCommand(0, 1),
+        SetLayerVisibilityCommand(first.layer_id, True),
+        SetLayerOpacityCommand(first.layer_id, 0.5),
+        SetLayerBlendModeCommand(first.layer_id, LayerBlendMode.MULTIPLY),
+        DuplicateLayerCommand(first.layer_id, uuid4()),
+    )
+    for command in cases:
+        before = editor.revision_count
+        editor.execute(command, {"operation": "layer_edit"})
+        assert editor.revision_count == before + 1
+
+
+@pytest.mark.parametrize(
+    "command_factory",
+    [
+        lambda layer_id: RemoveLayerCommand(layer_id),
+        lambda layer_id: SetLayerVisibilityCommand(layer_id, True),
+        lambda layer_id: SetLayerOpacityCommand(layer_id, 0.5),
+        lambda layer_id: SetLayerBlendModeCommand(layer_id, LayerBlendMode.NORMAL),
+    ],
+)
+def test_unknown_layer_updates_fail_without_revision(command_factory) -> None:
+    editor = _editor(LayerStack().add(_layer()))
+    before = editor.current_state.canonical_json
+    before_count = editor.revision_count
+    with pytest.raises(KeyError):
+        editor.execute(command_factory(uuid4()), {"operation": "layer_edit"})
+    assert editor.current_state.canonical_json == before
+    assert editor.revision_count == before_count
+
+
+def test_layer_stack_results_do_not_alias_mutable_layer_containers() -> None:
+    layer = _layer()
+    editor = _editor(LayerStack().add(layer))
+    result = editor.execute(SetLayerOpacityCommand(layer.layer_id, 0.5), {"operation": "layer_edit"})
+    with pytest.raises(AttributeError):
+        result.layer_stack.layers.append(layer)
+    assert result.layer_stack.layers == (layer.__class__(
+        layer.layer_id,
+        layer.source_asset_id,
+        0.5,
+        layer.visible,
+        layer.blend_mode,
+        layer.mask,
+    ),)
+
 def test_failed_layer_command_does_not_create_revision() -> None:
     layer = _layer()
     editor = _editor(LayerStack().add(layer))
