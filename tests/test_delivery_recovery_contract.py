@@ -7,6 +7,8 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from ai_gif_studio.database.repositories import SqlAlchemyDeliveryLog
+from ai_gif_studio.database.tables import ArtifactRecord, Base, ProcessingJobRecord
 from ai_gif_studio.domain.delivery_contract import (
     DeliveryConfig,
     DeliveryIdentity,
@@ -19,8 +21,6 @@ from ai_gif_studio.domain.delivery_contract import (
     mark_sent,
     next_state_on_reobserve,
 )
-from ai_gif_studio.database.repositories import SqlAlchemyDeliveryLog
-from ai_gif_studio.database.tables import ArtifactRecord, Base, ProcessingJobRecord
 from ai_gif_studio.domain.recovery_contract import (
     QueuedSnapshot,
     RecoveryDispatchError,
