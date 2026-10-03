@@ -5,7 +5,6 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from ai_gif_studio.domain.layer_state import LayerBlendMode, LayerStack, LayerState
 from ai_gif_studio.domain.commands import (
     AddLayerCommand,
     CommandHistory,
@@ -16,6 +15,7 @@ from ai_gif_studio.domain.commands import (
     SetLayerOpacityCommand,
     SetLayerVisibilityCommand,
 )
+from ai_gif_studio.domain.layer_state import LayerBlendMode, LayerStack, LayerState
 from ai_gif_studio.domain.project import ProjectState
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
 from ai_gif_studio.services.project_editor import ProjectEditor
