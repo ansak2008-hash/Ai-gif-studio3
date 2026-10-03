@@ -25,10 +25,7 @@ class CropOnlyEngine:
         )
         total = float(probe.get("format", {}).get("duration") or duration)
         start = max(0, (total - duration) / 2)
-        ladder = []
-        for fps in (settings.fps, 16, 12, 10, 8, 6):
-            if fps not in ladder:
-                ladder.append(fps)
+        ladder = self.quality.ladder(settings.fps)
         for fps in ladder:
             palette = target.with_suffix(".palette.png")
             vf = (
