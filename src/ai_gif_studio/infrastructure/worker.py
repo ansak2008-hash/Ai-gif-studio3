@@ -139,8 +139,10 @@ async def process_job(ctx, job_id: str, **_):
                     FSInputFile(output),
                 )
             except Exception as error:
-                await delivery_log.mark_failed(identity, str(error))
-                raise
+                await delivery_log.mark_unknown(identity)
+                raise RuntimeError(
+                    "Telegram send outcome is unknown; automatic resend is prohibited"
+                ) from error
             await delivery_log.mark_sent(identity, str(message.message_id))
         elif decision is SendDecision.HOLD_UNKNOWN:
             await delivery_log.mark_unknown(identity)
