@@ -79,3 +79,11 @@ def test_produced_gif_artifact_observes_256_color_ceiling_at_boundary() -> None:
     frame.save(output, format="GIF", save_all=True, duration=6000, loop=0, optimize=False)
     report = analyze_gif_bytes(output.getvalue())
     assert report.max_palette_colors == 256
+
+
+def test_quality_inspection_defaults_match_canonical_output() -> None:
+    import inspect
+
+    parameters = inspect.signature(QualityEngine.inspect).parameters
+    assert parameters["selected_fps"].default == 30
+    assert parameters["expected_duration"].default == 6.0
