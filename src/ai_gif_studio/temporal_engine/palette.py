@@ -40,10 +40,12 @@ def build_global_palette(
 def quantize_frames_global(
     frames: list[np.ndarray], palette: Image.Image
 ) -> list[Image.Image]:
-    raw_palette = np.asarray(palette.getpalette(), dtype=np.uint8)
-    if raw_palette.size % 3 != 0 or raw_palette.size == 0:
+    if palette.palette is None:
         raise ValueError("palette must contain an RGB color table")
-    pal = raw_palette.reshape(-1, 3).astype(np.int16)
+    colors = sorted(palette.palette.colors.items(), key=lambda item: item[1])
+    if not colors:
+        raise ValueError("palette must contain an RGB color table")
+    pal = np.asarray([color for color, _index in colors], dtype=np.int16)
     result = []
     for frame in frames:
         rgb = np.asarray(frame, dtype=np.uint8)
