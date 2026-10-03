@@ -54,7 +54,7 @@ services:
     environment:
       POSTGRES_DB: ai_gif_studio
       POSTGRES_USER: ai_gif_studio
-      POSTGRES_PASSWORD: change-me
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres:/var/lib/postgresql/data
     healthcheck:
