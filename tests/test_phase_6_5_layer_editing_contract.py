@@ -174,17 +174,22 @@ def test_unknown_layer_updates_fail_without_revision(command_factory) -> None:
 def test_layer_stack_results_do_not_alias_mutable_layer_containers() -> None:
     layer = _layer()
     editor = _editor(LayerStack().add(layer))
-    result = editor.execute(SetLayerOpacityCommand(layer.layer_id, 0.5), {"operation": "layer_edit"})
+    result = editor.execute(
+        SetLayerOpacityCommand(layer.layer_id, 0.5), {"operation": "layer_edit"}
+    )
     with pytest.raises(AttributeError):
         result.layer_stack.layers.append(layer)
-    assert result.layer_stack.layers == (layer.__class__(
-        layer.layer_id,
-        layer.source_asset_id,
-        0.5,
-        layer.visible,
-        layer.blend_mode,
-        layer.mask,
-    ),)
+    assert result.layer_stack.layers == (
+        layer.__class__(
+            layer.layer_id,
+            layer.source_asset_id,
+            0.5,
+            layer.visible,
+            layer.blend_mode,
+            layer.mask,
+        ),
+    )
+
 
 def test_failed_layer_command_does_not_create_revision() -> None:
     layer = _layer()
