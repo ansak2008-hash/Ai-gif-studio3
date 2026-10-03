@@ -1,7 +1,12 @@
+import io
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
+from ai_gif_studio.application.gif_analysis import GifAnalysisError
 from ai_gif_studio.domain.probe_errors import ProbeExecutionError
 from ai_gif_studio.engines.validator import OutputValidator
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
@@ -28,9 +33,6 @@ def test_rejects_empty_and_oversized_gif(tmp_path: Path):
 async def test_validates_real_gif_geometry(tmp_path: Path):
     src = tmp_path / "in.mp4"
     out = tmp_path / "out.gif"
-    import shutil
-    import subprocess
-
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
         pytest.skip("ffmpeg unavailable")
     subprocess.run(
