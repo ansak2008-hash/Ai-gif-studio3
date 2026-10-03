@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 from pathlib import Path
 
+from ai_gif_studio.application.gif_analysis import (
+    GifAnalysisError,
+    GifAnalysisReport,
+    analyze_gif_bytes,
+)
 from ai_gif_studio.domain.probe_errors import ProbeError
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 
@@ -29,6 +35,7 @@ class OutputValidator:
         min_frames: int = 1,
         max_frames: int | None = None,
         expected_fps: int | None = None,
+        accepted_fps: tuple[int, ...] | None = None,
         expected_duration: float | None = None,
         duration_tolerance: float = 0.25,
     ) -> bool:
@@ -53,7 +60,8 @@ class OutputValidator:
                 actual_fps = float(n) / float(d)
             except (ValueError, ZeroDivisionError):
                 return False
-            if abs(actual_fps - expected_fps) > 0.5:
+            fps_targets = accepted_fps or (expected_fps,)
+            if not any(abs(actual_fps - target) <= 0.5 for target in fps_targets):
                 return False
         if expected_duration is not None:
             try:
@@ -64,7 +72,36 @@ class OutputValidator:
                 return False
             if abs(actual_duration - expected_duration) > duration_tolerance:
                 return False
+        try:
+            analysis = await self.analyze_gif_artifact(path, max_bytes)
+        except GifAnalysisError:
+            return False
+        if analysis.width != width or analysis.height != height:
+            return False
+        if analysis.max_palette_colors > 256:
+            return False
+        if accepted_fps is not None:
+            if not any(abs(analysis.effective_fps - target) <= 0.5 for target in accepted_fps):
+                return False
+        elif expected_fps is not None and abs(analysis.effective_fps - expected_fps) > 0.5:
+            return False
+        if expected_duration is not None:
+            actual_duration = analysis.duration_ms / 1000.0
+            if abs(actual_duration - expected_duration) > duration_tolerance:
+                return False
         return True
+
+    async def analyze_gif_artifact(
+        self,
+        path: Path,
+        max_bytes: int,
+    ) -> GifAnalysisReport:
+        payload = await asyncio.to_thread(path.read_bytes)
+        return await asyncio.to_thread(
+            analyze_gif_bytes,
+            payload,
+            max_input_bytes=max_bytes,
+        )
 
     @staticmethod
     def sha256(path: Path) -> str:
