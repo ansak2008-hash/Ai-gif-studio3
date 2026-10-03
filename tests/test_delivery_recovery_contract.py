@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
+
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 
 from ai_gif_studio.domain.delivery_contract import (
     DeliveryConfig,
@@ -187,12 +188,8 @@ async def test_repeated_scan_retries_stale_queued_job() -> None:
 
 
 @pytest.mark.asyncio
-async def test_delivery_log_atomic_identity() -> None:
-    engine = create_async_engine(
-        "sqlite+aiosqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+async def test_delivery_log_atomic_identity(tmp_path) -> None:
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'delivery.db'}")
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     job_id, artifact_id = uuid4(), uuid4()
     now = datetime.now(UTC)
@@ -227,7 +224,7 @@ async def test_delivery_log_atomic_identity() -> None:
 
     log = SqlAlchemyDeliveryLog(session_factory)
     delivery_identity = DeliveryIdentity(job_id, artifact_id, "telegram")
-    first, second = await __import__("asyncio").gather(
+    first, second = await asyncio.gather(
         log.begin_delivery(delivery_identity),
         log.begin_delivery(delivery_identity),
     )
