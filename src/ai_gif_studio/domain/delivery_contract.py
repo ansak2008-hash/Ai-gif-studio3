@@ -102,7 +102,7 @@ def decide_send(
 def begin_retry(
     rec: DeliveryRecord,
     config: DeliveryConfig,
-) -> Optional[DeliveryRecord]:
+) -> DeliveryRecord | None:
     if rec.state is not DeliveryState.FAILED or rec.attempt >= config.max_attempts:
         return None
     return DeliveryRecord(rec.identity, DeliveryState.INTENT, rec.attempt + 1)
@@ -127,13 +127,13 @@ def next_state_on_reobserve(rec: DeliveryRecord) -> DeliveryRecord:
 
 @runtime_checkable
 class DeliveryLogPort(Protocol):
-    async def get(self, identity: DeliveryIdentity) -> Optional[DeliveryRecord]: ...
+    async def get(self, identity: DeliveryIdentity) -> DeliveryRecord | None: ...
 
     async def begin_delivery(self, identity: DeliveryIdentity) -> DeliveryRecord: ...
 
     async def begin_retry(
         self, identity: DeliveryIdentity, max_attempts: int
-    ) -> Optional[DeliveryRecord]: ...
+    ) -> DeliveryRecord | None: ...
 
     async def mark_sent(self, identity: DeliveryIdentity, external_ref: str) -> DeliveryRecord: ...
 
