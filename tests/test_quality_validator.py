@@ -177,3 +177,91 @@ def test_sha256_is_deterministic(tmp_path: Path):
     digest = OutputValidator.sha256(p)
     assert len(digest) == 64
     assert digest == OutputValidator.sha256(p)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validator_rejects_probe_duration_when_decoded_duration_disagrees(tmp_path: Path) -> None:
+    output = tmp_path / "output.gif"
+    frames = [Image.new("RGB", (320, 320), (10, 20, 30)), Image.new("RGB", (320, 320), (30, 20, 10))]
+    buffer = io.BytesIO()
+    frames[0].save(
+        buffer,
+        format="GIF",
+        save_all=True,
+        append_images=frames[1:],
+        duration=[250, 250],
+        loop=0,
+        optimize=False,
+    )
+    output.write_bytes(buffer.getvalue())
+
+    class _DishonestProbe:
+        async def probe(self, path: Path, *, count_frames: bool = False) -> dict:
+            return {
+                "format": {"duration": "1.0"},
+                "streams": [
+                    {
+                        "codec_type": "video",
+                        "width": 320,
+                        "height": 320,
+                        "avg_frame_rate": "2/1",
+                        "nb_read_frames": "2",
+                    }
+                ],
+            }
+
+    validator = OutputValidator()
+    assert not await validator.validate_gif(
+        output,
+        2_400_000,
+        ffmpeg=_DishonestProbe(),
+        accepted_fps=(2,),
+        expected_fps=2,
+        expected_duration=1.0,
+        duration_tolerance=0.05,
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validator_rejects_decoded_frame_timing_outside_accepted_fps(tmp_path: Path) -> None:
+    output = tmp_path / "output.gif"
+    frames = [Image.new("RGB", (320, 320), color) for color in ((10, 20, 30), (30, 20, 10))]
+    buffer = io.BytesIO()
+    frames[0].save(
+        buffer,
+        format="GIF",
+        save_all=True,
+        append_images=frames[1:],
+        duration=[400, 400],
+        loop=0,
+        optimize=False,
+    )
+    output.write_bytes(buffer.getvalue())
+
+    class _Probe:
+        async def probe(self, path: Path, *, count_frames: bool = False) -> dict:
+            return {
+                "format": {"duration": "0.8"},
+                "streams": [
+                    {
+                        "codec_type": "video",
+                        "width": 320,
+                        "height": 320,
+                        "avg_frame_rate": "2/1",
+                        "nb_read_frames": "2",
+                    }
+                ],
+            }
+
+    validator = OutputValidator()
+    assert not await validator.validate_gif(
+        output,
+        2_400_000,
+        ffmpeg=_Probe(),
+        accepted_fps=(3,),
+        expected_fps=3,
+        expected_duration=0.8,
+        duration_tolerance=0.05,
+    )
