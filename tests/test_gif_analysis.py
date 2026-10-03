@@ -212,3 +212,31 @@ def test_report_does_not_contain_frame_arrays() -> None:
     payload = make_gif(durations=[100], colors=[(0, 0, 0)])
     report = analyze_gif_bytes(payload)
     assert not any(isinstance(value, np.ndarray) for value in report.__dict__.values())
+
+
+def test_zero_frame_delay_fails_closed() -> None:
+    payload = bytearray(make_gif(durations=[100], colors=[(0, 0, 0)]))
+    marker = payload.find(b"\\x21\\xf9\\x04")
+    assert marker >= 0
+    payload[marker + 4] = 0
+    payload[marker + 5] = 0
+    with pytest.raises(GifAnalysisError, match="duration must be positive"):
+        analyze_gif_bytes(bytes(payload))
+
+
+def test_decoded_frame_and_pixel_limits_fail_before_unbounded_accumulation() -> None:
+    payload = make_gif(
+        durations=[100, 100, 100],
+        colors=[(0, 0, 0), (1, 1, 1), (2, 2, 2)],
+    )
+    with pytest.raises(GifAnalysisError, match="frame limit"):
+        analyze_gif_bytes(payload, max_decoded_frames=2)
+    with pytest.raises(GifAnalysisError, match="pixel budget"):
+        analyze_gif_bytes(payload, max_total_pixels=16 * 2)
+
+
+def test_exact_input_byte_boundary_is_authoritative() -> None:
+    payload = make_gif(durations=[100], colors=[(0, 0, 0)])
+    analyze_gif_bytes(payload, max_input_bytes=len(payload))
+    with pytest.raises(GifAnalysisError, match="input exceeds"):
+        analyze_gif_bytes(payload, max_input_bytes=len(payload) - 1)

@@ -78,6 +78,8 @@ class OutputValidator:
             return False
         if analysis.width != width or analysis.height != height:
             return False
+        if analysis.frame_count != frames:
+            return False
         if analysis.max_palette_colors > 256:
             return False
         if accepted_fps is not None:
