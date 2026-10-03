@@ -21,7 +21,8 @@ async def test_artifact_registration_is_retry_safe(tmp_path: Path) -> None:
         second = await repository.register(job_id, output, "output_gif", "image/gif", metadata={"fps": 12})
         assert first.artifact_id == second.artifact_id
         assert second.sha256 == first.sha256
-        assert second.size_bytes == len(b"GIF89a-test-artifact")
+        assert second.size_bytes == output.stat().st_size
+        assert second.size_bytes == len(output.read_bytes())
         artifacts = await repository.get_for_job(job_id, "output_gif")
         assert len(artifacts) == 1
     finally:
