@@ -244,7 +244,6 @@ def test_timeline_progress_is_deterministic_at_loop_and_clamp_boundaries() -> No
     assert non_looping.progress(3.0) == 1.0
 
 
-
 def test_timeline_canonical_fps_delays_sum_exactly_to_six_seconds():
     for fps in (30, 27, 24, 20, 18, 15):
         timeline = AnimationTimeline(6.0, fps)
