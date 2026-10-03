@@ -57,6 +57,14 @@ async def test_missing_binary_is_not_translated(monkeypatch: pytest.MonkeyPatch)
 
 
 @pytest.mark.asyncio
+async def test_internal_key_error_is_not_translated() -> None:
+    service = FFmpegService()
+    service._run = _async_raiser(KeyError("internal parser bug"))
+    with pytest.raises(KeyError):
+        await service.probe(Path("input.mp4"))
+
+
+@pytest.mark.asyncio
 async def test_internal_value_error_is_not_translated() -> None:
     service = FFmpegService()
     service._run = _async_raiser(ValueError("internal parser bug"))
