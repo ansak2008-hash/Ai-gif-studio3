@@ -4,6 +4,8 @@ import logging
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+from redis.exceptions import RedisError
+
 from ai_gif_studio.configuration import AppSettings
 from ai_gif_studio.database import Database
 from ai_gif_studio.database.repositories import SqlAlchemyJobRepository
@@ -16,8 +18,6 @@ from ai_gif_studio.domain.recovery_contract import (
     RecoverySchedulerPort,
 )
 from ai_gif_studio.infrastructure.queue import ArqQueue
-from redis.exceptions import RedisError
-
 logger = logging.getLogger(__name__)
 
 
