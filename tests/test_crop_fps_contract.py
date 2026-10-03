@@ -22,7 +22,12 @@ class _FakeFFmpeg:
 
     async def run(self, argv: list[str]) -> None:
         self.runs.append(argv)
-        Path(argv[-1]).write_bytes(b"GIF89a")
+        output = Path(argv[-1])
+        if output.suffix == ".gif":
+            attempts = sum(Path(run[-1]).suffix == ".gif" for run in self.runs)
+            output.write_bytes(b"x" * (2_400_001 if attempts < 2 else 1))
+        else:
+            output.write_bytes(b"palette")
 
 
 def _fps_values(ffmpeg: _FakeFFmpeg) -> list[int]:
