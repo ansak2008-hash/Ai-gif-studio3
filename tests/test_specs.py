@@ -10,3 +10,10 @@ def test_specs_are_separate_and_versioned():
         and d.canvas["width"] == 320
         and p.max_bytes == 2400000
     )
+
+
+def test_processing_settings_reject_output_limit_above_hard_contract() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="less than or equal to 2400000"):
+        ProcessingSettings(max_bytes=2_400_001)
