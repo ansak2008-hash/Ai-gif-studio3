@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 import socket
@@ -136,7 +137,7 @@ async def process_job(ctx, job_id: str, **_):
                 "design_spec_version": design.schema_version,
                 "processing_settings_version": processing.schema_version,
                 "quality": report.as_dict(),
-                "artifact_analysis": artifact_analysis.to_json(),
+                "artifact_analysis": json.loads(artifact_analysis.to_json()),
             },
         )
         await step_repo.complete(active_step)
