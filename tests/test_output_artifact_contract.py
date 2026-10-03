@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import io
 
 import pytest
@@ -60,7 +61,8 @@ def test_quality_ladder_uses_canonical_descending_ladder() -> None:
     assert QualityEngine().ladder(15) == (15,)
 
 
-def test_quality_ladder_does_not_increase_explicit_non_ladder_fps() -> None:
+def test_quality_ladder_preserves_explicit_non_ladder_fps() -> None:
+    assert QualityEngine().ladder(19) == (19, 18, 15)
     assert QualityEngine().ladder(8) == (8,)
 
 
@@ -101,8 +103,6 @@ def test_produced_gif_artifact_observes_256_color_ceiling_at_boundary() -> None:
 
 
 def test_quality_inspection_defaults_match_canonical_output() -> None:
-    import inspect
-
     parameters = inspect.signature(QualityEngine.inspect).parameters
     assert parameters["selected_fps"].default == 30
     assert parameters["expected_duration"].default == 6.0
