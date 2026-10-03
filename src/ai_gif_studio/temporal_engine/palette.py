@@ -23,6 +23,15 @@ def build_global_palette(
     side = max(1, int(np.ceil(np.sqrt(len(sample)))))
     tiled = np.zeros((side * side, 3), dtype=np.uint8)
     tiled[: len(sample)] = sample
+    sampled = tiled[: len(sample)].reshape(-1, 3)
+    unique = np.unique(sampled, axis=0)
+    if len(unique) <= colors:
+        palette = Image.new("P", (1, 1))
+        raw = unique.astype(np.uint8).reshape(-1).tolist()
+        raw.extend([0] * (768 - len(raw)))
+        palette.putpalette(raw)
+        palette.putpixel((0, 0), 0)
+        return palette
     return Image.fromarray(tiled.reshape(side, side, 3), "RGB").quantize(
         colors=colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE
     )
