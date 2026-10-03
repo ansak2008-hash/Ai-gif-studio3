@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from ai_gif_studio.domain.probe_errors import ProbeExecutionError
 from ai_gif_studio.engines.validator import OutputValidator
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 
@@ -65,6 +66,41 @@ async def test_validates_real_gif_geometry(tmp_path: Path):
     validator = OutputValidator(FFmpegService(timeout=30))
     assert await validator.validate_gif(out, 2_400_000, expected_fps=8, expected_duration=1.0, duration_tolerance=0.35)
 
+
+
+class _ProbeRaiser:
+    def __init__(self, error: BaseException) -> None:
+        self.error = error
+
+    async def probe(self, path: Path, *, count_frames: bool = False) -> dict:
+        raise self.error
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validator_contains_only_classified_probe_errors(tmp_path: Path) -> None:
+    path = tmp_path / "output.gif"
+    path.write_bytes(b"GIF89a")
+    validator = OutputValidator()
+    assert not await validator.validate_gif(
+        path,
+        100,
+        ffmpeg=_ProbeRaiser(ProbeExecutionError("corrupt media")),
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validator_does_not_translate_internal_value_error(tmp_path: Path) -> None:
+    path = tmp_path / "output.gif"
+    path.write_bytes(b"GIF89a")
+    validator = OutputValidator()
+    with pytest.raises(ValueError, match="internal bug"):
+        await validator.validate_gif(
+            path,
+            100,
+            ffmpeg=_ProbeRaiser(ValueError("internal bug")),
+        )
 
 def test_sha256_is_deterministic(tmp_path: Path):
     p = tmp_path / "artifact.gif"

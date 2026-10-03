@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from ai_gif_studio.configuration.render import DEFAULT_FPS_LADDER
+from ai_gif_studio.domain.probe_errors import ProbeError
+
 
 @dataclass(frozen=True, slots=True)
 class QualityReport:
@@ -22,9 +25,15 @@ class QualityReport:
 
 
 class QualityEngine:
-    def ladder(self, preferred: int, current_size: int | None = None, max_bytes: int = 2_400_000) -> tuple[int, ...]:
-        candidates = tuple(dict.fromkeys((preferred, 20, 16, 12, 10, 8, 6)))
-        return tuple(fps for fps in candidates if fps > 0)
+    def ladder(
+        self,
+        preferred: int,
+        current_size: int | None = None,
+        max_bytes: int = 2_400_000,
+    ) -> tuple[int, ...]:
+        del current_size, max_bytes
+        lower_or_equal = tuple(fps for fps in DEFAULT_FPS_LADDER if fps < preferred)
+        return (preferred, *lower_or_equal)
 
     async def inspect(
         self,
@@ -33,8 +42,8 @@ class QualityEngine:
         max_bytes: int,
         expected_width: int = 320,
         expected_height: int = 320,
-        selected_fps: int = 20,
-        expected_duration: float | None = None,
+        selected_fps: int = 30,
+        expected_duration: float | None = 6.0,
         duration_tolerance: float = 0.35,
         min_frames: int = 1,
     ) -> QualityReport:
@@ -45,8 +54,19 @@ class QualityEngine:
             return QualityReport(False, size, 0, 0, 0.0, 0.0, 0, size / max_bytes, selected_fps, ("size",))
         try:
             probe = await ffmpeg.probe(path, count_frames=True)
-        except Exception:
-            return QualityReport(False, size, 0, 0, 0.0, 0.0, 0, size / max_bytes, selected_fps, ("probe",))
+        except ProbeError as exc:
+            return QualityReport(
+                False,
+                size,
+                0,
+                0,
+                0.0,
+                0.0,
+                0,
+                size / max_bytes,
+                selected_fps,
+                (f"probe:{type(exc).__name__}",),
+            )
         stream = next((item for item in probe.get("streams", []) if item.get("codec_type") == "video"), None)
         if stream is None:
             return QualityReport(False, size, 0, 0, 0.0, 0.0, 0, size / max_bytes, selected_fps, ("no_video",))

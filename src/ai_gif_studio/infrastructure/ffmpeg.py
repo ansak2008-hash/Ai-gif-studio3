@@ -6,8 +6,22 @@ import os
 from collections.abc import Sequence
 from pathlib import Path
 
+from ai_gif_studio.domain.probe_errors import (
+    ProbeCorruptMediaError,
+    ProbeExecutionError,
+    ProbeTimeoutError,
+)
+
 
 class FFmpegError(RuntimeError):
+    pass
+
+
+class FFmpegTimeoutError(FFmpegError):
+    pass
+
+
+class FFmpegCommandError(FFmpegError):
     pass
 
 
@@ -35,9 +49,9 @@ class FFmpegService:
         except TimeoutError:
             p.kill()
             await p.wait()
-            raise FFmpegError("ffmpeg timeout") from None
+            raise FFmpegTimeoutError("ffmpeg timeout") from None
         if p.returncode:
-            raise FFmpegError((err or out).decode(errors="replace")[-4000:])
+            raise FFmpegCommandError((err or out).decode(errors="replace")[-4000:])
         return out, err
 
     async def probe(self, path: Path, *, count_frames: bool = False) -> dict:
@@ -45,8 +59,16 @@ class FFmpegService:
         if count_frames:
             args.append("-count_frames")
         args += ["-show_streams", "-show_format", "-of", "json", str(path)]
-        out, _ = await self._run(args)
-        return json.loads(out)
+        try:
+            out, _ = await self._run(args)
+        except FFmpegTimeoutError as exc:
+            raise ProbeTimeoutError(f"probe timed out: {path}") from exc
+        except FFmpegCommandError as exc:
+            raise ProbeExecutionError(str(exc)) from exc
+        try:
+            return json.loads(out)
+        except json.JSONDecodeError as exc:
+            raise ProbeCorruptMediaError(f"invalid ffprobe output: {path}") from exc
 
     async def run(self, args: Sequence[str]):
         return await self._run([self.ffmpeg, "-hide_banner", "-nostdin", "-y", *args])

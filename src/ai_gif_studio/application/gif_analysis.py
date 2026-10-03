@@ -177,7 +177,8 @@ def analyze_gif_bytes(
                     previous_array = np.asarray(previous_frame, dtype=np.int16)
                     current_array = np.asarray(frame, dtype=np.int16)
                     motions.append(float(np.abs(current_array - previous_array).mean()))
-                    previous_frame.close()
+                    if previous_frame is not first_frame:
+                        previous_frame.close()
                     previous_frame = frame
                 image.seek(image.tell() + 1)
         except EOFError:
