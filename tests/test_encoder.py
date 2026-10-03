@@ -2,7 +2,9 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from ai_gif_studio.temporal_engine.encoder import encode_linear_gif
+from ai_gif_studio.application.gif_analysis import analyze_gif_bytes
+from ai_gif_studio.temporal_engine.encoder import encode_gif, encode_linear_gif
+from ai_gif_studio.temporal_engine.timeline import AnimationTimeline
 
 pytestmark = pytest.mark.integration
 
@@ -27,3 +29,24 @@ def test_encode_linear_gif_converts_linear_rgba_and_writes_valid_gif(tmp_path):
         assert image.format == "GIF"
         assert image.n_frames == 2
         assert image.size == (32, 32)
+
+
+def test_encode_gif_preserves_canonical_six_second_30fps_timing(tmp_path):
+    frames = []
+    for index in range(180):
+        frame = np.zeros((320, 320, 3), dtype=np.uint8)
+        frame[..., index % 3] = 255
+        frames.append(frame)
+
+    output = tmp_path / "canonical.gif"
+    encode_gif(frames, AnimationTimeline(6.0, 30).centisecond_delays(), output)
+
+    report = analyze_gif_bytes(output.read_bytes())
+    assert report.width == 320
+    assert report.height == 320
+    assert report.frame_count == 180
+    assert report.duration_ms == 6000
+    assert report.effective_fps == pytest.approx(30.0)
+    assert report.max_palette_colors <= 256
+    assert report.duration_min_ms >= 30
+    assert report.duration_max_ms <= 40
