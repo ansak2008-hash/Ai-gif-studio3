@@ -51,7 +51,7 @@ class DeliveryRecord:
     state: DeliveryState
     attempt: int
     external_ref: str | None = None
-    error: Optional[str] = None
+    error: str | None = None
 
     def __post_init__(self) -> None:
         if self.attempt < 1:
