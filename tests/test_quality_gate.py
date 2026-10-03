@@ -50,3 +50,19 @@ async def test_quality_gate_rejects_invalid_contract(probe, expected, tmp_path: 
         output, FakeFFmpeg(probe), 2_400_000, selected_fps=20, expected_duration=6.0
     )
     assert report.valid is expected
+
+
+@pytest.mark.unit
+async def test_quality_gate_accepts_lower_fallback_fps(tmp_path: Path):
+    output = tmp_path / "output.gif"
+    output.write_bytes(b"G" * 1000)
+    report = await QualityEngine().inspect(
+        output,
+        FakeFFmpeg(make_probe(fps="27/1")),
+        2_400_000,
+        selected_fps=30,
+        accepted_fps=(30, 27, 24, 20, 18, 15),
+        expected_duration=6.0,
+    )
+    assert report.valid
+    assert "fps" in report.checks

@@ -97,7 +97,15 @@ async def process_job(ctx, job_id: str, **_):
         failure_stage = "quality_inspect"
         active_step = await step_repo.start(job.id, steps[3])
         from ai_gif_studio.quality_engine import QualityEngine
-        report = await QualityEngine().inspect(output, ff, processing.max_bytes, selected_fps=processing.fps)
+        quality = QualityEngine()
+        report = await quality.inspect(
+            output,
+            ff,
+            processing.max_bytes,
+            selected_fps=processing.fps,
+            accepted_fps=quality.ladder(processing.fps),
+            expected_duration=processing.max_duration_seconds,
+        )
         if not report.valid:
             failure_reason = "invalid_media"
             raise ValueError(f"quality gate failed: {report.as_dict()}")
