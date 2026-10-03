@@ -4,14 +4,14 @@ import hashlib
 from pathlib import Path
 
 import numpy as np
-from PIL import GifImagePlugin, ImageFile
+from PIL import GifImagePlugin, Image
 
 from .color_export import ExportColorSpec, linear_rgba_to_srgb_rgb
 from .palette import build_global_palette, quantize_frames_global
 
 
 def _write_gif_preserving_frames(
-    frames: list[object], delays_cs: tuple[int, ...], output: Path
+    frames: list[Image.Image], delays_cs: tuple[int, ...], output: Path
 ) -> None:
     """Write indexed GIF frames without collapsing identical consecutive frames."""
     first = frames[0]
