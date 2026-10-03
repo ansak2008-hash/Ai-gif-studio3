@@ -47,7 +47,7 @@ class OutputValidator:
         frames = int(stream.get("nb_read_frames") or stream.get("nb_frames") or 0)
         if frames < min_frames or (max_frames is not None and frames > max_frames):
             return False
-        if expected_fps is not None:
+        if expected_fps is not None or accepted_fps is not None:
             try:
                 n, d = str(stream.get("avg_frame_rate") or stream.get("r_frame_rate") or "0/1").split("/", 1)
                 actual_fps = float(n) / float(d)
