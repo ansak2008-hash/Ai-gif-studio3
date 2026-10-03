@@ -44,6 +44,7 @@ class QualityEngine:
         expected_height: int = 320,
         selected_fps: int = 30,
         expected_duration: float | None = 6.0,
+        accepted_fps: tuple[int, ...] | None = None,
         duration_tolerance: float = 0.35,
         min_frames: int = 1,
     ) -> QualityReport:
@@ -83,7 +84,8 @@ class QualityEngine:
 
         checks: list[str] = ["size"]
         dimensions_ok = (width, height) == (expected_width, expected_height)
-        fps_ok = fps > 0 and abs(fps - selected_fps) <= 0.5
+        fps_targets = accepted_fps or (selected_fps,)
+        fps_ok = fps > 0 and any(abs(fps - target) <= 0.5 for target in fps_targets)
         duration_ok = expected_duration is None or (
             duration > 0 and abs(duration - expected_duration) <= duration_tolerance
         )
