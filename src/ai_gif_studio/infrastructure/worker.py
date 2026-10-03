@@ -17,7 +17,12 @@ from ai_gif_studio.database.repositories import (
     JobStepRepository,
     SqlAlchemyJobRepository,
 )
-from ai_gif_studio.domain.delivery_contract import DeliveryConfig, DeliveryState, SendDecision, decide_send
+from ai_gif_studio.domain.delivery_contract import (
+    DeliveryConfig,
+    DeliveryState,
+    SendDecision,
+    decide_send,
+)
 from ai_gif_studio.domain.job_queue import AtomicJobQueue
 from ai_gif_studio.domain.specs import ProcessingSettings
 from ai_gif_studio.engines.crop import CropOnlyEngine
