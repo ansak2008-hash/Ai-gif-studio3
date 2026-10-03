@@ -17,12 +17,12 @@ from ai_gif_studio.domain.delivery_contract import (
     mark_sent,
     next_state_on_reobserve,
 )
-from ai_gif_studio.infrastructure.recovery import RecoveryScheduler
 from ai_gif_studio.domain.recovery_contract import (
     QueuedSnapshot,
     RecoveryDispatchError,
     select_redispatch_candidates,
 )
+from ai_gif_studio.infrastructure.recovery import RecoveryScheduler
 
 pytestmark = pytest.mark.unit
 
@@ -145,18 +145,16 @@ async def test_recovery_dispatch_failure_keeps_cycle_recoverable() -> None:
 
 
 @pytest.mark.asyncio
-async def test_recovery_lock_serializes_cycle() -> None:
-    job_id = uuid4()
-    repository = FakeRecoveryRepository([job_id])
+async def test_recovery_lock_skips_when_another_cycle_holds_it() -> None:
+    repository = FakeRecoveryRepository([uuid4()])
     lock = FakeLock()
-    dispatched = []
+    lock.held = True
 
-    async def dispatch(value: str):
-        dispatched.append(value)
+    async def dispatch(_value: str):
+        raise AssertionError("dispatcher must not run without the lock")
 
-    first = await RecoveryScheduler(repository, dispatch, lock).run_once(datetime.now(UTC))
-    second = await RecoveryScheduler(repository, dispatch, lock).run_once(datetime.now(UTC))
+    report = await RecoveryScheduler(repository, dispatch, lock).run_once(datetime.now(UTC))
 
-    assert first.lock_acquired is True
-    assert second.lock_acquired is True
-    assert dispatched == [str(job_id), str(job_id)]
+    assert report.lock_acquired is False
+    assert report.redispatched == 0
+    assert lock.released == 0
