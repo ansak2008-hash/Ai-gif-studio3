@@ -31,7 +31,8 @@ def encode_gif(
         append_images=indexed[1:],
         duration=[int(d) * 10 for d in delays_cs],
         loop=0,
-        disposal=2,
+        # Frames are full-canvas images; retain the previous canvas until the next full frame.
+        disposal=1,
         optimize=False,
     )
     return hashlib.sha256(Path(output).read_bytes()).hexdigest()
