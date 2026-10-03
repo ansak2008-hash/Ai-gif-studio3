@@ -42,9 +42,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["artifact_id"], ["artifacts.artifact_id"]),
         sa.ForeignKeyConstraint(["job_id"], ["processing_jobs.id"]),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "job_id", "artifact_id", "channel", name="uq_delivery_log_identity"
-        ),
+        sa.UniqueConstraint("job_id", "artifact_id", "channel", name="uq_delivery_log_identity"),
     )
     op.create_index("ix_delivery_log_job_id", "delivery_log", ["job_id"])
     op.create_index("ix_delivery_log_artifact_id", "delivery_log", ["artifact_id"])
