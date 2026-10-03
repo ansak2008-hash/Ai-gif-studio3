@@ -4,9 +4,25 @@ import hashlib
 from pathlib import Path
 
 import numpy as np
+from PIL import GifImagePlugin, Image
 
 from .color_export import ExportColorSpec, linear_rgba_to_srgb_rgb
 from .palette import build_global_palette, quantize_frames_global
+
+
+def _write_gif_preserving_frames(
+    frames: list[Image.Image], delays_cs: tuple[int, ...], output: Path
+) -> None:
+    """Write indexed GIF frames without collapsing identical consecutive frames."""
+    first = frames[0]
+    header_info = {"loop": 0}
+    with output.open("wb") as fp:
+        for chunk in GifImagePlugin._get_global_header(first, header_info):
+            fp.write(chunk)
+        for frame, delay_cs in zip(frames, delays_cs):
+            params = {"duration": int(delay_cs) * 10, "disposal": 2}
+            GifImagePlugin._write_frame_data(fp, frame, (0, 0), params)
+        fp.write(b"\x3b")
 
 
 def encode_gif(
@@ -25,15 +41,7 @@ def encode_gif(
         raise ValueError("GIF delays must be >=1cs")
     palette = build_global_palette(frames, 256)
     indexed = quantize_frames_global(frames, palette)
-    indexed[0].save(
-        str(output),
-        save_all=True,
-        append_images=indexed[1:],
-        duration=[int(d) * 10 for d in delays_cs],
-        loop=0,
-        disposal=2,
-        optimize=False,
-    )
+    _write_gif_preserving_frames(indexed, delays_cs, Path(output))
     return hashlib.sha256(Path(output).read_bytes()).hexdigest()
 
 
