@@ -20,7 +20,6 @@ from ai_gif_studio.domain.project import ProjectState
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
 from ai_gif_studio.services.project_editor import ProjectEditor
 
-
 pytestmark = pytest.mark.unit
 
 
