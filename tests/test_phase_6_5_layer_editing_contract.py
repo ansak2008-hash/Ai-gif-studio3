@@ -119,7 +119,9 @@ def test_layer_property_commands_accept_contract_boundaries(command_factory, val
         assert changed.blend_mode is value
 
 
-@pytest.mark.parametrize("value", [True, False, math.nan, math.inf, -math.inf, -0.001, 1.001, "0.5"])
+@pytest.mark.parametrize(
+    "value", [True, False, math.nan, math.inf, -math.inf, -0.001, 1.001, "0.5"]
+)
 def test_opacity_command_rejects_invalid_values(value) -> None:
     with pytest.raises((TypeError, ValueError)):
         SetLayerOpacityCommand(uuid4(), value)
@@ -167,7 +169,9 @@ def test_duplicate_rejects_existing_identity_without_revision() -> None:
     second = _layer()
     editor = _editor(LayerStack().add(first).add(second))
     with pytest.raises(ValueError, match="duplicate layer_id"):
-        editor.execute(DuplicateLayerCommand(first.layer_id, second.layer_id), {"operation": "duplicate_layer"})
+        editor.execute(
+            DuplicateLayerCommand(first.layer_id, second.layer_id), {"operation": "duplicate_layer"}
+        )
     assert editor.revision_count == 1
 
 
