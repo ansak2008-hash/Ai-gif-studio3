@@ -25,10 +25,6 @@ class _Probe:
         raise self.error
 
 
-def _engine_raising(error: BaseException) -> QualityEngine:
-    return QualityEngine()
-
-
 @pytest.mark.parametrize(
     "error_type",
     [
@@ -45,7 +41,7 @@ async def test_expected_probe_errors_are_contained(
 ) -> None:
     path = tmp_path / "output.gif"
     path.write_bytes(b"gif")
-    engine = _engine_raising(error_type("boom"))
+    engine = QualityEngine()
 
     report = await engine.inspect(path, _Probe(error_type("boom")), max_bytes=100)
 
@@ -63,7 +59,7 @@ async def test_unexpected_probe_errors_propagate(
 ) -> None:
     path = tmp_path / "output.gif"
     path.write_bytes(b"gif")
-    engine = _engine_raising(error_type("bug"))
+    engine = QualityEngine()
 
     with pytest.raises(error_type):
         await engine.inspect(path, _Probe(error_type("bug")), max_bytes=100)
@@ -73,7 +69,7 @@ async def test_unexpected_probe_errors_propagate(
 async def test_cancellation_propagates(tmp_path: Path) -> None:
     path = tmp_path / "output.gif"
     path.write_bytes(b"gif")
-    engine = _engine_raising(asyncio.CancelledError())
+    engine = QualityEngine()
 
     with pytest.raises(asyncio.CancelledError):
         await engine.inspect(
@@ -87,7 +83,7 @@ async def test_cancellation_propagates(tmp_path: Path) -> None:
 async def test_environment_error_propagates(tmp_path: Path) -> None:
     path = tmp_path / "output.gif"
     path.write_bytes(b"gif")
-    engine = _engine_raising(RuntimeError("ffprobe binary not found"))
+    engine = QualityEngine()
 
     with pytest.raises(RuntimeError):
         await engine.inspect(
