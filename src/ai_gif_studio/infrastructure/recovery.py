@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from ai_gif_studio.configuration import AppSettings
 from ai_gif_studio.database import Database
 from ai_gif_studio.database.repositories import SqlAlchemyJobRepository
 from ai_gif_studio.domain.recovery_contract import (
