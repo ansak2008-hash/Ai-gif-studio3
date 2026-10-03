@@ -136,16 +136,16 @@ def test_visibility_command_rejects_non_boolean_values(value) -> None:
 def test_each_successful_layer_command_increments_revision_once() -> None:
     first = _layer()
     second = _layer()
-    editor = _editor(LayerStack().add(first).add(second))
     cases = (
-        RemoveLayerCommand(second.layer_id),
-        ReorderLayerCommand(0, 1),
-        SetLayerVisibilityCommand(first.layer_id, True),
-        SetLayerOpacityCommand(first.layer_id, 0.5),
-        SetLayerBlendModeCommand(first.layer_id, LayerBlendMode.MULTIPLY),
-        DuplicateLayerCommand(first.layer_id, uuid4()),
+        (LayerStack().add(first).add(second), RemoveLayerCommand(second.layer_id)),
+        (LayerStack().add(first).add(second), ReorderLayerCommand(0, 1)),
+        (LayerStack().add(first), SetLayerVisibilityCommand(first.layer_id, True)),
+        (LayerStack().add(first), SetLayerOpacityCommand(first.layer_id, 0.5)),
+        (LayerStack().add(first), SetLayerBlendModeCommand(first.layer_id, LayerBlendMode.MULTIPLY)),
+        (LayerStack().add(first), DuplicateLayerCommand(first.layer_id, uuid4())),
     )
-    for command in cases:
+    for stack, command in cases:
+        editor = _editor(stack)
         before = editor.revision_count
         editor.execute(command, {"operation": "layer_edit"})
         assert editor.revision_count == before + 1
