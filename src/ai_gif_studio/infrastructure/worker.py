@@ -17,7 +17,7 @@ from ai_gif_studio.database.repositories import (
     JobStepRepository,
     SqlAlchemyJobRepository,
 )
-from ai_gif_studio.domain.delivery_contract import DeliveryConfig, SendDecision, decide_send
+from ai_gif_studio.domain.delivery_contract import DeliveryConfig, DeliveryState, SendDecision, decide_send
 from ai_gif_studio.domain.job_queue import AtomicJobQueue
 from ai_gif_studio.domain.specs import ProcessingSettings
 from ai_gif_studio.engines.crop import CropOnlyEngine
@@ -146,7 +146,8 @@ async def process_job(ctx, job_id: str, **_):
             await delivery_log.mark_unknown(identity)
             raise RuntimeError("delivery outcome is unknown; manual resolution required")
         else:
-            await delivery_log.mark_terminal(identity, "delivery retry budget exhausted")
+            if record.state is DeliveryState.FAILED:
+                await delivery_log.mark_terminal(identity, "delivery retry budget exhausted")
             raise RuntimeError("delivery retries exhausted; manual resolution required")
         await step_repo.complete(active_step)
         await queue.complete(job.id, worker_id, claimed.version)
