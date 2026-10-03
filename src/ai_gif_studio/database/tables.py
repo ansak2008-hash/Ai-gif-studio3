@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
@@ -32,6 +32,26 @@ class ProcessingJobRecord(Base):
     source_message_id: Mapped[int | None] = mapped_column(Integer)
     mode: Mapped[str] = mapped_column(String(32), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+
+class DeliveryRecordModel(Base):
+    __tablename__ = "delivery_log"
+    __table_args__ = (
+        UniqueConstraint("job_id", "artifact_id", "channel", name="uq_delivery_log_identity"),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    job_id: Mapped[str] = mapped_column(String(36), ForeignKey("processing_jobs.id"), nullable=False, index=True)
+    artifact_id: Mapped[str] = mapped_column(String(36), ForeignKey("artifacts.artifact_id"), nullable=False, index=True)
+    channel: Mapped[str] = mapped_column(String(64), nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False)
+    external_ref: Mapped[str | None] = mapped_column(String(255))
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class ArtifactRecord(Base):
