@@ -8,9 +8,9 @@ from PIL import Image
 
 from ai_gif_studio.application.gif_analysis import analyze_gif_bytes
 from ai_gif_studio.configuration.render import RenderConfiguration
+from ai_gif_studio.database.repositories import ArtifactRepository
 from ai_gif_studio.domain.specs import ProcessingSettings
 from ai_gif_studio.quality_engine import QualityEngine
-from ai_gif_studio.database.repositories import ArtifactRepository
 
 pytestmark = pytest.mark.unit
 
