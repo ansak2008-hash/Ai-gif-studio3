@@ -20,6 +20,7 @@ from ai_gif_studio.domain.delivery_contract import (
 from ai_gif_studio.infrastructure.recovery import RecoveryScheduler
 from ai_gif_studio.domain.recovery_contract import (
     QueuedSnapshot,
+    RecoveryDispatchError,
     select_redispatch_candidates,
 )
 
@@ -111,14 +112,19 @@ class FakeLock:
         self.token = token
         self.acquired = 0
         self.released = 0
+        self.held = False
 
     async def try_acquire(self, ttl):
         self.acquired += 1
+        if self.held:
+            return None
+        self.held = True
         return self.token
 
     async def release(self, token):
         assert token == self.token
         self.released += 1
+        self.held = False
 
 
 @pytest.mark.asyncio
@@ -127,7 +133,7 @@ async def test_recovery_dispatch_failure_keeps_cycle_recoverable() -> None:
     repository = FakeRecoveryRepository([job_id])
 
     async def dispatch(_job_id: str):
-        raise RuntimeError("redis unavailable")
+        raise RecoveryDispatchError("redis unavailable")
 
     lock = FakeLock()
     report = await RecoveryScheduler(repository, dispatch, lock).run_once(datetime.now(UTC))
