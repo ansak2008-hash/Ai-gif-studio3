@@ -106,3 +106,4 @@ def test_quality_inspection_defaults_match_canonical_output() -> None:
     parameters = inspect.signature(QualityEngine.inspect).parameters
     assert parameters["selected_fps"].default == 30
     assert parameters["expected_duration"].default == 6.0
+
