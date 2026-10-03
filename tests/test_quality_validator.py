@@ -1,7 +1,14 @@
+from __future__ import annotations
+
+import io
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
+from ai_gif_studio.application.gif_analysis import GifAnalysisError
 from ai_gif_studio.domain.probe_errors import ProbeExecutionError
 from ai_gif_studio.engines.validator import OutputValidator
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
@@ -28,9 +35,6 @@ def test_rejects_empty_and_oversized_gif(tmp_path: Path):
 async def test_validates_real_gif_geometry(tmp_path: Path):
     src = tmp_path / "in.mp4"
     out = tmp_path / "out.gif"
-    import shutil
-    import subprocess
-
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
         pytest.skip("ffmpeg unavailable")
     subprocess.run(
@@ -64,8 +68,29 @@ async def test_validates_real_gif_geometry(tmp_path: Path):
         check=True,
     )
     validator = OutputValidator(FFmpegService(timeout=30))
-    assert await validator.validate_gif(out, 2_400_000, expected_fps=8, expected_duration=1.0, duration_tolerance=0.35)
+    assert await validator.validate_gif(
+        out,
+        2_400_000,
+        expected_fps=8,
+        expected_duration=1.0,
+        duration_tolerance=0.35,
+    )
 
+
+class _Probe:
+    async def probe(self, path: Path, *, count_frames: bool = False) -> dict:
+        return {
+            "format": {"duration": "1.0"},
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "width": 320,
+                    "height": 320,
+                    "avg_frame_rate": "2/1",
+                    "nb_read_frames": "2",
+                }
+            ],
+        }
 
 
 class _ProbeRaiser:
@@ -101,6 +126,50 @@ async def test_validator_does_not_translate_internal_value_error(tmp_path: Path)
             100,
             ffmpeg=_ProbeRaiser(ValueError("internal bug")),
         )
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validator_enforces_decoded_artifact_contract(tmp_path: Path) -> None:
+    output = tmp_path / "output.gif"
+    frames = [Image.new("RGB", (320, 320), color) for color in ((10, 20, 30), (30, 20, 10))]
+    buffer = io.BytesIO()
+    frames[0].save(
+        buffer,
+        format="GIF",
+        save_all=True,
+        append_images=frames[1:],
+        duration=[500, 500],
+        loop=0,
+        optimize=False,
+    )
+    output.write_bytes(buffer.getvalue())
+
+    validator = OutputValidator()
+    assert await validator.validate_gif(
+        output,
+        2_400_000,
+        ffmpeg=_Probe(),
+        expected_fps=2,
+        accepted_fps=(2,),
+        expected_duration=1.0,
+        duration_tolerance=0.05,
+    )
+    report = await validator.analyze_gif_artifact(output, 2_400_000)
+    assert report.duration_ms == 1000
+    assert report.effective_fps == pytest.approx(2.0)
+    assert report.max_palette_colors <= 256
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validator_rejects_corrupt_decoded_artifact(tmp_path: Path) -> None:
+    output = tmp_path / "output.gif"
+    output.write_bytes(b"GIF89a")
+    validator = OutputValidator()
+    with pytest.raises(GifAnalysisError):
+        await validator.analyze_gif_artifact(output, 2_400_000)
+
 
 def test_sha256_is_deterministic(tmp_path: Path):
     p = tmp_path / "artifact.gif"
