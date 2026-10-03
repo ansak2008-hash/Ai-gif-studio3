@@ -4,13 +4,11 @@ import io
 
 import pytest
 from PIL import Image
-
-pytestmark = pytest.mark.unit
-
 from ai_gif_studio.application.gif_analysis import analyze_gif_bytes
 from ai_gif_studio.configuration.render import RenderConfiguration
 from ai_gif_studio.domain.specs import ProcessingSettings
 from ai_gif_studio.quality_engine import QualityEngine
+pytestmark = pytest.mark.unit
 
 
 def _make_contract_gif(*, duration: int = 6000) -> bytes:
