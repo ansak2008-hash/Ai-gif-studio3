@@ -265,3 +265,125 @@ async def test_validator_rejects_decoded_frame_timing_outside_accepted_fps(tmp_p
         expected_duration=0.8,
         duration_tolerance=0.05,
     )
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validator_cross_checks_decoded_frame_count(tmp_path: Path) -> None:
+    output = tmp_path / "output.gif"
+    frames = [Image.new("RGB", (320, 320), color) for color in ((10, 20, 30), (30, 20, 10))]
+    buffer = io.BytesIO()
+    frames[0].save(
+        buffer,
+        format="GIF",
+        save_all=True,
+        append_images=frames[1:],
+        duration=[500, 500],
+        loop=0,
+        optimize=False,
+    )
+    output.write_bytes(buffer.getvalue())
+
+    class _FrameCountMismatchProbe:
+        async def probe(self, path: Path, *, count_frames: bool = False) -> dict:
+            return {
+                "format": {"duration": "1.0"},
+                "streams": [
+                    {
+                        "codec_type": "video",
+                        "width": 320,
+                        "height": 320,
+                        "avg_frame_rate": "2/1",
+                        "nb_read_frames": "3",
+                    }
+                ],
+            }
+
+    validator = OutputValidator()
+    assert not await validator.validate_gif(
+        output,
+        2_400_000,
+        ffmpeg=_FrameCountMismatchProbe(),
+        accepted_fps=(2,),
+        expected_fps=2,
+        expected_duration=1.0,
+        duration_tolerance=0.05,
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validator_rejects_geometry_outside_exact_contract(tmp_path: Path) -> None:
+    output = tmp_path / "output.gif"
+    frames = [Image.new("RGB", (320, 320), (10, 20, 30))]
+    buffer = io.BytesIO()
+    frames[0].save(buffer, format="GIF", duration=100, loop=0)
+    output.write_bytes(buffer.getvalue())
+
+    class _GeometryProbe:
+        async def probe(self, path: Path, *, count_frames: bool = False) -> dict:
+            return {
+                "format": {"duration": "0.1"},
+                "streams": [
+                    {
+                        "codec_type": "video",
+                        "width": 321,
+                        "height": 320,
+                        "avg_frame_rate": "10/1",
+                        "nb_read_frames": "1",
+                    }
+                ],
+            }
+
+    assert not await OutputValidator().validate_gif(
+        output,
+        2_400_000,
+        ffmpeg=_GeometryProbe(),
+        expected_fps=10,
+        accepted_fps=(10,),
+        expected_duration=0.1,
+        duration_tolerance=0.05,
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_validator_rejects_fps_outside_closed_accepted_ladder(tmp_path: Path) -> None:
+    output = tmp_path / "output.gif"
+    frames = [Image.new("RGB", (320, 320), (10, 20, 30)), Image.new("RGB", (320, 320), (30, 20, 10))]
+    buffer = io.BytesIO()
+    frames[0].save(
+        buffer,
+        format="GIF",
+        save_all=True,
+        append_images=frames[1:],
+        duration=[330, 330],
+        loop=0,
+        optimize=False,
+    )
+    output.write_bytes(buffer.getvalue())
+
+    class _ClosedLadderProbe:
+        async def probe(self, path: Path, *, count_frames: bool = False) -> dict:
+            return {
+                "format": {"duration": "0.66"},
+                "streams": [
+                    {
+                        "codec_type": "video",
+                        "width": 320,
+                        "height": 320,
+                        "avg_frame_rate": "30/1",
+                        "nb_read_frames": "2",
+                    }
+                ],
+            }
+
+    assert not await OutputValidator().validate_gif(
+        output,
+        2_400_000,
+        ffmpeg=_ClosedLadderProbe(),
+        expected_fps=30,
+        accepted_fps=(30, 27, 24, 20, 18, 15),
+        expected_duration=0.66,
+        duration_tolerance=0.05,
+    )
