@@ -141,7 +141,10 @@ def test_each_successful_layer_command_increments_revision_once() -> None:
         (LayerStack().add(first).add(second), ReorderLayerCommand(0, 1)),
         (LayerStack().add(first), SetLayerVisibilityCommand(first.layer_id, True)),
         (LayerStack().add(first), SetLayerOpacityCommand(first.layer_id, 0.5)),
-        (LayerStack().add(first), SetLayerBlendModeCommand(first.layer_id, LayerBlendMode.MULTIPLY)),
+        (
+            LayerStack().add(first),
+            SetLayerBlendModeCommand(first.layer_id, LayerBlendMode.MULTIPLY),
+        ),
         (LayerStack().add(first), DuplicateLayerCommand(first.layer_id, uuid4())),
     )
     for stack, command in cases:
