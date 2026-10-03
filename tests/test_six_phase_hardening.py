@@ -29,7 +29,7 @@ def test_motion_is_deterministic():
 
 
 def test_quality_ladder_descends():
-    assert QualityEngine().ladder(20) == (20, 16, 12, 10, 8, 6)
+    assert QualityEngine().ladder(20) == (20, 18, 15)
 
 
 @pytest.mark.asyncio
