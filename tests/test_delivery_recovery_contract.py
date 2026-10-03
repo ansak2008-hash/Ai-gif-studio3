@@ -17,6 +17,7 @@ from ai_gif_studio.domain.delivery_contract import (
     mark_sent,
     next_state_on_reobserve,
 )
+from ai_gif_studio.infrastructure.recovery import RecoveryScheduler
 from ai_gif_studio.domain.recovery_contract import (
     QueuedSnapshot,
     select_redispatch_candidates,
@@ -91,3 +92,65 @@ def test_fresh_queued_job_is_not_selected() -> None:
         timedelta(seconds=10),
         50,
     ) == []
+
+
+class FakeRecoveryRepository:
+    def __init__(self, stale_ids):
+        self.stale_ids = stale_ids
+        self.recovered = []
+
+    async def recover_expired_processing(self, now, max_attempts):
+        return self.recovered
+
+    async def get_stale_queued(self, cutoff, limit):
+        return [(job_id, cutoff - timedelta(seconds=1)) for job_id in self.stale_ids[:limit]]
+
+
+class FakeLock:
+    def __init__(self, token="lock-token"):
+        self.token = token
+        self.acquired = 0
+        self.released = 0
+
+    async def try_acquire(self, ttl):
+        self.acquired += 1
+        return self.token
+
+    async def release(self, token):
+        assert token == self.token
+        self.released += 1
+
+
+@pytest.mark.asyncio
+async def test_recovery_dispatch_failure_keeps_cycle_recoverable() -> None:
+    job_id = uuid4()
+    repository = FakeRecoveryRepository([job_id])
+
+    async def dispatch(_job_id: str):
+        raise RuntimeError("redis unavailable")
+
+    lock = FakeLock()
+    report = await RecoveryScheduler(repository, dispatch, lock).run_once(datetime.now(UTC))
+
+    assert report.lock_acquired is True
+    assert report.redispatched == 0
+    assert report.dispatch_failures == 1
+    assert lock.released == 1
+
+
+@pytest.mark.asyncio
+async def test_recovery_lock_serializes_cycle() -> None:
+    job_id = uuid4()
+    repository = FakeRecoveryRepository([job_id])
+    lock = FakeLock()
+    dispatched = []
+
+    async def dispatch(value: str):
+        dispatched.append(value)
+
+    first = await RecoveryScheduler(repository, dispatch, lock).run_once(datetime.now(UTC))
+    second = await RecoveryScheduler(repository, dispatch, lock).run_once(datetime.now(UTC))
+
+    assert first.lock_acquired is True
+    assert second.lock_acquired is True
+    assert dispatched == [str(job_id), str(job_id)]
