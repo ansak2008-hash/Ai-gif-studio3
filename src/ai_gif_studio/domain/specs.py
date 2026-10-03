@@ -100,7 +100,7 @@ class ProcessingSettings(BaseModel):
     schema_version: int = PROCESSING_SETTINGS_VERSION
     fps: int = Field(30, ge=1, le=30)
     max_duration_seconds: float = Field(6.0, gt=0, le=6.0)
-    max_bytes: int = Field(2_400_000, gt=0)
+    max_bytes: int = Field(2_400_000, gt=0, le=2_400_000)
     encoder: str = "ffmpeg-gif"
     palette_colors: int = Field(256, ge=2, le=256)
     resource_timeout_seconds: int = Field(120, gt=0, le=600)
