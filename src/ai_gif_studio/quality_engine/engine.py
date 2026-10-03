@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from ai_gif_studio.configuration.render import DEFAULT_FPS_LADDER
+from ai_gif_studio.domain.probe_errors import ProbeError
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,8 +54,19 @@ class QualityEngine:
             return QualityReport(False, size, 0, 0, 0.0, 0.0, 0, size / max_bytes, selected_fps, ("size",))
         try:
             probe = await ffmpeg.probe(path, count_frames=True)
-        except Exception:
-            return QualityReport(False, size, 0, 0, 0.0, 0.0, 0, size / max_bytes, selected_fps, ("probe",))
+        except ProbeError as exc:
+            return QualityReport(
+                False,
+                size,
+                0,
+                0,
+                0.0,
+                0.0,
+                0,
+                size / max_bytes,
+                selected_fps,
+                (f"probe:{type(exc).__name__}",),
+            )
         stream = next((item for item in probe.get("streams", []) if item.get("codec_type") == "video"), None)
         if stream is None:
             return QualityReport(False, size, 0, 0, 0.0, 0.0, 0, size / max_bytes, selected_fps, ("no_video",))
