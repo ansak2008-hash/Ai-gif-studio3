@@ -150,8 +150,11 @@ async def process_job(ctx, job_id: str, **_):
                 ) from error
             await delivery_log.mark_sent(identity, str(message.message_id))
         elif decision is SendDecision.HOLD_UNKNOWN:
-            await delivery_log.mark_unknown(identity)
-            raise RuntimeError("delivery outcome is unknown; manual resolution required")
+            # UNKNOWN is terminal for automatic delivery. Do not mutate the
+            # durable state or raise into the job retry boundary.
+            await step_repo.complete(active_step)
+            await queue.complete(job.id, worker_id, claimed.version)
+            return
         else:
             if record.state is DeliveryState.FAILED:
                 await delivery_log.mark_terminal(identity, "delivery retry budget exhausted")
