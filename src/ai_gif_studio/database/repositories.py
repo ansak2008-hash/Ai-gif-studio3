@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from ai_gif_studio.domain.artifact import make_artifact_id
+from ai_gif_studio.domain.delivery_contract import DeliveryIdentity, DeliveryRecord, DeliveryState
 from ai_gif_studio.domain.specs import DesignSpec, ProcessingSettings
 from ai_gif_studio.models import (
     JobStatus,
@@ -23,6 +24,7 @@ from ai_gif_studio.models import (
 
 from .tables import (
     ArtifactRecord,
+    DeliveryRecordModel,
     DesignSpecRecord,
     JobStepRecord,
     ProcessingJobRecord,
@@ -59,6 +61,8 @@ class JobRepository(Protocol):
         self, now: datetime, max_attempts: int
     ) -> list[UUID]: ...
 
+    async def get_stale_queued(self, cutoff: datetime, limit: int) -> list[tuple[UUID, datetime]]: ...
+
     async def set_status(self, job_id: UUID, status: str, expected_status: str | None = None) -> bool: ...
     async def get_design_spec(self, job_id: UUID) -> DesignSpec: ...
     async def save_design_spec(self, job_id: UUID, spec: DesignSpec) -> None: ...
@@ -83,6 +87,7 @@ class SqlAlchemyJobRepository:
                     version=ProcessingJobRecord.version + 1,
                     owner_id=None,
                     lease_expires_at=None,
+                    updated_at=datetime.now(UTC),
                 )
             )
             await session.commit()
@@ -99,6 +104,7 @@ class SqlAlchemyJobRepository:
                 .values(
                     status=JobStatus.CREATED.value,
                     version=ProcessingJobRecord.version + 1,
+                    updated_at=datetime.now(UTC),
                 )
             )
             await session.commit()
@@ -120,6 +126,7 @@ class SqlAlchemyJobRepository:
                     lease_expires_at=lease_expires_at,
                     attempt=ProcessingJobRecord.attempt + 1,
                     version=ProcessingJobRecord.version + 1,
+                    updated_at=datetime.now(UTC),
                 )
                 .returning(
                     ProcessingJobRecord.version,
@@ -154,6 +161,7 @@ class SqlAlchemyJobRepository:
                     owner_id=None,
                     lease_expires_at=None,
                     version=ProcessingJobRecord.version + 1,
+                    updated_at=datetime.now(UTC),
                 )
             )
             await session.commit()
@@ -178,6 +186,7 @@ class SqlAlchemyJobRepository:
                     owner_id=None,
                     lease_expires_at=None,
                     version=ProcessingJobRecord.version + 1,
+                    updated_at=datetime.now(UTC),
                 )
             )
             await session.commit()
@@ -202,6 +211,7 @@ class SqlAlchemyJobRepository:
                     owner_id=None,
                     lease_expires_at=None,
                     version=ProcessingJobRecord.version + 1,
+                    updated_at=datetime.now(UTC),
                 )
             )
             await session.commit()
@@ -237,6 +247,7 @@ class SqlAlchemyJobRepository:
                         owner_id=None,
                         lease_expires_at=None,
                         version=ProcessingJobRecord.version + 1,
+                        updated_at=now,
                     )
                 )
                 if result.rowcount:
@@ -249,6 +260,22 @@ class SqlAlchemyJobRepository:
             await session.commit()
             return recovered
 
+    async def get_stale_queued(self, cutoff: datetime, limit: int) -> list[tuple[UUID, datetime]]:
+        if limit < 1:
+            return []
+        async with self._session_factory() as session:
+            rows = (
+                await session.execute(
+                    select(ProcessingJobRecord.id, ProcessingJobRecord.updated_at)
+                    .where(
+                        ProcessingJobRecord.status == JobStatus.QUEUED.value,
+                        ProcessingJobRecord.updated_at <= cutoff,
+                    )
+                    .order_by(ProcessingJobRecord.updated_at.asc(), ProcessingJobRecord.id.asc())
+                    .limit(limit)
+                )
+            ).all()
+        return [(UUID(row.id), row.updated_at) for row in rows]
     async def create(self, submission: VideoSubmission) -> ProcessingJob:
         job = ProcessingJob(id=uuid4(), status=JobStatus.CREATED, submission=submission, created_at=datetime.now(UTC))
         record = ProcessingJobRecord(
@@ -257,6 +284,7 @@ class SqlAlchemyJobRepository:
             file_size_bytes=submission.file_size_bytes, submitted_by=submission.submitted_by,
             source_message_id=submission.source_message_id, mode=submission.mode.value,
             created_at=job.created_at,
+            updated_at=job.created_at,
         )
         spec, settings = DesignSpec(), ProcessingSettings()
         async with self._session_factory() as session:
@@ -415,6 +443,70 @@ class SqlAlchemyJobRepository:
                 row.schema_version, row.document = settings.schema_version, settings.model_dump(mode="json")
             await session.commit()
 
+
+class SqlAlchemyDeliveryLog:
+    def __init__(self, session_factory: async_sessionmaker) -> None:
+        self._session_factory = session_factory
+
+    @staticmethod
+    def _to_domain(row: DeliveryRecordModel) -> DeliveryRecord:
+        return DeliveryRecord(DeliveryIdentity(UUID(row.job_id), UUID(row.artifact_id), row.channel), DeliveryState(row.state), row.attempt, external_ref=row.external_ref, error=row.error)
+
+    async def get(self, identity: DeliveryIdentity) -> DeliveryRecord | None:
+        async with self._session_factory() as session:
+            row = await session.scalar(select(DeliveryRecordModel).where(DeliveryRecordModel.job_id == str(identity.job_id), DeliveryRecordModel.artifact_id == str(identity.artifact_id), DeliveryRecordModel.channel == identity.channel))
+        return None if row is None else self._to_domain(row)
+
+    async def begin_delivery(self, identity: DeliveryIdentity) -> DeliveryRecord:
+        now = datetime.now(UTC)
+        async with self._session_factory() as session:
+            row = DeliveryRecordModel(job_id=str(identity.job_id), artifact_id=str(identity.artifact_id), channel=identity.channel, state=DeliveryState.INTENT.value, attempt=1, created_at=now, updated_at=now)
+            session.add(row)
+            try:
+                await session.commit()
+            except IntegrityError:
+                await session.rollback()
+                existing = await session.scalar(select(DeliveryRecordModel).where(DeliveryRecordModel.job_id == str(identity.job_id), DeliveryRecordModel.artifact_id == str(identity.artifact_id), DeliveryRecordModel.channel == identity.channel))
+                if existing is None:
+                    raise
+                return self._to_domain(existing)
+            await session.refresh(row)
+            return self._to_domain(row)
+
+    async def begin_retry(self, identity: DeliveryIdentity, max_attempts: int) -> DeliveryRecord | None:
+        async with self._session_factory() as session:
+            row = await session.scalar(select(DeliveryRecordModel).where(DeliveryRecordModel.job_id == str(identity.job_id), DeliveryRecordModel.artifact_id == str(identity.artifact_id), DeliveryRecordModel.channel == identity.channel))
+            if row is None or row.state != DeliveryState.FAILED.value or row.attempt >= max_attempts:
+                return None
+            row.state = DeliveryState.INTENT.value
+            row.attempt += 1
+            row.error = None
+            row.updated_at = datetime.now(UTC)
+            await session.commit()
+            return self._to_domain(row)
+
+    async def _transition(self, identity: DeliveryIdentity, state: DeliveryState, external_ref: str | None = None, error: str | None = None) -> DeliveryRecord:
+        async with self._session_factory() as session:
+            row = await session.scalar(select(DeliveryRecordModel).where(DeliveryRecordModel.job_id == str(identity.job_id), DeliveryRecordModel.artifact_id == str(identity.artifact_id), DeliveryRecordModel.channel == identity.channel))
+            if row is None:
+                raise KeyError('delivery identity not found')
+            if row.state != DeliveryState.INTENT.value:
+                raise ValueError(f'illegal delivery transition from {row.state}')
+            row.state, row.external_ref, row.error, row.updated_at = state.value, external_ref, error, datetime.now(UTC)
+            await session.commit()
+            return self._to_domain(row)
+
+    async def mark_sent(self, identity: DeliveryIdentity, external_ref: str) -> DeliveryRecord:
+        return await self._transition(identity, DeliveryState.SENT, external_ref=external_ref)
+
+    async def mark_failed(self, identity: DeliveryIdentity, error: str) -> DeliveryRecord:
+        return await self._transition(identity, DeliveryState.FAILED, error=error)
+
+    async def mark_unknown(self, identity: DeliveryIdentity) -> DeliveryRecord:
+        return await self._transition(identity, DeliveryState.UNKNOWN, error='prior send outcome unknowable; manual resolution required')
+
+    async def mark_terminal(self, identity: DeliveryIdentity, error: str) -> DeliveryRecord:
+        return await self._transition(identity, DeliveryState.TERMINAL, error=error)
 
 class JobStepRepository:
     def __init__(self, session_factory: async_sessionmaker) -> None:
