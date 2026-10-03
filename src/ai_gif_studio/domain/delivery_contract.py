@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 from uuid import UUID
 
 
@@ -50,7 +50,7 @@ class DeliveryRecord:
     identity: DeliveryIdentity
     state: DeliveryState
     attempt: int
-    external_ref: Optional[str] = None
+    external_ref: str | None = None
     error: Optional[str] = None
 
     def __post_init__(self) -> None:
@@ -83,7 +83,7 @@ def mark_failed(rec: DeliveryRecord, error: str) -> DeliveryRecord:
 
 
 def decide_send(
-    rec: Optional[DeliveryRecord],
+    rec: DeliveryRecord | None,
     config: DeliveryConfig,
 ) -> SendDecision:
     if rec is None:
