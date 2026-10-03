@@ -20,13 +20,13 @@ from ai_gif_studio.domain.delivery_contract import (
     mark_sent,
     next_state_on_reobserve,
 )
+from ai_gif_studio.database.repositories import SqlAlchemyDeliveryLog
+from ai_gif_studio.database.tables import ArtifactRecord, Base, ProcessingJobRecord
 from ai_gif_studio.domain.recovery_contract import (
     QueuedSnapshot,
     RecoveryDispatchError,
     select_redispatch_candidates,
 )
-from ai_gif_studio.database.repositories import SqlAlchemyDeliveryLog
-from ai_gif_studio.database.tables import ArtifactRecord, Base, ProcessingJobRecord
 from ai_gif_studio.infrastructure.recovery import RecoveryScheduler
 
 pytestmark = pytest.mark.unit
@@ -109,7 +109,10 @@ class FakeRecoveryRepository:
         return self.recovered
 
     async def get_stale_queued(self, cutoff, limit):
-        return [(job_id, cutoff - timedelta(seconds=1)) for job_id in self.stale_ids[:limit]]
+        return [
+            (job_id, cutoff - timedelta(seconds=1))
+            for job_id in self.stale_ids[:limit]
+        ]
 
 
 class FakeLock:
@@ -141,7 +144,9 @@ async def test_recovery_dispatch_failure_keeps_cycle_recoverable() -> None:
         raise RecoveryDispatchError("redis unavailable")
 
     lock = FakeLock()
-    report = await RecoveryScheduler(repository, dispatch, lock).run_once(datetime.now(UTC))
+    report = await RecoveryScheduler(
+        repository, dispatch, lock
+    ).run_once(datetime.now(UTC))
 
     assert report.lock_acquired is True
     assert report.redispatched == 0
@@ -189,7 +194,9 @@ async def test_repeated_scan_retries_stale_queued_job() -> None:
 
 @pytest.mark.asyncio
 async def test_delivery_log_atomic_identity(tmp_path) -> None:
-    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'delivery.db'}")
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{tmp_path / 'delivery.db'}"
+    )
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     job_id, artifact_id = uuid4(), uuid4()
     now = datetime.now(UTC)
