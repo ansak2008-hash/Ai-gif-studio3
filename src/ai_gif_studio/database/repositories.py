@@ -378,7 +378,7 @@ class SqlAlchemyJobRepository:
                     ProcessingJobRecord.id == str(job_id),
                     ProcessingJobRecord.status == current,
                 )
-                .values(status=target.value)
+                .values(status=target.value, updated_at=datetime.now(UTC))
             )
             await session.commit()
         return result.rowcount == 1
