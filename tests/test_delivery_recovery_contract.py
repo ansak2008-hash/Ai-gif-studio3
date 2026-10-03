@@ -158,3 +158,25 @@ async def test_recovery_lock_skips_when_another_cycle_holds_it() -> None:
     assert report.lock_acquired is False
     assert report.redispatched == 0
     assert lock.released == 0
+
+
+@pytest.mark.asyncio
+async def test_repeated_scan_retries_stale_queued_job() -> None:
+    job_id = uuid4()
+    repository = FakeRecoveryRepository([job_id])
+    lock = FakeLock()
+    attempts = 0
+
+    async def dispatch(_job_id: str):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise RecoveryDispatchError("temporary redis outage")
+
+    scheduler = RecoveryScheduler(repository, dispatch, lock)
+    first = await scheduler.run_once(datetime.now(UTC))
+    second = await scheduler.run_once(datetime.now(UTC))
+
+    assert first.dispatch_failures == 1
+    assert second.redispatched == 1
+    assert attempts == 2
