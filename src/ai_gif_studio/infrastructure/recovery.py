@@ -16,6 +16,7 @@ from ai_gif_studio.domain.recovery_contract import (
     RecoverySchedulerPort,
 )
 from ai_gif_studio.infrastructure.queue import ArqQueue
+from redis.exceptions import RedisError
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class ArqRecoveryDispatcher:
     async def __call__(self, job_id: str) -> None:
         try:
             await self._queue.enqueue_job(job_id)
-        except Exception as error:
+        except RedisError as error:
             raise RecoveryDispatchError(f"dispatch failed for job {job_id}") from error
 
 
