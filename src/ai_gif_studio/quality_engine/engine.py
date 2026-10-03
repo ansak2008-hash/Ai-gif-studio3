@@ -43,8 +43,8 @@ class QualityEngine:
         max_bytes: int,
         expected_width: int = 320,
         expected_height: int = 320,
-        selected_fps: int = 20,
-        expected_duration: float | None = None,
+        selected_fps: int = 30,
+        expected_duration: float | None = 6.0,
         duration_tolerance: float = 0.35,
         min_frames: int = 1,
     ) -> QualityReport:
