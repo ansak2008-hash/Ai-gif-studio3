@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import io
 
-from PIL import Image
 import pytest
+from PIL import Image
 
 from ai_gif_studio.application.gif_analysis import analyze_gif_bytes
 from ai_gif_studio.configuration.render import RenderConfiguration
 from ai_gif_studio.domain.specs import ProcessingSettings
 from ai_gif_studio.quality_engine import QualityEngine
-
 
 pytestmark = pytest.mark.unit
 
