@@ -53,11 +53,14 @@ async def process_job(ctx, job_id: str, **_):
     steps = ("download", "probe", "render", "quality", "artifact_register", "delivery")
     active_step = None
     failure_reason = "internal_error"
+    failure_stage = "job"
     try:
+        failure_stage = "download"
         active_step = await step_repo.start(job.id, steps[0])
         await bot.download(job.submission.telegram_file_id, destination=source)
         await step_repo.complete(active_step)
 
+        failure_stage = "probe"
         active_step = await step_repo.start(job.id, steps[1])
         ff = FFmpegService(settings.ffmpeg_binary, settings.ffprobe_binary, settings.worker_timeout_seconds)
         probe = await ff.probe(source)
@@ -76,6 +79,7 @@ async def process_job(ctx, job_id: str, **_):
         await repo.save_processing_settings(job.id, processing)
         design = await repo.get_design_spec(job.id)
 
+        failure_stage = "render"
         active_step = await step_repo.start(job.id, steps[2])
         if job.submission.mode.value == "designed":
             await DesignGifEngine(ff).convert(source, output, design, processing)
@@ -83,6 +87,7 @@ async def process_job(ctx, job_id: str, **_):
             await CropOnlyEngine(ff).convert(source, output, processing)
         await step_repo.complete(active_step)
 
+        failure_stage = "quality_inspect"
         active_step = await step_repo.start(job.id, steps[3])
         from ai_gif_studio.quality_engine import QualityEngine
         report = await QualityEngine().inspect(output, ff, processing.max_bytes, selected_fps=processing.fps)
@@ -91,6 +96,7 @@ async def process_job(ctx, job_id: str, **_):
             raise ValueError(f"quality gate failed: {report.as_dict()}")
         await step_repo.complete(active_step)
 
+        failure_stage = "artifact_register"
         active_step = await step_repo.start(job.id, steps[4])
         if not await OutputValidator(ff).validate_gif(output, max_bytes=processing.max_bytes, ffmpeg=ff):
             raise ValueError("rendered GIF failed output validation")
@@ -107,14 +113,21 @@ async def process_job(ctx, job_id: str, **_):
         )
         await step_repo.complete(active_step)
 
+        failure_stage = "delivery"
         active_step = await step_repo.start(job.id, steps[5])
         await bot.send_document(job.submission.submitted_by, FSInputFile(output))
         await step_repo.complete(active_step)
         await queue.complete(job.id, worker_id, claimed.version)
+    # Intentional job-boundary containment: classify and persist every terminal job failure.
     except Exception as error:
         failure = f"{failure_reason}: {error}"
         if failure_reason == "internal_error":
-            logger.exception("internal error during job processing job_id=%s", job_id)
+            logger.error(
+                "INTERNAL_ERROR job=%s stage=%s",
+                job_id,
+                failure_stage,
+                exc_info=True,
+            )
         if active_step is not None:
             await step_repo.fail(active_step, failure, max(0, int(ctx.get("job_try", 1)) - 1))
         job_try = int(ctx.get("job_try", 1))
