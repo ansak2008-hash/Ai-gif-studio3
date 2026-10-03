@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+from ai_gif_studio.domain.probe_errors import ProbeError
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 
 
@@ -38,7 +39,7 @@ class OutputValidator:
             raise ValueError("FFmpegService is required for media validation")
         try:
             probe = await service.probe(path, count_frames=True)
-        except Exception:
+        except ProbeError:
             return False
         stream = next((x for x in probe.get("streams", []) if x.get("codec_type") == "video"), None)
         if stream is None or int(stream.get("width", 0)) != width or int(stream.get("height", 0)) != height:
