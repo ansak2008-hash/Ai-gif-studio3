@@ -7,7 +7,6 @@ import pytest
 from ai_gif_studio.domain.specs import ProcessingSettings
 from ai_gif_studio.engines.crop import CropOnlyEngine
 
-
 pytestmark = pytest.mark.unit
 
 
