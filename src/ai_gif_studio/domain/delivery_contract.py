@@ -108,6 +108,12 @@ def begin_retry(
     return DeliveryRecord(rec.identity, DeliveryState.INTENT, rec.attempt + 1)
 
 
+def mark_terminal(rec: DeliveryRecord, error: str) -> DeliveryRecord:
+    if rec.state is not DeliveryState.FAILED:
+        raise ValueError("only FAILED may transition to TERMINAL")
+    return DeliveryRecord(rec.identity, DeliveryState.TERMINAL, rec.attempt, error=error)
+
+
 def next_state_on_reobserve(rec: DeliveryRecord) -> DeliveryRecord:
     if rec.state is DeliveryState.INTENT:
         return DeliveryRecord(
