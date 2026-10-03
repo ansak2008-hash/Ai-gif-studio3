@@ -31,10 +31,8 @@ class QualityEngine:
         max_bytes: int = 2_400_000,
     ) -> tuple[int, ...]:
         del current_size, max_bytes
-        lower_or_equal = tuple(fps for fps in DEFAULT_FPS_LADDER if fps <= preferred)
-        if lower_or_equal:
-            return lower_or_equal
-        return (preferred,)
+        lower_or_equal = tuple(fps for fps in DEFAULT_FPS_LADDER if fps < preferred)
+        return (preferred, *lower_or_equal)
 
     async def inspect(
         self,
