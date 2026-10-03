@@ -43,11 +43,11 @@ def quantize_frames_global(
     colors = sorted(palette.palette.colors.items(), key=lambda item: item[1])
     if not colors:
         raise ValueError("palette must contain an RGB color table")
-    pal = np.asarray([color for color, _index in colors], dtype=np.int16)
+    pal = np.asarray([color for color, _index in colors], dtype=np.int32)
     result = []
     for frame in frames:
         rgb = np.asarray(frame, dtype=np.uint8)
-        flat = rgb.reshape(-1, 3).astype(np.int16)
+        flat = rgb.reshape(-1, 3).astype(np.int32)
         idx = np.empty(len(flat), np.uint8)
         for start in range(0, len(flat), 16384):
             block = flat[start : start + 16384]
