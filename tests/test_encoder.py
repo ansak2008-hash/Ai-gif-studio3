@@ -48,5 +48,6 @@ def test_encode_gif_preserves_canonical_six_second_30fps_timing(tmp_path):
     assert report.duration_ms == 6000
     assert report.effective_fps == pytest.approx(30.0)
     assert report.max_palette_colors <= 256
+    assert report.duration_histogram[0][0] >= 30
     assert report.duration_min_ms >= 10
     assert report.duration_max_ms <= 40
