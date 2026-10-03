@@ -1,18 +1,23 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import logging
 from uuid import uuid4
 
 from ai_gif_studio.configuration import AppSettings
 from ai_gif_studio.database import Database
 from ai_gif_studio.database.repositories import SqlAlchemyJobRepository
+from ai_gif_studio.domain.job_queue import QueueConfig
 from ai_gif_studio.domain.recovery_contract import (
     RecoveryConfig,
+    RecoveryDispatchError,
     RecoveryLockPort,
     RecoveryReport,
     RecoverySchedulerPort,
 )
 from ai_gif_studio.infrastructure.queue import ArqQueue
+
+logger = logging.getLogger(__name__)
 
 
 class RedisRecoveryLock(RecoveryLockPort):
@@ -40,6 +45,17 @@ class RedisRecoveryLock(RecoveryLockPort):
         )
 
 
+class ArqRecoveryDispatcher:
+    def __init__(self, queue: ArqQueue) -> None:
+        self._queue = queue
+
+    async def __call__(self, job_id: str) -> None:
+        try:
+            await self._queue.enqueue_job(job_id)
+        except Exception as error:
+            raise RecoveryDispatchError(f"dispatch failed for job {job_id}") from error
+
+
 class RecoveryScheduler(RecoverySchedulerPort):
     def __init__(
         self,
@@ -64,7 +80,7 @@ class RecoveryScheduler(RecoverySchedulerPort):
         failures = 0
         try:
             recovered_ids = await self._repository.recover_expired_processing(
-                now, max_attempts=3
+                now, max_attempts=QueueConfig().max_attempts
             )
             recovered = len(recovered_ids)
             snapshots = await self._repository.get_stale_queued(
@@ -74,7 +90,7 @@ class RecoveryScheduler(RecoverySchedulerPort):
             for job_id, _updated_at in snapshots:
                 try:
                     await self._dispatcher(str(job_id))
-                except Exception:
+                except RecoveryDispatchError:
                     failures += 1
                     continue
                 redispatched += 1
@@ -91,10 +107,17 @@ async def recover_jobs(ctx) -> None:
     try:
         scheduler = RecoveryScheduler(
             SqlAlchemyJobRepository(db.session_factory),
-            queue.enqueue_job,
+            ArqRecoveryDispatcher(queue),
             RedisRecoveryLock(ctx["redis"]),
         )
-        await scheduler.run_once(datetime.now(UTC))
+        report = await scheduler.run_once(datetime.now(UTC))
+        failure_key = "ai-gif-studio:recovery:consecutive-dispatch-failures"
+        if report.dispatch_failures and not report.redispatched:
+            failures = await ctx["redis"].incr(failure_key)
+            if failures >= RecoveryConfig().max_consecutive_dispatch_failures:
+                logger.warning("recovery dispatch failures reached threshold: %s", failures)
+        elif report.redispatched:
+            await ctx["redis"].delete(failure_key)
     finally:
         await queue.close()
         await db.dispose()
