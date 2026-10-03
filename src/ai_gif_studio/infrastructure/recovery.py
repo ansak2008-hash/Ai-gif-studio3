@@ -18,6 +18,7 @@ from ai_gif_studio.domain.recovery_contract import (
     RecoverySchedulerPort,
 )
 from ai_gif_studio.infrastructure.queue import ArqQueue
+
 logger = logging.getLogger(__name__)
 
 
