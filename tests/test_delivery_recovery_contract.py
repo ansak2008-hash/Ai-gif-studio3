@@ -165,9 +165,7 @@ async def test_recovery_dispatch_failure_keeps_cycle_recoverable() -> None:
         raise RecoveryDispatchError("redis unavailable")
 
     lock = FakeLock()
-    report = await RecoveryScheduler(
-        repository, dispatch, lock
-    ).run_once(datetime.now(UTC))
+    report = await RecoveryScheduler(repository, dispatch, lock).run_once(datetime.now(UTC))
 
     assert report.lock_acquired is True
     assert report.redispatched == 0
@@ -215,9 +213,7 @@ async def test_repeated_scan_retries_stale_queued_job() -> None:
 
 @pytest.mark.asyncio
 async def test_delivery_log_atomic_identity(tmp_path) -> None:
-    engine = create_async_engine(
-        f"sqlite+aiosqlite:///{tmp_path / 'delivery.db'}"
-    )
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'delivery.db'}")
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     job_id, artifact_id = uuid4(), uuid4()
     now = datetime.now(UTC)
