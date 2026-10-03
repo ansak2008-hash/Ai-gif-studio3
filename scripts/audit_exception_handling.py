@@ -37,9 +37,10 @@ def main() -> int:
             (node.lineno, handler_kind(node))
             for node in ast.walk(tree)
             if isinstance(node, ast.ExceptHandler)
-            and (node.type is None or any(
-                broad in handler_kind(node) for broad in {"Exception", "BaseException"}
-            ))
+            and (
+                node.type is None
+                or any(broad in handler_kind(node) for broad in {"Exception", "BaseException"})
+            )
         ]
         if len(found) > allowed:
             for line, kind in found:
