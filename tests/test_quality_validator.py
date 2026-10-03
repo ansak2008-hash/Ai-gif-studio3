@@ -10,7 +10,7 @@ from PIL import Image
 
 from ai_gif_studio.application.gif_analysis import GifAnalysisError
 from ai_gif_studio.domain.probe_errors import ProbeExecutionError
-from ai_gif_studio.engines.validator import OutputValidator
+from ai_gif_studio.engines.validator import OutputValidator, preflight_gif_budget
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 
 
@@ -387,3 +387,42 @@ async def test_validator_rejects_fps_outside_closed_accepted_ladder(tmp_path: Pa
         expected_duration=0.66,
         duration_tolerance=0.05,
     )
+
+
+def _gif_header(width: int, height: int, magic: bytes = b"GIF89a") -> bytes:
+    return magic + width.to_bytes(2, "little") + height.to_bytes(2, "little") + b"\x00\x00\x00"
+
+
+@pytest.mark.unit
+def test_gif_preflight_rejects_truncated_header() -> None:
+    with pytest.raises(GifAnalysisError):
+        preflight_gif_budget(b"GIF89a" + b"\x00" * 6, max_width=320, max_height=320)
+
+
+@pytest.mark.unit
+def test_gif_preflight_rejects_wrong_magic() -> None:
+    with pytest.raises(GifAnalysisError):
+        preflight_gif_budget(_gif_header(320, 320, b"NOTGIF"), max_width=320, max_height=320)
+
+
+@pytest.mark.unit
+def test_gif_preflight_accepts_exact_canvas_boundary() -> None:
+    preflight_gif_budget(_gif_header(320, 320), max_width=320, max_height=320)
+
+
+@pytest.mark.unit
+def test_gif_preflight_rejects_width_above_budget() -> None:
+    with pytest.raises(GifAnalysisError):
+        preflight_gif_budget(_gif_header(321, 320), max_width=320, max_height=320)
+
+
+@pytest.mark.unit
+def test_gif_preflight_rejects_height_above_budget() -> None:
+    with pytest.raises(GifAnalysisError):
+        preflight_gif_budget(_gif_header(320, 321), max_width=320, max_height=320)
+
+
+@pytest.mark.unit
+def test_gif_preflight_rejects_zero_canvas_dimension() -> None:
+    with pytest.raises(GifAnalysisError):
+        preflight_gif_budget(_gif_header(0, 320), max_width=320, max_height=320)

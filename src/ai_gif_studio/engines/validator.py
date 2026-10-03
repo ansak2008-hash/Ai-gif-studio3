@@ -13,6 +13,27 @@ from ai_gif_studio.domain.probe_errors import ProbeError
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 
 
+def preflight_gif_budget(payload: bytes, *, max_width: int, max_height: int) -> None:
+    """Validate the GIF header and canvas budget before image decoding."""
+    if len(payload) < 13 or payload[:6] not in (b"GIF87a", b"GIF89a"):
+        raise GifAnalysisError("input is not a valid GIF header")
+    if (
+        not isinstance(max_width, int)
+        or isinstance(max_width, bool)
+        or max_width <= 0
+        or not isinstance(max_height, int)
+        or isinstance(max_height, bool)
+        or max_height <= 0
+    ):
+        raise GifAnalysisError("GIF canvas limits must be positive integers")
+    width = int.from_bytes(payload[6:8], "little")
+    height = int.from_bytes(payload[8:10], "little")
+    if width <= 0 or height <= 0:
+        raise GifAnalysisError("GIF canvas dimensions must be positive")
+    if width > max_width or height > max_height:
+        raise GifAnalysisError("GIF canvas exceeds configured dimension limit")
+
+
 class OutputValidator:
     def __init__(self, ffmpeg: FFmpegService | None = None) -> None:
         self._ffmpeg = ffmpeg
@@ -73,7 +94,12 @@ class OutputValidator:
             if abs(actual_duration - expected_duration) > duration_tolerance:
                 return False
         try:
-            analysis = await self.analyze_gif_artifact(path, max_bytes)
+            analysis = await self.analyze_gif_artifact(
+                path,
+                max_bytes,
+                max_width=width,
+                max_height=height,
+            )
         except GifAnalysisError:
             return False
         if analysis.width != width or analysis.height != height:
@@ -97,8 +123,12 @@ class OutputValidator:
         self,
         path: Path,
         max_bytes: int,
+        *,
+        max_width: int = 320,
+        max_height: int = 320,
     ) -> GifAnalysisReport:
         payload = await asyncio.to_thread(path.read_bytes)
+        preflight_gif_budget(payload, max_width=max_width, max_height=max_height)
         return await asyncio.to_thread(
             analyze_gif_bytes,
             payload,
