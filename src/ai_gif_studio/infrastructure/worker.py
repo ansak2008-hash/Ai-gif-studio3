@@ -17,12 +17,14 @@ from ai_gif_studio.database.repositories import (
     JobStepRepository,
     SqlAlchemyJobRepository,
 )
+from ai_gif_studio.domain.delivery_contract import DeliveryConfig, SendDecision, decide_send
 from ai_gif_studio.domain.job_queue import AtomicJobQueue
 from ai_gif_studio.domain.specs import ProcessingSettings
 from ai_gif_studio.engines.crop import CropOnlyEngine
 from ai_gif_studio.engines.design import DesignGifEngine
 from ai_gif_studio.engines.validator import OutputValidator
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
+from ai_gif_studio.infrastructure.recovery import cron_settings
 from ai_gif_studio.infrastructure.storage import ArtifactStorage
 
 logger = logging.getLogger(__name__)
@@ -100,7 +102,7 @@ async def process_job(ctx, job_id: str, **_):
         active_step = await step_repo.start(job.id, steps[4])
         if not await OutputValidator(ff).validate_gif(output, max_bytes=processing.max_bytes, ffmpeg=ff):
             raise ValueError("rendered GIF failed output validation")
-        await ArtifactRepository(db.session_factory).register(
+        artifact = await ArtifactRepository(db.session_factory).register(
             job.id,
             output,
             "output_gif",
@@ -115,7 +117,36 @@ async def process_job(ctx, job_id: str, **_):
 
         failure_stage = "delivery"
         active_step = await step_repo.start(job.id, steps[5])
-        await bot.send_document(job.submission.submitted_by, FSInputFile(output))
+        from ai_gif_studio.database.repositories import SqlAlchemyDeliveryLog
+        from ai_gif_studio.domain.delivery_contract import DeliveryIdentity
+
+        delivery_log = SqlAlchemyDeliveryLog(db.session_factory)
+        delivery_config = DeliveryConfig(max_attempts=3)
+        identity = DeliveryIdentity(job.id, UUID(artifact.artifact_id), "telegram")
+        record = await delivery_log.begin_delivery(identity)
+        decision = decide_send(record, delivery_config)
+        if decision is SendDecision.RETRY:
+            record = await delivery_log.begin_retry(identity, delivery_config.max_attempts)
+            if record is None:
+                raise RuntimeError("delivery retry lost its durable state")
+            decision = SendDecision.SEND
+        if decision is SendDecision.SKIP_SENT:
+            pass
+        elif decision is SendDecision.SEND:
+            try:
+                message = await bot.send_document(
+                    job.submission.submitted_by,
+                    FSInputFile(output),
+                )
+            except Exception as error:
+                await delivery_log.mark_failed(identity, str(error))
+                raise
+            await delivery_log.mark_sent(identity, str(message.message_id))
+        elif decision is SendDecision.HOLD_UNKNOWN:
+            await delivery_log.mark_unknown(identity)
+            raise RuntimeError("delivery outcome is unknown; manual resolution required")
+        else:
+            raise RuntimeError("delivery retries exhausted; manual resolution required")
         await step_repo.complete(active_step)
         await queue.complete(job.id, worker_id, claimed.version)
     # Intentional job-boundary containment: classify and persist every terminal job failure.
@@ -144,6 +175,7 @@ async def process_job(ctx, job_id: str, **_):
 
 class WorkerSettings:
     functions = [process_job]
+    cron_jobs = [cron_settings()]
     max_jobs = 2
     max_tries = 2
     job_timeout = 180
