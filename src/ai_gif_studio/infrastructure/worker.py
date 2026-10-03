@@ -113,8 +113,20 @@ async def process_job(ctx, job_id: str, **_):
 
         failure_stage = "artifact_register"
         active_step = await step_repo.start(job.id, steps[4])
-        if not await OutputValidator(ff).validate_gif(output, max_bytes=processing.max_bytes, ffmpeg=ff):
+        output_validator = OutputValidator(ff)
+        if not await output_validator.validate_gif(
+            output,
+            max_bytes=processing.max_bytes,
+            ffmpeg=ff,
+            accepted_fps=quality.ladder(processing.fps),
+            expected_fps=processing.fps,
+            expected_duration=processing.max_duration_seconds,
+        ):
             raise ValueError("rendered GIF failed output validation")
+        artifact_analysis = await output_validator.analyze_gif_artifact(
+            output,
+            processing.max_bytes,
+        )
         artifact = await ArtifactRepository(db.session_factory).register(
             job.id,
             output,
@@ -124,6 +136,7 @@ async def process_job(ctx, job_id: str, **_):
                 "design_spec_version": design.schema_version,
                 "processing_settings_version": processing.schema_version,
                 "quality": report.as_dict(),
+                "artifact_analysis": artifact_analysis.to_json(),
             },
         )
         await step_repo.complete(active_step)
