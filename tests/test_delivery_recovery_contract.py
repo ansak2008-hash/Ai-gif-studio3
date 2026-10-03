@@ -67,6 +67,30 @@ def test_crash_window_never_resends() -> None:
     assert next_state_on_reobserve(rec).state is DeliveryState.UNKNOWN
 
 
+def test_unknown_reobserve_is_terminal_without_new_send() -> None:
+    rec = DeliveryRecord(
+        identity(),
+        DeliveryState.UNKNOWN,
+        1,
+        error="prior send outcome unknowable; manual resolution required",
+    )
+    assert decide_send(rec, DeliveryConfig()) is SendDecision.HOLD_UNKNOWN
+    assert next_state_on_reobserve(rec) == rec
+
+
+@pytest.mark.asyncio
+async def test_cancellation_not_swallowed_by_a2_boundary() -> None:
+    async def deliver_with_cancellation() -> None:
+        try:
+            await asyncio.sleep(0)
+            raise asyncio.CancelledError
+        except Exception as error:
+            pytest.fail(f"CancelledError was swallowed: {error}")
+
+    with pytest.raises(asyncio.CancelledError):
+        await deliver_with_cancellation()
+
+
 def test_state_fields_are_enforced() -> None:
     with pytest.raises(ValueError):
         DeliveryRecord(identity(), DeliveryState.INTENT, 0)
