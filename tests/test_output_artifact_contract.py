@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import io
 
+import pytest
 from PIL import Image
 
 from ai_gif_studio.application.gif_analysis import analyze_gif_bytes
+from ai_gif_studio.configuration.render import RenderConfiguration
+from ai_gif_studio.domain.specs import ProcessingSettings
+from ai_gif_studio.quality_engine import QualityEngine
 
 
 def _make_contract_gif(*, duration: int = 6000) -> bytes:
@@ -12,6 +16,36 @@ def _make_contract_gif(*, duration: int = 6000) -> bytes:
     output = io.BytesIO()
     frame.save(output, format="GIF", save_all=True, duration=duration, loop=0, optimize=False)
     return output.getvalue()
+
+
+def test_default_render_configuration_matches_canonical_contract() -> None:
+    configuration = RenderConfiguration()
+    assert configuration.canvas_width == 320
+    assert configuration.canvas_height == 320
+    assert configuration.duration_seconds == 6.0
+    assert configuration.maximum_output_bytes == 2_400_000
+    assert configuration.preferred_fps == 30
+    assert configuration.fps_fallback_ladder == (30, 27, 24, 20, 18, 15)
+    assert configuration.palette_colors == 256
+
+
+def test_processing_settings_default_fps_matches_canonical_contract() -> None:
+    assert ProcessingSettings().fps == 30
+
+
+def test_quality_ladder_uses_canonical_descending_ladder() -> None:
+    assert QualityEngine().ladder(30) == (30, 27, 24, 20, 18, 15)
+    assert QualityEngine().ladder(20) == (20, 18, 15)
+    assert QualityEngine().ladder(15) == (15,)
+
+
+def test_quality_ladder_does_not_increase_explicit_non_ladder_fps() -> None:
+    assert QualityEngine().ladder(8) == (8,)
+
+
+def test_render_configuration_rejects_non_descending_custom_ladder() -> None:
+    with pytest.raises(ValueError, match="FPS fallback ladder"):
+        RenderConfiguration(preferred_fps=30, fps_fallback_ladder=(30, 30, 24))
 
 
 def test_produced_gif_artifact_is_measured_against_canonical_contract() -> None:
@@ -25,13 +59,7 @@ def test_produced_gif_artifact_is_measured_against_canonical_contract() -> None:
     assert report.file_size_bytes <= 2_400_000
 
 
-def test_produced_gif_over_byte_limit_is_rejected_by_contract_boundary() -> None:
-    payload = _make_contract_gif()
-    assert len(payload) <= 2_400_000
-    assert 320 * 320 <= 320 * 320
-
-
-def test_analysis_reads_the_actual_artifact_bytes_without_mutation() -> None:
+def test_produced_gif_artifact_preserves_exact_source_bytes() -> None:
     payload = _make_contract_gif()
     before = bytes(payload)
     report = analyze_gif_bytes(payload)
