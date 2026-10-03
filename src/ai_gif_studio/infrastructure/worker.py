@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import socket
 from uuid import UUID
@@ -23,6 +24,9 @@ from ai_gif_studio.engines.design import DesignGifEngine
 from ai_gif_studio.engines.validator import OutputValidator
 from ai_gif_studio.infrastructure.ffmpeg import FFmpegService
 from ai_gif_studio.infrastructure.storage import ArtifactStorage
+
+
+logger = logging.getLogger(__name__)
 
 
 async def process_job(ctx, job_id: str, **_):
