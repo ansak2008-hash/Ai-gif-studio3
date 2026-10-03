@@ -38,6 +38,8 @@ SENT, UNKNOWN, and TERMINAL are terminal for automatic processing.
 
 If Telegram may have accepted a send but the process crashes before SENT is durably recorded, the next attempt observes INTENT and moves it to UNKNOWN. It does not resend automatically.
 
+An ambiguous exception from Telegram delivery is also recorded as UNKNOWN, not FAILED. FAILED is reserved for a confirmed-not-delivered outcome; otherwise bounded automatic retry could create a duplicate.
+
 This intentionally chooses at-most-once automatic delivery over at-least-once delivery. A single delivery may be lost in the ambiguous crash window; a duplicate automatic Telegram delivery is not produced by recovery.
 
 ### Bounded retry
