@@ -59,6 +59,10 @@ def select_redispatch_candidates(
     return [snapshot.job_id for snapshot in picked[:limit]]
 
 
+class RecoveryDispatchError(RuntimeError):
+    """The durable job remains QUEUED because transport dispatch failed."""
+
+
 class RecoveryLockPort(Protocol):
     async def try_acquire(self, ttl: timedelta) -> str | None: ...
 
