@@ -506,7 +506,24 @@ class SqlAlchemyDeliveryLog:
         return await self._transition(identity, DeliveryState.UNKNOWN, error='prior send outcome unknowable; manual resolution required')
 
     async def mark_terminal(self, identity: DeliveryIdentity, error: str) -> DeliveryRecord:
-        return await self._transition(identity, DeliveryState.TERMINAL, error=error)
+        async with self._session_factory() as session:
+            row = await session.scalar(
+                select(DeliveryRecordModel).where(
+                    DeliveryRecordModel.job_id == str(identity.job_id),
+                    DeliveryRecordModel.artifact_id == str(identity.artifact_id),
+                    DeliveryRecordModel.channel == identity.channel,
+                )
+            )
+            if row is None:
+                raise KeyError("delivery identity not found")
+            if row.state != DeliveryState.FAILED.value:
+                raise ValueError(f"illegal delivery transition from {row.state}")
+            row.state = DeliveryState.TERMINAL.value
+            row.error = error
+            row.external_ref = None
+            row.updated_at = datetime.now(UTC)
+            await session.commit()
+            return self._to_domain(row)
 
 class JobStepRepository:
     def __init__(self, session_factory: async_sessionmaker) -> None:
