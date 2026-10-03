@@ -92,10 +92,7 @@ def test_produced_gif_artifact_preserves_exact_source_bytes() -> None:
 def test_produced_gif_artifact_observes_256_color_ceiling_at_boundary() -> None:
     frame = Image.new("RGB", (320, 320))
     frame.putdata(
-        [
-            (index % 256, (index * 3) % 256, (index * 7) % 256)
-            for index in range(320 * 320)
-        ]
+        [(index % 256, (index * 3) % 256, (index * 7) % 256) for index in range(320 * 320)]
     )
     output = io.BytesIO()
     frame.save(output, format="GIF", save_all=True, duration=6000, loop=0, optimize=False)
